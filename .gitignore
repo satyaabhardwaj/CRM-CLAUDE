@@ -1,0 +1,14 @@
+# Never upload these (keys, client data, files clients sent, the sealed online copy).
+**/keys.env
+*.env
+!*.env.example
+data/
+online/index.html
+*.zip
+.DS_Store
+**/.DS_Store
+__pycache__/
+*.pyc
+# Any saved copy of the client data, wherever it is.
+**/store*.json
+**/seed.json
