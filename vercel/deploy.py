@@ -17,7 +17,7 @@ TEAM = "team_3kNUUimkx3oLM7Mfudka1f6S"   # Magppie Silverstone Pvt Ltd
 # Which one behaves how is decided by the web address, in sales/whatsapp/chat.js.
 # Run:  python3 vercel/deploy.py            -> both sites
 #       python3 vercel/deploy.py magppie-crm-local  -> only that one
-PROJECTS = ["magppie-crm"]   # magppie-crm-local was deleted on 15 Oct 2026
+PROJECTS = ["magppie-crm", "magppie-crm-helper"]   # magppie-crm-helper: same page, WhatsApp helper switched on (by address)
 PROJECT = "magppie-crm"
 API = "https://api.vercel.com"
 

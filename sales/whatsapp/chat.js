@@ -22,7 +22,9 @@
   // WhatsApp app. To give another address the full version, add it here.
   // 15 Oct 2026: Manish made this permanent everywhere: the button only opens the chat with the number in the WhatsApp app.
   // The mirror, Windows helper and watchdog were moved to the Bin. (Inside the claude.ai link the number is copied instead.)
-  const LOCAL_PLAIN = true;
+  // 16 Oct 2026: the helper version is back on its own site only: magppie-crm-helper.vercel.app has the mirror,
+  // the Windows helper (windows-helper/) and the watchdog. Every other address keeps the plain button.
+  const LOCAL_PLAIN = location.hostname !== 'magppie-crm-helper.vercel.app';
   const MIRROR = !LOCAL_PLAIN;
   // The Windows helper (windows-helper/) on 127.0.0.1:47321: when it is running, the mirror needs no "share your
   // screen" question and Send sends straight away. Without it, everything works the plain way.
