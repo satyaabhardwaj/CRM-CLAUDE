@@ -44,8 +44,9 @@
       const see = function (c) { return function () { ctx.show({ kind: 'client', id: c.id }); }; };
       const main = ctx.tab === 'today' ? D.todayMain(ctx, all) : (ctx.tab === 'post' ? D.postMain(ctx, all, see) : D.preMain(ctx, all, step, inDesign, see));
       const c = ctx.open ? ctx.all.find(function (x) { return x.id === ctx.open.id; }) : null;
-      return { main: [D.strip(all, ctx), main], rail: D.rail(ctx, all),
-        window: !c ? null : ({ timeline: D.timelineWindow, proposal: D.proposalWindow, ept: D.eptWindow, appliances: D.appliancesWindow, designflow: D.designFlowWindow, pdi: D.pdiWindow }[ctx.open.kind] || D.clientWindow)(c, ctx) };
+      // My tasks has no right-hand column (Manish, 19 Oct 2026): its PDI approval list sits beside the two task lists instead.
+      return { main: [D.strip(all, ctx), main], rail: ctx.tab === 'today' ? null : D.rail(ctx, all),
+        window: !c ? null : ({ timeline: D.timelineWindow, proposal: D.proposalWindow, measure: D.measureWindow, ept: D.eptWindow, appliances: D.appliancesWindow, designflow: D.designFlowWindow, pdi: D.pdiWindow }[ctx.open.kind] || D.clientWindow)(c, ctx) };
     }
   });
 })();

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rules tests</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 24px; color: #1D1D1F; }
+  .ok { color: #14602F; } .bad { color: #B3261E; font-weight: 600; }
+  li { margin: 2px 0; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Business rules tests</h1>
+<p>Open at http://127.0.0.1:4300/test/rules-tests.html with the laptop server running. Uses made-up clients only; saves nothing.</p>
+<p id="sum"></p>
+<ul id="out"></ul>
+<script src="/shared/kit.js"></script>
+<script src="/shared/people.js"></script>
+<script src="/shared/rules.js"></script>
+<script src="/accounts/common/pieces.js"></script>
+<script src="/accounts/pi/pi.js"></script>
+<script>
+(function () {
+  // Nothing in this page may save: the store's save is switched off before any rule runs.
+  Kit.store.save = function () {};
+  window.fetch = (function (real) { return function (u, o) { if (String(u).indexOf('/api/') === 0 && u !== '/api/store') return Promise.resolve(new Response(JSON.stringify({ error: 'no key' }), { status: 503 })); return real.apply(this, arguments); }; })(window.fetch);
+  const L = SalesLogic, out = document.getElementById('out');
+  let pass = 0, fail = 0;
+  function check(name, got, want) {
+    const ok = JSON.stringify(got) === JSON.stringify(want);
+    ok ? pass++ : fail++;
+    const li = document.createElement('li'); li.className = ok ? 'ok' : 'bad';
+    li.textContent = (ok ? 'PASS ' : 'FAIL ') + name + (ok ? '' : '  got ' + JSON.stringify(got) + ' wanted ' + JSON.stringify(want));
+    out.append(li);
+  }
+  function client(extra) {
+    const c = Object.assign({ id: 't1', pid: 'P-9001', cid: 'C-9001', city: 'Test City', product: 'Kitchen', name: 'Test client', stage: 'post', receivedAt: new Date().toISOString(),
+      order: { products: [{ product: 'Kitchen', value: 1000000 }], md: 100000, freight: 20000, archPct: 10 },
+      payment: { plan: 'SM', receipts: [] }, timeline: { type: 'Standard', productionDays: 45, handover: '2026-12-31' } }, extra || {});
+    return L.ensure(c);
+  }
+  const paid = function (amount) { return { amount: amount, date: '2026-10-01', mode: 'Test', kind: 'bank', status: 'Confirmed' }; };
+
+  // ---- Money ----
+  const t = L.totals(client());
+  check('OBV = products + installation', t.base, 1000000);
+  check('bank base = OBV - MD', t.bankBase, 900000);
+  check('GST 18% on bank part only', t.tax, 162000);
+  check('total payable = MD + bank with GST + freight', t.total, 100000 + 1062000 + 20000);
+  check('architect success fee = OBV x 10%', t.success, 100000);
+  check('net inflow = gross - GST - success', t.net, t.gross - 162000 - 100000);
+  check('MD can never exceed OBV', L.totals(client({ order: { products: [{ value: 100 }], md: 500 } })).md, 100);
+
+  // ---- Money from the Accounts sheet: bank % and free accessories % (Inderjit, 66.50 L, bank 30%, free accessories 5%) ----
+  const ij = L.totals(client({ order: { products: [{ value: 6650000 }], bankPct: 30, faPct: 5 } }));
+  check('bank part = OBV x bank %', ij.bankBase, 1995000);
+  check('GST 18% on the bank part', ij.tax, 359100);
+  check('to receive in bank = bank part + GST', ij.bank, 2354100);
+  check('management discount = OBV x (100 - bank %)', ij.md, 4655000);
+  const hm = L.totals(client({ order: { products: [{ value: 2315312 }], bankPct: 30, faPct: 6 } }));
+  check('PI sample Dr Himanshu: final price, GST, free accessories, total, management', [hm.bankBase, hm.tax, hm.freight, hm.bank, hm.md, hm.mgmt], [694594, 125027, 97243, 819620, 1620718, 1717962]);
+  check('PI sample: discount to be discussed after 11,52,250 approved', hm.mgmt - 1152250, 565712);
+  check('free accessories = management part x FA %', ij.freight, 232750);
+  check('total = OBV + GST + free accessories (sheet 72.4185 L)', ij.total, 7241850);
+  check('management to collect = total - bank', ij.mgmt, 7241850 - 2354100);
+  check('typing a % overrides an old typed amount', L.totals(client({ order: { products: [{ value: 1000000 }], md: 900000, bankPct: 50, freight: 99999, faPct: 0 } })).total, 500000 + 590000);
+  check('old orders show the bank % their amounts come to', t.bankPct, 90);
+
+  // ---- Plans and ledger ----
+  const sm = client();
+  check('SM plan shares 50/30/20', L.shares(sm).map(function (s) { return s.percent; }), [50, 30, 20]);
+  check('Founder plan has 5 shares', L.shares(client({ payment: { plan: 'Founder', receipts: [] } })).length, 5);
+  const led = L.ledger(client({ payment: { plan: 'SM', receipts: [paid(Math.round(t.total * 0.6))] } }));
+  check('ledger fills booking first, rest into production', [led[0].due, led[1].paid > 0], [0, true]);
+  check('rejected receipt does not count', L.collected(client({ payment: { plan: 'SM', receipts: [{ amount: 500, status: 'Rejected' }] } })), 0);
+
+  // ---- Timeline ----
+  const d = L.dates(client());
+  check('dispatch 30 days before handover', d.dispatch, '2026-12-01');
+  check('PDI 21 days before dispatch', d.pdi, '2026-11-10');
+  check('production drawing 45 days before dispatch', d.signoff, '2026-10-17');
+  check('no handover -> no dates', L.dates(client({ timeline: { type: 'Standard', productionDays: 45 } })), null);
+
+  // ---- Post-design flow ----
+  const p = client();
+  check('nothing done -> all red, stage EPT', [L.flowState(p).ept.state, L.flowState(p).design.state, L.postStage(p)], ['todo', 'todo', 'EPT']);
+  p.measurement = { doneAt: '2026-10-01T10:00:00Z' };
+  check('after site measurement: EPT and Design yellow', [L.flowState(p).ept.state, L.flowState(p).design.state], ['progress', 'progress']);
+  const f = L.flow(p);
+  L.flowLog(f.ept, 'EPT drawing sent to client'); L.flowLog(f.ept, 'Client asked for changes'); L.flowLog(f.ept, 'EPT drawing sent to client');
+  check('EPT counts sent and returned', [L.flowState(p).ept.sent, L.flowState(p).ept.returned], [2, 1]);
+  f.ept.signedAt = '2026-10-02'; f.appliances.items.push({ name: 'Hob' });
+  check('EPT signed -> green; appliances yellow; stage Appliances', [L.flowState(p).ept.state, L.flowState(p).appliances.state, L.postStage(p)], ['done', 'progress', 'Appliances']);
+  f.appliances.signedAt = '2026-10-03'; f.design.approvedAt = '2026-10-04';
+  check('all three green -> stage PDI', L.postStage(p), 'PDI');
+  check('factory refused before PDI approval', L.toFactory(p), false);
+  f.pdi.approvedAt = '2026-10-05';
+  check('PDI approved, 80% not in -> stage Accounts go-ahead, no factory', [L.postStage(p), L.toFactory(p), L.gate(p, 'factory').ready], ['Accounts go-ahead', false, false]);
+  p.payment.receipts.push(paid(Math.round(L.totals(p).total * 0.8)));
+  check('80% in but no Accounts approval -> still no factory', [L.toFactory(p), L.gate(p, 'factory').ready, L.postStage(p)], [false, true, 'Accounts go-ahead']);
+  L.approveGate(p, 'factory');
+  check('Accounts approves -> shot to factory, stage Factory', [!!p.factoryAt, L.postStage(p)], [true, 'Factory']);
+  check('shot to factory only once', L.toFactory(p), false);
+  check('dispatch waits for 100%', L.gate(p, 'dispatch').ready, false);
+  p.payment.receipts.push(paid(L.totals(p).total - L.collected(p)));
+  check('100% in -> dispatch ready; approved -> stage Dispatch', [L.gate(p, 'dispatch').ready, (L.approveGate(p, 'dispatch'), L.postStage(p))], [true, 'Dispatch']);
+
+  // ---- Accounts gates on a booked client ----
+  const g = client({ stage: 'booked', gates: {} });
+  check('gate %: booking 50, drawing 80, factory 80, dispatch 100', ['design', 'drawing', 'factory', 'dispatch'].map(function (k) { return L.gatePct(g, k); }), [50, 80, 80, 100]);
+  check('AVP plan: booking gate 25%, drawing 80%', [L.gatePct(client({ payment: { plan: 'AVP', receipts: [] } }), 'design'), L.gatePct(client({ payment: { plan: 'AVP', receipts: [] } }), 'drawing')], [25, 80]);
+  g.payment.receipts.push(paid(Math.round(L.totals(g).total * 0.5)));
+  check('50% in -> ready, but not handed to Design until Accounts approves', [L.gate(g, 'design').ready, L.handed(g)], [true, false]);
+  L.approveGate(g, 'design');
+  check('Accounts approves -> handed to Design', L.handed(g), true);
+  check('drawing gate shows what is short for 80%', L.gate(g, 'drawing').short, Math.round(L.totals(g).total * 0.8) - L.collected(g));
+  const old = client({ stage: 'booked', payment: { plan: 'SM', receipts: [paid(10000000)] } });
+  check('an order fully booked before the rule keeps its place in Design', [!!old.gates.design, L.handed(old)], [true, true]);
+
+  // ---- PI (bank amount only) ----
+  const pc = client({ stage: 'booked', gates: {}, order: { products: [{ value: 6650000 }], bankPct: 30, faPct: 5 }, payment: { plan: 'SM', receipts: [paid(1000000)] } });
+  const pi = AccountsParts.piMaths(pc, 'design');
+  check('booking PI: 50% of bank amount minus bank received', [pi.due, pi.got, pi.net], [1177050, 1000000, 177050]);
+  check('PI net split into value + GST', pi.netBase + pi.netGst, pi.net);
+  check('production PI at 80%, dispatch PI at 100%', [AccountsParts.piMaths(pc, 'drawing').due, AccountsParts.piMaths(pc, 'dispatch').net], [Math.round(2354100 * 0.8), 2354100 - 1000000]);
+  check('management money never counts on a PI', AccountsParts.piMaths(client({ order: { products: [{ value: 6650000 }], bankPct: 30 }, payment: { plan: 'SM', receipts: [{ amount: 500000, kind: 'md', status: 'Confirmed' }] } }), 'design').got, 0);
+
+  // ---- Leads ----
+  const lead = client({ stage: 'qualified', receivedAt: new Date(Date.now() - 30 * 3600000).toISOString() });
+  check('first call late after 24h', L.firstCall(lead).late, true);
+  L.logContact(lead, { type: 'Call', outcome: 'No answer' });
+  const h1 = (new Date(lead.retry.dueAt) - Date.now()) / 3600000;
+  check('first no-answer retry in about 12h', Math.round(h1), 12);
+  L.logContact(lead, { type: 'Call', outcome: 'No answer' });
+  check('second retry in about 6h', Math.round((new Date(lead.retry.dueAt) - Date.now()) / 3600000), 6);
+  L.logContact(lead, { type: 'Call', outcome: 'Spoke to client' });
+  check('spoke after 24h -> marked missed24, retry cleared', [lead.missed24, lead.retry], [true, null]);
+
+  // ---- Display ----
+  check('lakhs with 2 decimals, cut not rounded', Kit.lakh(16942760), '169.42');
+  check('short money', Kit.short(3420000), '₹34.20 L');
+
+  document.getElementById('sum').innerHTML = '<b class="' + (fail ? 'bad' : 'ok') + '">' + pass + ' passed, ' + fail + ' failed</b>';
+  window.__result = { pass: pass, fail: fail };
+})();
+</script>
+</body>
+</html>

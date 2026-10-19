@@ -66,7 +66,7 @@
     const cols = [
       { name: 'S No', x: left + 4, right: false }, { name: 'Product', x: left + 34, right: false }, { name: 'Qty', x: 200, right: true },
       { name: 'Estimate Price', x: 274, right: true }, { name: 'Discount Offered', x: 352, right: true }, { name: 'Final Price', x: 420, right: true },
-      { name: 'GST', x: 484, right: true }, { name: 'Freight', x: right - 4, right: true }
+      { name: 'GST', x: 484, right: true }, { name: 'Free acc.', x: right - 4, right: true }
     ];
     const rowOf = function (cells, bold, shade) {
       if (shade) { doc.setFillColor(shade); doc.rect(left, y - 11, right - left, 16, 'F'); }

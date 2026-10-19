@@ -12,7 +12,7 @@
     const todo = tasks(all);
     const make = all.filter(function (c) { return c.stage === 'design' && c.design.step === 'withDesign'; });
     const late = todo.filter(function (t) { return Kit.daysSince(t.at) >= 3; });
-    const collect = post.filter(function (c) { return L.postStage(c) === 'Collect 30%'; });
+    const collect = post.filter(function (c) { return L.postStage(c) === 'Accounts go-ahead'; });
     const factory = post.filter(function (c) { return L.postStage(c) === 'Factory'; });
     const sum = function (list, fn) { return list.reduce(function (t, c) { return t + fn(c); }, 0); };
     const last = function (c) { const p = c.design.proposals[c.design.proposals.length - 1]; return c.stage === 'design' ? (p ? Number(p.amount) || 0 : 0) : L.totals(c).total; };
@@ -31,8 +31,8 @@
       tile('My tasks today', '(' + todo.length + ')', onTime + '% inside 3 days', onTime === 100 ? 'green' : (onTime >= 50 ? 'amber' : 'red'), 'today', '', onTime),
       tile('Proposals to make', '(' + make.length + ')', make.filter(isRevision).length + ' revision(s)', 'blue', 'pre', 'make', share(make.length, pre.length)),
       tile('Post-design board', '(' + post.filter(function (c) { return !c.factoryAt; }).length + ')', D.pdiWaiting(all).length + ' waiting for PDI', 'blue', 'post', 'board', share(post.filter(function (c) { return L.flowState(c).design.state === 'done'; }).length, post.length)),
-      tile('30% collected', Kit.short(got30) + ' of ' + Kit.short(due30), share(got30, due30) + '% collected', share(got30, due30) >= 50 ? 'green' : (got30 ? 'amber' : 'red'), 'post', 'collections', share(got30, due30)),
-      tile('Shot to factory', Kit.short(sum(D.factoryGone(all), function (c) { return L.totals(c).total; })) + ' (' + D.factoryGone(all).length + ')', D.factoryWaiting(all).length + ' waiting for the 30%', 'green', 'post', 'factory', share(D.factoryGone(all).length, post.length)));
+      tile('80% collected', Kit.short(got30) + ' of ' + Kit.short(due30), share(got30, due30) + '% collected', share(got30, due30) >= 50 ? 'green' : (got30 ? 'amber' : 'red'), 'post', 'collections', share(got30, due30)),
+      tile('Shot to factory', Kit.short(sum(D.factoryGone(all), function (c) { return L.totals(c).total; })) + ' (' + D.factoryGone(all).length + ')', D.factoryWaiting(all).length + ' waiting for 80% or Accounts', 'green', 'post', 'factory', share(D.factoryGone(all).length, post.length)));
   }
 
   D.strip = strip;

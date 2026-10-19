@@ -9,7 +9,7 @@
   function details(r, ctx) {
     const c = r.c, m = r.m;
     const fact = function (label, value) { return h('div', null, h('span', null, label), h('b', null, value || 'Not provided')); };
-    const set = function (key) { return function (v) { ctx.update(function () { m[key] = v; m.changedAt = Kit.now(); if (key === 'date' && v) Kit.news(c, 'Measurement visit booked for ' + Kit.day(v), 'blue', 'Measurement'); }); }; };
+    const set = function (key) { return function (v) { ctx.update(function () { m[key] = v; m.changedAt = Kit.now(); if ((key === 'date' || key === 'assignee') && v && !m.alignedAt) m.alignedAt = Kit.now(); if (key === 'date' && v) Kit.news(c, 'Measurement visit booked for ' + Kit.day(v), 'blue', 'Measurement'); }); }; };
     return {
       title: c.name,
       tag: pill(r),

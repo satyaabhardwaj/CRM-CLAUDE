@@ -18,7 +18,7 @@ Work only inside the folder you were given. If a change needs a file outside it,
 | `sales/` | Everything for Sales. |
 | `design/` | The Design team's screen, at `/design/`. Two portals on slim tabs: Pre-design (until the booking share is in; Sales is the point of contact) and Post-design (after it; Design is the point of contact). Each has its own strip of pages on the left. |
 | `measurement/` | The Measurement screen, at `/measurement/`. Same screens and words as the Measurement Dashboard project (Overview, Requests, Map and areas, Reports), fed from this CRM's clients. |
-| `accounts/` | The Accounts screen, at `/accounts/`. Slim tabs for the payment stages: Booking, EPT, Production drawing, PDI, Handover. |
+| `accounts/` | The Accounts screen, at `/accounts/`. Split into folders like Sales (19 Oct 2026); see the Accounts table below. |
 | `ai/` | Everything that uses an AI model: `agents/` (one job when asked, for example the voice note transcriber) and `automations/` (run by themselves; empty for now). Keys sit in `ai/keys.env` on this laptop only and are never served to a browser. Read `ai/README.md`. |
 | `online/` | The password-locked online copy. `python3 online/build.py` rebuilds it from the same files. |
 | `management/` | The management view, opened from the Management link in the top bar (`/management/`). It only reads, never saves. |
@@ -42,6 +42,20 @@ Inside `sales/`:
 | `approvals/`, `notifications/` | Sent for approvals (everything sent for a yes, and what came back) and the bell in the top bar. |
 | `follow-ups/`, `birds-eye/`, `team/`, `date-filter/`, `new-opportunity/` | One folder each: the follow-up calls list, the strip on top, the Viewing dropdown, the date dropdown, the new opportunity form. |
 
+Inside `accounts/` (tabs in this order: Summary, Clients, Daily payments, Approvals, then the payment stages, then Master data):
+
+| Folder | What it holds |
+|---|---|
+| `shell/` | The frame: the slim tabs and which page each one shows. |
+| `common/` | Pieces several pages need: stage lines, the approve / reject card, a client's money (`A.money`), the next approval, the Accounts approvals card. |
+| `summary/` | Order book (OCF pending, with Design, in production, dispatched, cancelled; retail and project) and the money still needed for 50%, 80%, 100%. |
+| `client-search/` | Every order in one searchable table. |
+| `daily-payments/` | The one form where each day's money is entered, and that day's list. |
+| `approvals/` | The four Accounts gates: Booking to Design (50%), Production drawing (80%), Factory go-ahead (80% + PDI), Dispatch (100%). |
+| `booking/`, `stage-tabs/` | The Booking tab with its windows, and the EPT / Production drawing / PDI / Handover tabs. |
+| `payment-window/` | A client's money window (record a payment, approvals, PIs) and the "Sales says paid" window. |
+| `pi/` | The PI in Magppie's layout (sample: Dr Himanshu, 17.10.2026). |
+
 Each dashboard folder has `dashboard.js` (the screen) and `dropdowns.js` (its lists). A dashboard never reads another dashboard's folder. What two dashboards share goes in `common/` or `order-cards/`.
 
 ## How saving and redrawing work (read before touching `kit.js`)
@@ -55,9 +69,15 @@ Each dashboard folder has `dashboard.js` (the screen) and `dropdowns.js` (its li
 
 ## To confirm with Manish
 
+- Post-design order (19 Oct 2026): site measurement (Sent, Aligned, Done, with a note), design, appliances, EPT, PDI. Design needs only the site measurement; PDI needs design, appliances and EPT. Defaults chosen without his answer: My tasks due date = date promised to Sales (pre-design) or planned production drawing date (post-design; PDI date for PDI); only the right-hand boxes were removed, only on My tasks.
+
+- PI for Booking and Production (19 Oct 2026): the sample is a full statement. On a stage PI the line "Payable at booking: 50% of <bank amount with GST>" is added and Balance Due = that minus payment received in bank. The % on the PI is applied to the bank amount, while the Accounts approvals count the % on the total payable (as in the sheet). To confirm.
+- "On hold" orders from the sheet's summary have no place in the CRM yet.
+- Order type (Retail or Project) is a new field on the order card, Retail unless chosen.
+
 - Retry timer after no answer: 12 hours, then 6, then halves again, never under 1 hour. Only 12 and 6 are his words.
-- Timeline: dispatch 30 days before handover, PDI 20 days before dispatch, drawing signoff = production days before PDI.
-- Money maths (in `shared/rules.js`): offer basic value = products + installation. The management discount is typed in, decided on the spot, with no GST; the bank amount is the offer basic value minus the management discount, and GST is 18% on that bank amount only; freight is typed and added as it is. Total payable = management discount + received in bank + freight. Net inflow is worked out as gross inflow - GST - success fees; Manish's own wording was "offer basic value - success fees + freight - GST", which gives a lower figure. To confirm which one.
+- Timeline: dispatch 30 days before handover, PDI 21 days before dispatch, drawing signoff = production days (45) before dispatch (from the Accounts sheet, 19 Oct 2026).
+- Money maths (settled 19 Oct 2026 from the Accounts sheet, see `shared/rules.js`): bank % and free accessories % are typed; total = OBV + GST on the bank part + free accessories. Net inflow = total - GST - success fees.
 - The designer's estimate is entered "including GST" at 18% on everything, but the order maths charges GST on the bank part only, so the client's total payable comes out lower than the estimate. To confirm.
 - Payment plan approval (SM / AVP / Founder) is still a dropdown the SM sets, because there is no AVP or Founder screen yet.
 - OCF button is a placeholder. The generator comes later.
@@ -67,4 +87,5 @@ Each dashboard folder has `dashboard.js` (the screen) and `dropdowns.js` (its li
 - Management's Client wise tab lists clients up to Booked. Clients moved to post-design are counted in Full analysis only.
 - Post-design stages are read from the planned dates (Production drawing, PDI, Dispatch, Handover, Handed over). The real stages come from the Zoho PDF Manish will send.
 - Accounts stage tabs: money received is counted against the plan's shares in order (booking first). No date is known for the EPT payment.
+- Accounts gates (19 Oct 2026): 50% to Design, 80% production drawing, 80% + PDI factory, 100% dispatch; each needs Accounts to click Approve. Orders already in Design before this were marked approved automatically.
 - Measurement: only First Measurement has requests (from "Request site measurement" in Sales). How EPT Marking, EPT Verification and PDI requests are raised is not decided. Visit date, assigned person and "Mark visit done" were added here; the zip project is read-only. The live map (Mappls) and the Zoho connection are not brought over.

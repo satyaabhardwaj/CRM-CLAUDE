@@ -21,7 +21,7 @@
     ['GST', function (c) { return c.order.products.length ? Kit.money(L.totals(c).tax) : ''; }],
     ['Management discount', function (c) { return c.order.products.length ? Kit.money(L.totals(c).md) : ''; }],
     ['Received in bank (due)', function (c) { return c.order.products.length ? Kit.money(L.totals(c).bank) : ''; }],
-    ['Freight', function (c) { return c.order.freight ? Kit.money(c.order.freight) : ''; }],
+    ['Free accessories', function (c) { const f = c.order.products.length ? L.totals(c).freight : 0; return f ? Kit.money(f) : ''; }],
     ['Architect code', function (c) { return c.order.architectCode; }],
     ['Payment plan', function (c) { return c.order.products.length ? c.payment.plan : ''; }],
     ['Booking share', function (c) { return c.order.products.length ? Kit.money(L.bookingDue(c)) : ''; }],
@@ -53,7 +53,7 @@
     window.claude.use('downloads').then(function (d) { return d ? d.save({ filename: name, data: file }) : plain(); }).catch(function () {});
   }
 
-  const HIDDEN = ['Management discount', 'Freight'];
+  const HIDDEN = ['Management discount', 'Free accessories'];
   function table(ctx) {
     const COLS = Kit.bankOnly() ? ALL.filter(function (col) { return HIDDEN.indexOf(col[0]) < 0; }) : ALL;
     const rows = ctx.clients.slice().sort(function (a, b) { return a.pid < b.pid ? -1 : 1; });

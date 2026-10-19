@@ -51,7 +51,7 @@
     const small = function (text, bad) { return h('div', { class: bad ? 'bad' : 'sub', style: 'font-size: 12px' }, text); };
     if (pre) return p ? [h('b', { class: 'num' }, Kit.short(p.amount)), small('proposal')] : [h('span', null, c.budget || 'No value yet'), small('budget')];
     const row = L.productionRow(c);
-    return [h('b', { class: 'num' }, Kit.short(L.totals(c).total)), row && row.due ? small(Kit.short(row.due) + ' to collect', true) : small('30% is in')];
+    return [h('b', { class: 'num' }, Kit.short(L.totals(c).total)), row && row.due ? small(Kit.short(row.due) + ' to collect', true) : small('80% is in')];
   }
   // The designs made so far, with a link to the newest one when a file was uploaded.
   function designs(c) {
@@ -64,7 +64,7 @@
 
 
 
-  // What a post-design client still owes after the booking share: the production 30%, the PDI 20% and any later share.
+  // What a post-design client still owes after the booking share: everything up to 100%.
   function owed(c) { return L.ledger(c).reduce(function (t, r) { return t + (r.name === 'Booking' ? 0 : r.due); }, 0); }
 
   // The open work for Design. Pre-design: a proposal or a revision to make. Post-design: the stage the client is at now.
@@ -72,10 +72,12 @@
     const out = [];
     all.forEach(function (c) {
       if (c.stage === 'design' && c.design.step === 'withDesign') {
-        out.push({ c: c, pre: true, kind: 'proposal', at: c.design.stepAt || c.design.sentAt, what: isRevision(c) ? 'Revision · V' + (c.design.proposals.length + 1) + ' · ' + lastRevision(c).reason : 'First proposal' });
+        out.push({ c: c, pre: true, kind: 'proposal', at: c.design.stepAt || c.design.sentAt, due: c.design.promisedBy || '', what: isRevision(c) ? 'Revision · V' + (c.design.proposals.length + 1) + ' · ' + lastRevision(c).reason : 'First proposal' });
       } else if (L.handed(c) && !c.factoryAt && L.postStage(c) !== 'Factory') {
-        const st = L.postStage(c), KIND = { EPT: 'ept', Appliances: 'appliances', Design: 'designflow', PDI: 'pdi' };
-        out.push({ c: c, pre: false, kind: KIND[st] || 'client', at: c.movedAt || c.bookedAt, what: st === 'Collect 30%' ? 'Collect 30% · ' + Kit.money(L.productionRow(c) ? L.productionRow(c).due : 0) : st + ' · ' + ({ EPT: L.flowState(c).ept.step, Appliances: 'appliance list to finish', Design: 'design to finalise', PDI: 'last PDI to approve' }[st] || '') });
+        const st = L.postStage(c), KIND = { 'Site measurement': 'measure', EPT: 'ept', Appliances: 'appliances', Design: 'designflow', PDI: 'pdi' };
+        const d = L.dates(c);
+        out.push({ c: c, pre: false, kind: KIND[st] || 'client', at: c.movedAt || c.bookedAt, due: d ? (st === 'PDI' ? d.pdi : d.signoff) : '',
+          what: st === 'Accounts go-ahead' ? 'Accounts go-ahead · ' + Kit.money(L.productionRow(c) ? L.productionRow(c).due : 0) : st + ' · ' + ({ 'Site measurement': 'first site measurement · ' + L.measureState(c).step.toLowerCase(), EPT: L.flowState(c).ept.step, Appliances: 'appliance list to finish', Design: 'design to finalise', PDI: 'last PDI to approve' }[st] || '') });
       }
     });
     return out.sort(function (a, b) { return new Date(a.at || 0) - new Date(b.at || 0); });

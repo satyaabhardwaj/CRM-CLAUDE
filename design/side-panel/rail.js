@@ -23,8 +23,8 @@
       const fresh = all.filter(function (c) { return (c.news || []).some(function (n) { return Kit.newsFrom(n) !== 'Design' && Kit.hoursSince(n.at) <= 48; }); })
         .map(function (c) { const n = c.news.filter(function (x) { return Kit.newsFrom(x) !== 'Design'; })[0]; return { c: c, kind: L.handed(c) ? 'client' : (c.design.step === 'withDesign' ? 'proposal' : 'client'), pill: Kit.pill(Kit.newsFrom(n), 'blue'), sub: n.text }; });
       if (ctx.tab === 'post') {
-        const pdi = D.pdiWaiting(all).map(function (c) { return { c: c, kind: 'pdi', pill: Kit.pill('PDI', 'yellow'), sub: 'design approved ' + Kit.day(L.flow(c).design.approvedAt) + ' · ' + (c.design.designer || 'No designer') }; });
-        const fac = D.factoryWaiting(all).map(function (c) { return { c: c, kind: 'client', pill: Kit.pill(Kit.short(L.productionRow(c) ? L.productionRow(c).due : 0), 'red'), sub: 'PDI approved · waiting for the 30%' }; })
+        const pdi = D.pdiWaiting(all).map(function (c) { return { c: c, kind: 'pdi', pill: Kit.pill('PDI', 'yellow'), sub: 'ready since ' + Kit.day(D.pdiSince(c)) + ' · ' + (c.design.designer || 'No designer') }; });
+        const fac = D.factoryWaiting(all).map(function (c) { return { c: c, kind: 'client', pill: Kit.pill(Kit.short(L.productionRow(c) ? L.productionRow(c).due : 0), 'red'), sub: 'PDI approved · waiting for 80% or Accounts' }; })
           .concat(D.factoryGone(all).sort(function (a, b) { return a.factoryAt < b.factoryAt ? 1 : -1; }).map(function (c) { return { c: c, kind: 'client', pill: Kit.pill('Sent', 'green'), sub: 'since ' + Kit.day(c.factoryAt) + ' · ' + D.mailLine(c) }; }));
         return [box('PDI approval', 'teal', pdi, 'Nothing waiting for PDI.'), box('Shoot to factory', 'green', fac, 'Nothing for the factory yet.'),
           box('Money to collect', 'amber', money, 'Nothing to collect.'), box('Just in', 'blue', fresh, 'Nothing new from Sales or Accounts.')];

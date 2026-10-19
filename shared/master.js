@@ -21,7 +21,7 @@
     ['GST', function (c) { return c.order.products.length ? Kit.money(L.totals(c).tax) : ''; }],
     ['Management discount', function (c) { return c.order.products.length ? Kit.money(L.totals(c).md) : ''; }],
     ['Received in bank (due)', function (c) { return c.order.products.length ? Kit.money(L.totals(c).bank) : ''; }],
-    ['Freight', function (c) { return c.order.freight ? Kit.money(c.order.freight) : ''; }],
+    ['Free accessories', function (c) { const f = c.order.products.length ? L.totals(c).freight : 0; return f ? Kit.money(f) : ''; }],
     ['Architect code', function (c) { return c.order.architectCode; }],
     ['Payment plan', function (c) { return c.order.products.length ? c.payment.plan : ''; }],
     ['Booking share', function (c) { return c.order.products.length ? Kit.money(L.bookingDue(c)) : ''; }],
@@ -39,13 +39,13 @@
     ['OCF date', function (c) { return c.ocfAt ? Kit.day(c.ocfAt) : ''; }],
     ['Post-design stage', function (c) { return L.handed(c) ? L.postStage(c) : ''; }],
     ['Drawing signed off', function (c) { return c.drawingSignedAt ? Kit.day(c.drawingSignedAt) : ''; }],
-    ['30% to collect', function (c) { const r = L.productionRow(c); return c.order.products.length && r ? Kit.money(r.due) : ''; }],
+    ['To collect for 80%', function (c) { const r = L.productionRow(c); return c.order.products.length && r ? Kit.money(r.due) : ''; }],
     ['In factory since', function (c) { return c.factoryAt ? Kit.day(c.factoryAt) : ''; }],
     ['Planned signoff', function (c) { const d = L.dates(c); return d ? Kit.day(d.signoff) : ''; }],
     ['PDI', function (c) { const d = L.dates(c); return d ? Kit.day(d.pdi) : ''; }],
     ['Dispatch', function (c) { const d = L.dates(c); return d ? Kit.day(d.dispatch) : ''; }]
   ];
-  const HIDDEN = ['Management discount', 'Freight'];
+  const HIDDEN = ['Management discount', 'Free accessories'];
 
   window.Master = {
     table: function (all) {

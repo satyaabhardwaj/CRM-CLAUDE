@@ -32,6 +32,13 @@
     c.payment.plan = c.payment.plan || 'SM';
     c.payment.receipts = c.payment.receipts || [];
     c.approvals = c.approvals || { plan: 'Not sent', timeline: 'Not sent', booking: 'Not sent' };
+    // Before 19 Oct the order went to Design by itself once the booking share was in. Those orders keep their place:
+    // the first time a client is seen without gates, a fully paid booking is marked as already approved.
+    if (!c.gates) {
+      c.gates = {};
+      if (c.stage === 'post' || (c.stage === 'booked' && c.order.products.length && L.bookingLeft(c) === 0)) c.gates.design = { at: c.movedAt || c.bookedAt || Kit.now(), by: 'Before the Accounts approval rule' };
+      if (c.factoryAt) c.gates.factory = { at: c.factoryAt, by: 'Before the Accounts approval rule' };
+    }
     // There is no separate token stage any more: a client who has approved and signed is booked, and the token is simply the first payment.
     if (c.stage === 'token') { c.stage = 'booked'; c.bookedAt = c.bookedAt || c.approvedAt || Kit.now(); }
     // Once the token has come in, the token boxes show what actually came and when, instead of staying empty.
@@ -100,26 +107,33 @@
     return hit ? hit.at : (c.spokeAt || null);
   };
 
-  // Money. The maths Manish set out:
-  //   Offer basic value (shown to the client, success fees included) = products + installation
-  //   The management discount is decided on the spot and typed in. No GST on it.
-  //   The bank amount is the offer basic value minus the management discount. GST is 18% on that bank part only.
-  //   Freight is typed by hand and added as it is.
-  //   Total payable by client = management discount + received in bank (with GST) + freight
-  //   Gross inflow = received in bank + management discount + freight
-  //   Net inflow = gross inflow - GST - success fees
+  // Money. The maths of the Accounts sheet ("Correct Data", Manish, 19 Oct 2026):
+  //   Offer basic value (OBV, shown to the client, success fees included) = products + installation
+  //   Bank %: typed per order. Bank part = OBV x bank %. GST is 18% on the bank part only.
+  //   The rest of the OBV (100% - bank %) is the management discount. No GST on it.
+  //   Free accessories %: typed per order, on the management part: OBV x (100% - bank %) x free accessories %.
+  //   Total payable by client = OBV + GST + free accessories
+  //   Management amount to collect = total - bank amount = management discount + free accessories
+  //   Gross inflow = total. Net inflow = gross inflow - GST - success fees
+  // Orders saved before 19 Oct carry a typed management discount (o.md) and freight (o.freight) instead of the two %;
+  // they keep their amounts until someone types the %.
+  L.pct = function (v) { return v === '' || v == null || isNaN(Number(v)) ? null : Math.min(100, Math.max(0, Number(v))); };
   L.totals = function (c) {
     const o = c.order;
     const products = o.products.reduce(function (sum, p) { return sum + (Number(p.value) || 0); }, 0);
     const obv = products + (Number(o.installation) || 0);
-    const md = Math.min(obv, Math.max(0, Number(o.md) || 0));
-    const bankBase = obv - md;
-    const gst = Math.round(bankBase * 0.18);
-    const bank = bankBase + gst;
-    const freight = Number(o.freight) || 0;
+    const bankPct = L.pct(o.bankPct), faPct = L.pct(o.faPct);
+    // As in the sheet, the parts are worked out exactly and each line is rounded to the rupee on its own,
+    // so the bank amount and the management amount are each the rounded sum of their exact parts.
+    const mdX = bankPct != null ? obv * (100 - bankPct) / 100 : Math.min(obv, Math.max(0, Number(o.md) || 0));
+    const baseX = obv - mdX, gstX = baseX * 0.18;
+    const faX = faPct != null ? mdX * faPct / 100 : (Number(o.freight) || 0);
+    const md = Math.round(mdX), bankBase = Math.round(baseX), gst = Math.round(gstX), freight = Math.round(faX);
+    const bank = Math.round(baseX + gstX), mgmt = Math.round(mdX + faX);
     const success = Math.round(obv * (Number(o.archPct) || 0) / 100);
-    const total = md + bank + freight;
-    return { products: products, base: obv, bankBase: bankBase, tax: gst, bank: bank, md: md, freight: freight,
+    const total = bank + mgmt;
+    return { products: products, base: obv, bankBase: bankBase, tax: gst, bank: bank, md: md, freight: freight, mgmt: mgmt,
+      bankPct: obv ? (bankPct != null ? bankPct : Math.round(bankBase / obv * 10000) / 100) : bankPct, faPct: faPct,
       success: success, afterSuccess: obv - success, total: total, gross: bank + md + freight, net: bank + md + freight - gst - success };
   };
   // How much of what came in went through the bank, and how much was management discount.
@@ -138,8 +152,13 @@
   L.payDue = function (c) { return L.tokenIn(c) ? (c.payment.expectedBy || '') : (c.payment.tokenBy || c.payment.expectedBy || ''); };
   L.shares = function (c) {
     const total = L.totals(c).total;
-    return L.PLANS[c.payment.plan].shares.map(function (s) {
-      return { name: s[0], percent: s[1], amount: Math.round(total * s[1] / 100) };
+    // Each share is rounded to the rupee; the last one takes what is left, so the shares always add up to the total.
+    const list = L.PLANS[c.payment.plan].shares;
+    let given = 0;
+    return list.map(function (s, i) {
+      const amount = i === list.length - 1 ? total - given : Math.round(total * s[1] / 100);
+      given += amount;
+      return { name: s[0], percent: s[1], amount: amount };
     });
   };
   L.bookingDue = function (c) { return L.shares(c)[0].amount; };
@@ -159,19 +178,52 @@
       return { name: s.name, percent: s.percent, amount: s.amount, paid: paid, due: s.amount - paid };
     });
   };
-  // Pre-design ends when the booking share is in. From then on Design is the point of contact, not the sales person.
-  L.handed = function (c) { return c.stage === 'post' || (c.stage === 'booked' && L.bookingLeft(c) === 0); };
-  // Post-design, in order (Manish, 15 Oct 2026; matches the Phase Wise Flow and the PRD):
-  //   EPT:          after the first site measurement, the EPT (Electrical, Plumbing, Tiling, Ducting, Gas) drawings,
-  //                 sent to the client, returned or signed. Done when the client signs the EPT.
+  // Accounts gates (Manish, 19 Oct 2026). Each one opens only when the money is in AND Accounts clicks Approve.
+  // The % is counted on the total payable (OBV + GST + free accessories), as in the Accounts sheet, and is cumulative:
+  //   design    booking share in (50% on the SM plan)              -> the order goes to Design (post-design)
+  //   drawing   booking + production shares in (80%)                -> Design may do the production drawing
+  //   factory   80% in and the PDI approved                         -> shot to the factory, factory emailed
+  //   dispatch  100% in                                             -> may be dispatched
+  L.GATES = [['design', 'Booking · to Design'], ['drawing', 'Production drawing'], ['factory', 'Factory go-ahead'], ['dispatch', 'Dispatch']];
+  L.gatePct = function (c, key) {
+    const shares = L.PLANS[c.payment.plan].shares;
+    if (key === 'design') return shares[0][1];
+    if (key === 'dispatch') return 100;
+    let sum = 0, hit = false;
+    shares.forEach(function (s) { if (!hit) sum += s[1]; if (s[0] === 'Production') hit = true; });
+    return hit ? sum : 100;
+  };
+  // Where one gate stands: the % it needs, the money that must be in, how much is still short, and whether Accounts approved it.
+  L.gate = function (c, key) {
+    const total = L.totals(c).total, pct = L.gatePct(c, key), got = L.collected(c);
+    const need = Math.round(total * pct / 100), short = Math.max(0, need - got);
+    const g = (c.gates || {})[key] || null;
+    const before = key === 'factory' ? !!L.flow(c).pdi.approvedAt : (key === 'drawing' || key === 'dispatch' ? !!(c.gates || {}).design || c.stage === 'post' : c.stage === 'booked');
+    return { key: key, pct: pct, need: need, got: got, short: short, approved: g, ready: !g && total > 0 && short === 0 && before, before: before };
+  };
+  L.approveGate = function (c, key, by) {
+    c.gates = c.gates || {};
+    c.gates[key] = { at: Kit.now(), by: by || 'Accounts' };
+    const name = L.GATES.filter(function (x) { return x[0] === key; })[0][1];
+    Kit.news(c, 'Accounts approved: ' + name, 'green', 'Accounts');
+    if (key === 'factory') L.toFactory(c);
+  };
+  L.gateOpen = function (c, key) { return !!(c.gates || {})[key]; };
+  // Pre-design ends when Accounts approves the booking share. From then on Design is the point of contact, not the sales person.
+  L.handed = function (c) { return c.stage === 'post' || (c.stage === 'booked' && L.gateOpen(c, 'design')); };
+  // Post-design, in order (Manish, 19 Oct 2026; was EPT, Appliances, Design):
+  //   Site measurement: the first site measurement. Sent (a request goes to Measurement), Aligned (the measurement
+  //                 person has a visit date or a name), Done (the visit is done). Kept on c.measurement, the same record
+  //                 the Measurement screen works on, with a small note.
+  //   Design:       in progress once the site is measured, until it is finally approved. Needs only the site measurement.
+  //                 The client also signs the production drawing, which opens once Accounts approves 80%.
   //   Appliances:   the appliance list is built and sent; the client may send it back; done when the client signs it.
-  //   Design:       red until the first site measurement, then always in progress (it keeps being revised) until it
-  //                 is finally approved. The client also signs the production drawing.
-  //   PDI:          after the final design, the PDI team does the last PDI; Design approves it here.
-  //   Collect 30%:  the production payment.
-  //   Factory:      once the PDI is approved AND the collection is done, the order is shot to the factory and the
-  //                 factory is emailed. Dispatch and Handed over are read from the planned dates after that.
-  L.POST = ['EPT', 'Appliances', 'Design', 'PDI', 'Collect 30%', 'Factory', 'Dispatch', 'Handed over'];
+  //   EPT:          the EPT (Electrical, Plumbing, Tiling, Ducting, Gas) drawings, sent, returned or signed.
+  //   PDI:          once design, appliances and EPT are all done, the PDI team does the last PDI; Design approves it here.
+  //   Accounts go-ahead: 80% in and Accounts approves the factory gate (19 Oct 2026; replaces "PDI + 30%").
+  //   Factory:      the order is shot to the factory and the factory is emailed.
+  //   Dispatch:     once 100% is in and Accounts approves dispatch. Handed over is read from the handover date.
+  L.POST = ['Site measurement', 'Design', 'Appliances', 'EPT', 'PDI', 'Accounts go-ahead', 'Factory', 'Dispatch', 'Handed over'];
   L.EPT_STEPS = ['Site measurement done', 'EPT drawing being made', 'EPT drawing sent to client', 'Client asked for changes', 'Client signed the EPT'];
   // The post-design record on a client, created empty the first time it is needed.
   L.flow = function (c) {
@@ -183,8 +235,26 @@
     f.pdi = f.pdi || { log: [], approvedAt: '' };
     return f;
   };
-  // The first site measurement: done in Measurement, or recorded as the first EPT step.
+  // The first site measurement: done in Measurement, or (orders from before 19 Oct) recorded as the first EPT step.
   L.siteMeasured = function (c) { const f = L.flow(c); return !!((c.measurement && c.measurement.doneAt) || f.ept.log.length || f.ept.step); };
+  // Where the first site measurement stands: not sent, Sent, Aligned or Done, with the date of each.
+  L.measureState = function (c) {
+    const m = c.measurement;
+    const aligned = m && (m.alignedAt || ((m.date || m.assignee) ? (m.changedAt || m.requestedAt) : ''));
+    const done = L.siteMeasured(c);
+    return { state: done ? 'done' : (m ? 'progress' : 'todo'), step: done ? 'Done' : (aligned ? 'Aligned' : (m ? 'Sent' : 'Not sent')),
+      sentAt: m ? m.requestedAt || '' : '', alignedAt: aligned || '', doneAt: m && m.doneAt ? m.doneAt : (done ? 'recorded' : ''),
+      visit: m ? m.date || '' : '', who: m ? m.assignee || '' : '', note: m ? m.note || '' : '' };
+  };
+  // Design sends the first site measurement request (the same record Sales' "Request site measurement" makes).
+  L.sendMeasurement = function (c, by) {
+    if (c.measurement) return false;
+    c.measurement = { requestedAt: Kit.now(), date: '', by: by || 'Design' };
+    Kit.news(c, 'First site measurement sent to Measurement', 'blue', by || 'Design');
+    return true;
+  };
+  // PDI can start once design, appliances and EPT are all done.
+  L.readyForPdi = function (c) { const s = L.flowState(c); return s.design.state === 'done' && s.appliances.state === 'done' && s.ept.state === 'done'; };
   // Red (todo), yellow (progress) or green (done) for each of the three, with how many rounds so far.
   L.flowState = function (c) {
     const f = L.flow(c);
@@ -199,28 +269,30 @@
     };
   };
   L.flowLog = function (part, what, note) { part.log.push({ at: Kit.now(), what: what, note: note || '' }); };
-  L.productionRow = function (c) { return L.ledger(c).filter(function (r) { return r.name === 'Production'; })[0] || null; };
-  L.collectionDone = function (c) { const row = L.productionRow(c); return !row || row.due <= 0; };
+  // The money the factory needs: 80% of the total payable, what is in towards it, and what is still short.
+  L.productionRow = function (c) { const g = L.gate(c, 'factory'); return { name: 'Production', percent: g.pct, amount: g.need, paid: Math.min(g.got, g.need), due: g.short }; };
+  L.collectionDone = function (c) { return L.productionRow(c).due <= 0; };
   L.postStage = function (c) {
     if (c.factoryAt) {
-      const d = L.dates(c), today = Kit.today();
-      if (!d || today < d.dispatch) return 'Factory';
-      return today < d.handover ? 'Dispatch' : 'Handed over';
+      if (!L.gateOpen(c, 'dispatch')) return 'Factory';
+      const d = L.dates(c);
+      return d && Kit.today() >= d.handover ? 'Handed over' : 'Dispatch';
     }
     const f = L.flow(c), s = L.flowState(c);
-    if (s.ept.state !== 'done') return 'EPT';
-    if (s.appliances.state !== 'done') return 'Appliances';
+    if (!L.siteMeasured(c)) return 'Site measurement';
     if (s.design.state !== 'done') return 'Design';
+    if (s.appliances.state !== 'done') return 'Appliances';
+    if (s.ept.state !== 'done') return 'EPT';
     if (!f.pdi.approvedAt) return 'PDI';
-    return L.collectionDone(c) ? 'Factory' : 'Collect 30%';
+    return 'Accounts go-ahead';
   };
-  // Called when the PDI is approved and whenever money comes in. When the PDI is approved AND the collection is done,
+  // Called when Accounts approves the factory gate. With the PDI approved, 80% in and the gate approved,
   // the order is shot to the Factory once, a notice is written, and the factory is emailed (through mail/, if switched on).
   L.toFactory = function (c) {
     const f = L.flow(c);
-    if (c.factoryAt || !f.pdi.approvedAt || !L.handed(c) || !L.collectionDone(c)) return false;
+    if (c.factoryAt || !f.pdi.approvedAt || !L.handed(c) || !L.collectionDone(c) || !L.gateOpen(c, 'factory')) return false;
     c.factoryAt = Kit.now();
-    Kit.news(c, 'PDI approved and collection done · order shot to the Factory', 'green', 'Design');
+    Kit.news(c, 'PDI approved, 80% in and Accounts go-ahead · order shot to the Factory', 'green', 'Accounts');
     const d = L.dates(c), t = L.totals(c);
     const body = ['An order has been shot to the Factory.', '', 'Client: ' + c.name, 'Project: ' + c.pid + '   Customer: ' + c.cid, 'Designer: ' + (c.design.designer || 'not allotted'),
       'Sales manager: ' + (c.sm || (window.People && People.owner ? People.owner(c) : '')), 'PDI approved: ' + Kit.day(f.pdi.approvedAt), 'EPT signed: ' + (f.ept.signedAt ? Kit.day(f.ept.signedAt) : 'not recorded'),
@@ -238,13 +310,15 @@
     return true;
   };
 
-  // Timeline, counted back from the handover date.
+  // Timeline, counted back from the handover date. Dispatch is 30 days before handover. From the Accounts sheet
+  // (19 Oct 2026): PDI is 21 days before dispatch and the production drawing (signoff) is 45 days before dispatch
+  // (the production days, 45 unless chosen otherwise).
   L.dates = function (c) {
     const t = c.timeline;
     if (!t.handover) return null;
     const dispatch = Kit.addDays(t.handover, -30);
-    const pdi = Kit.addDays(dispatch, -20);
-    const signoff = Kit.addDays(pdi, -(Number(t.productionDays) || 45));
+    const pdi = Kit.addDays(dispatch, -21);
+    const signoff = Kit.addDays(dispatch, -(Number(t.productionDays) || 45));
     const out = { signoff: signoff, pdi: pdi, dispatch: dispatch, handover: t.handover };
     if (t.type === 'Custom') ['signoff', 'pdi', 'dispatch'].forEach(function (k) { if (t.custom[k]) out[k] = t.custom[k]; });
     return out;

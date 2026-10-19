@@ -1,5 +1,5 @@
 // Design · Post-design: the pages on the left once Design is the point of contact
-// (production drawing, collect 30%, collections, order tracker), and what each shows.
+// (production drawing, Accounts go-ahead, collections, order tracker), and what each shows.
 (function () {
   const h = Kit.h;
   const L = SalesLogic;
@@ -13,11 +13,11 @@
         const at = function (name) { return mine.filter(function (c) { return L.postStage(c) === name; }).length; };
         const open = mine.filter(function (c) { return !c.factoryAt; });
         return [
-          { id: 'board', title: 'Post-design board', short: 'Board', count: open.length, summary: at('EPT') + ' at EPT · ' + at('Appliances') + ' at appliances · ' + at('Design') + ' at design' },
-          { id: 'pdi', title: 'PDI approval', short: 'PDI', count: D.pdiWaiting(all).length, summary: 'Final design approved, waiting for the last PDI' },
+          { id: 'board', title: 'Post-design board', short: 'Board', count: open.length, summary: at('Site measurement') + ' at measurement · ' + at('Design') + ' at design · ' + at('Appliances') + ' at appliances · ' + at('EPT') + ' at EPT' },
+          { id: 'pdi', title: 'PDI approval', short: 'PDI', count: D.pdiWaiting(all).length, summary: 'Design, appliances and EPT done, waiting for the last PDI' },
           { id: 'collections', title: 'Collections', short: 'Collect', count: mine.filter(function (c) { return owed(c) > 0; }).length,
             summary: Kit.short(mine.reduce(function (t, c) { return t + owed(c); }, 0)) + ' still to collect after booking' },
-          { id: 'factory', title: 'Shoot to factory', short: 'Factory', count: D.factoryWaiting(all).length + D.factoryGone(all).length, summary: D.factoryWaiting(all).length + ' waiting for the 30% · ' + D.factoryGone(all).length + ' in the factory' },
+          { id: 'factory', title: 'Shoot to factory', short: 'Factory', count: D.factoryWaiting(all).length + D.factoryGone(all).length, summary: D.factoryWaiting(all).length + ' waiting for 80% or Accounts · ' + D.factoryGone(all).length + ' in the factory' },
           { id: 'tracker', title: 'Order tracker', short: 'Tracker', count: mine.length, summary: at('Factory') + ' in factory · ' + at('Dispatch') + ' dispatched · ' + at('Handed over') + ' handed over' }
         ];
   };
@@ -43,14 +43,14 @@
       } else {
         const mine = all.filter(L.handed).filter(function (c) { return ctx.page === 'all' || L.postStage(c).toLowerCase().replace(/ /g, '-') === ctx.page; });
         const title = ctx.page === 'all' ? 'All post-design clients' : (POST.filter(function (n) { return n.toLowerCase().replace(/ /g, '-') === ctx.page; })[0] || 'Post-design');
-        return h('div', { class: 'onelist' }, Kit.list(title, h('span', { class: 'sub' }, 'Design is the point of contact · collect the 30% after the final drawing signoff, then it goes to the Factory'),
+        return h('div', { class: 'onelist' }, Kit.list(title, h('span', { class: 'sub' }, 'Design is the point of contact · collect up to 80% after the final drawing signoff, then it goes to the Factory'),
           mine.map(function (c) {
             const d = L.dates(c), t = L.totals(c);
             return { name: c.name, sub: (c.design.designer ? 'Designer ' + c.design.designer : 'Designer not allotted') + ' · ' + People.owner(c) + ' · ' + c.city +
                 (d ? ' · signoff ' + short(d.signoff) + ' · PDI ' + short(d.pdi) + ' · dispatch ' + short(d.dispatch) + ' · handover ' + short(d.handover) : ' · no handover date') +
                 (t.total ? ' · paid ' + Math.round(L.collected(c) / t.total * 100) + '%' : '') +
-                (L.productionRow(c) && L.productionRow(c).due > 0 ? ' · 30% to collect ' + Kit.short(L.productionRow(c).due) : ''),
-              pill: Kit.pill(L.postStage(c), L.postStage(c) === 'Collect 30%' ? 'red' : (L.postStage(c) === 'Factory' || L.postStage(c) === 'Handed over' ? 'green' : 'blue')), pick: see(c) };
+                (L.productionRow(c) && L.productionRow(c).due > 0 ? ' · to collect for 80% ' + Kit.short(L.productionRow(c).due) : ''),
+              pill: Kit.pill(L.postStage(c), L.postStage(c) === 'Accounts go-ahead' ? 'red' : (L.postStage(c) === 'Factory' || L.postStage(c) === 'Handed over' ? 'green' : 'blue')), pick: see(c) };
           }), 'No clients at this stage.'));
       }
   };

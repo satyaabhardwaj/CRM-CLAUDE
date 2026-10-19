@@ -1,5 +1,5 @@
 // Design · the client window: everything about one client on one screen (both pre- and post-design),
-// including the post-design steps: final drawing signoff, collect 30%, factory.
+// including the post-design steps: site measurement, design, appliances, EPT, PDI, Accounts go-ahead at 80%, factory.
 (function () {
   const h = Kit.h;
   const L = SalesLogic;
@@ -46,14 +46,15 @@
             const open = function (kind) { return function () { ctx.show({ kind: kind, id: c.id }); }; };
             return h('div', { class: 'soft' },
               h('b', { style: 'font-size: 12px; color: var(--ink2)' }, 'Post-design steps'),
-              h('div', { class: 'g3' }, D.flowButton(fs.ept.state, '1 · EPT', open('ept'), 'EPT'), D.flowButton(fs.appliances.state, '2 · Appliances', open('appliances'), 'Appliances'), D.flowButton(fs.design.state, '3 · Design', open('designflow'), 'Design')),
-              h('div', { class: 'line' }, h('span', null, '4 · PDI'), fl.pdi.approvedAt ? Kit.pill('Approved ' + short(fl.pdi.approvedAt), 'green') : Kit.btn(fs.design.state === 'done' ? 'Open PDI' : 'After the design is approved', open('pdi'), 'small line')),
-              h('div', { class: 'line' }, h('span', null, '5 · Collect 30%' + (row ? ' · ' + Kit.money(row.amount) : '')),
+              h('div', { class: 'g2' }, D.flowButton(L.measureState(c).state, ['1 · Site measurement'].concat(D.measureSmall(L.measureState(c))), open('measure'), 'Site measurement', L.measureState(c).step), D.flowButton(fs.design.state, '2 · Design', open('designflow'), 'Design'),
+                D.flowButton(fs.appliances.state, '3 · Appliances', open('appliances'), 'Appliances'), D.flowButton(fs.ept.state, '4 · EPT', open('ept'), 'EPT')),
+              h('div', { class: 'line' }, h('span', null, '5 · PDI'), fl.pdi.approvedAt ? Kit.pill('Approved ' + short(fl.pdi.approvedAt), 'green') : Kit.btn(L.readyForPdi(c) ? 'Open PDI' : 'After design, appliances and EPT', open('pdi'), 'small line')),
+              h('div', { class: 'line' }, h('span', null, '6 · 80% in · Accounts go-ahead' + (row ? ' · ' + Kit.money(row.amount) : '')),
                 !row ? Kit.pill('Not in this plan', 'grey') : (row.due === 0 ? Kit.pill('Received', 'green') : Kit.pill(Kit.money(row.due) + ' to collect', 'red'))),
-              h('div', { class: 'line' }, h('span', null, '6 · Shoot to factory'),
-                c.factoryAt ? Kit.pill('In factory since ' + short(c.factoryAt), 'green') : Kit.pill('After 4 and 5', 'grey')),
+              h('div', { class: 'line' }, h('span', null, '7 · Shoot to factory'),
+                c.factoryAt ? Kit.pill('In factory since ' + short(c.factoryAt), 'green') : Kit.pill('After 5 and 6', 'grey')),
               c.factoryAt ? h('div', { class: 'sub' }, D.mailLine(c)) : null,
-              h('div', { class: 'sub' }, 'Once the PDI is approved and the 30% is in, the order goes to the factory by itself and the factory is emailed.'));
+              h('div', { class: 'sub' }, 'Once the PDI is approved and 80% is in, Accounts gives the go-ahead; then the order goes to the factory and the factory is emailed.'));
           })(),
           h('div', { class: 'facts' },
           fact('Drawing signoff', d ? Kit.day(d.signoff) : ''), fact('PDI', d ? Kit.day(d.pdi) : ''),

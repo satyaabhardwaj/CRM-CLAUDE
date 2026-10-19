@@ -12,6 +12,11 @@
   const APPROVAL = ['Not sent', 'Pending', 'Approved', 'Rejected'];
   const TONE = { 'Not sent': 'grey', Pending: 'blue', Approved: 'green', Overwritten: 'yellow', Rejected: 'red', Requested: 'blue', Confirmed: 'green' };
 
+  // A box for a percentage: what is typed, or (greyed) the % an older order's amounts come to.
+  function pctBox(value, fallback, onChange, label) {
+    return Kit.input(value == null ? '' : value, function (v) { const n = String(v).replace(/[^0-9.]/g, ''); onChange(n === '' ? null : Math.min(100, Number(n))); },
+      { label: label, placeholder: fallback == null ? '%' : fallback + '%', style: 'text-align: right' });
+  }
   function line(label, control) { return h('div', { class: 'line' }, h('span', { style: 'color: var(--ink2)' }, label), control); }
   function narrow(control) { return h('span', { style: 'width: 130px; flex: none' }, control); }
 
@@ -31,19 +36,22 @@
           ctx.update(function () { if (p) { p.value = v; if (!p.product) p.product = 'Kitchen'; } else o.products.push({ product: 'Kitchen', value: v }); });
         }, { money: true, label: 'Kitchen value', placeholder: 'Value' })));
       }),
-      Kit.bankOnly() ? null : line('Freight, loading and unloading', narrow(Kit.input(o.freight, set('freight'), { money: true, label: 'Freight', placeholder: '0' }))),
-      Kit.bankOnly() ? null : line('Management discount', narrow(Kit.input(o.md, set('md'), { money: true, label: 'Management discount', placeholder: '0' }))),
+      // Bank % and free accessories % (19 Oct 2026). The amounts are worked out in shared/rules.js.
+      // An order saved before then shows the % its typed amounts come to, until a % is typed.
+      Kit.bankOnly() ? null : line('Bank %' + (t.base ? ' · management discount ' + Kit.money(t.md) : ''), narrow(pctBox(o.bankPct, t.bankPct, function (v) { ctx.update(function () { o.bankPct = v; delete o.md; }); }, 'Bank %'))),
+      Kit.bankOnly() ? null : line('Free accessories %' + (t.freight ? ' · ' + Kit.money(t.freight) : ''), narrow(pctBox(o.faPct, o.faPct == null && t.md && o.freight ? Math.round(o.freight / t.md * 10000) / 100 : null, function (v) { ctx.update(function () { o.faPct = v; delete o.freight; }); }, 'Free accessories %'))),
+      Kit.bankOnly() ? null : line('Order type', narrow(Kit.select(['Retail', 'Project'], o.type || 'Retail', set('type'), { placeholder: false, label: 'Order type' }))),
       h('div', { class: 'line' }, h('span', { style: 'color: var(--ink2)' }, 'In bank, with GST'), h('span', { class: 'num' }, Kit.money(t.bank))),
       h('div', { class: 'line', style: 'border-top: 1px solid var(--line); padding-top: 12px' },
         h('b', null, 'Total payable by client'), h('span', { class: 'num', style: 'font-size: 22px; font-weight: 600' }, Kit.money(t.total))),
       Kit.bankOnly() ? null : h('div', null, Kit.btn(open ? 'Hide the working' : 'See how this is worked out', function () { workOpen[c.id] = !open; ctx.update(); }, 'small')),
       open && !Kit.bankOnly() ? h('div', { class: 'soft' },
         show('Offer basic value', t.base),
-        show('Less management discount, no GST', t.md),
+        show('Less management discount, no GST · ' + (t.bankPct == null ? '' : (Math.round((100 - t.bankPct) * 100) / 100) + '%'), t.md),
         show('Bank amount before GST', t.bankBase),
         show('GST 18% on the bank amount', t.tax),
         show('In bank, with GST', t.bank),
-        show('Freight', t.freight),
+        show('Free accessories' + (t.faPct == null ? '' : ' · ' + t.faPct + '% of the management discount'), t.freight),
         c.architectInvolved ? show('Less architect success fees · ' + (Number(o.archPct) || 0) + '% of offer basic value', t.success) : null,
         c.architectInvolved ? show('Offer basic value after success fees', t.afterSuccess) : null,
         show('Net inflow to the company', t.net)) : null,
@@ -83,13 +91,13 @@
         const changes = c.timelineChanges || [];
         const KEYS = [['Drawing signoff', 'signoff'], ['PDI', 'pdi'], ['Dispatch', 'dispatch'], ['Handover', 'handover']];
         // Once the client is booked, the original timeline is counted forward from the date of booking,
-        // with the same gaps as everywhere else: production days to PDI, 20 days to dispatch, 30 days to handover.
+        // with the same gaps as everywhere else: production days to dispatch, PDI 21 days before dispatch, 30 days to handover.
         const start = c.bookedAt ? Kit.ymd(new Date(c.bookedAt)) : '';
         // The drawing is signed off when the OCF is made. Until there is an OCF date, the booking date stands in for it.
         const ocf = c.ocfAt ? Kit.ymd(new Date(c.ocfAt)) : '';
         const fromBooking = function () {
           const signoff = ocf || start;
-          const pdi = Kit.addDays(signoff, Number(c.timeline.productionDays) || 45), dispatch = Kit.addDays(pdi, 20);
+          const dispatch = Kit.addDays(signoff, Number(c.timeline.productionDays) || 45), pdi = Kit.addDays(dispatch, -21);
           return { signoff: signoff, pdi: pdi, dispatch: dispatch, handover: Kit.addDays(dispatch, 30) };
         };
         const original = start ? fromBooking() : (changes.length ? changes[0].before : d);

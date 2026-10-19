@@ -17,6 +17,8 @@
 <script src="/shared/kit.js"></script>
 <script src="/shared/people.js"></script>
 <script src="/shared/rules.js"></script>
+<script src="/accounts/common/pieces.js"></script>
+<script src="/accounts/pi/pi.js"></script>
 <script>
 (function () {
   // Nothing in this page may save: the store's save is switched off before any rule runs.
@@ -49,12 +51,25 @@
   check('net inflow = gross - GST - success', t.net, t.gross - 162000 - 100000);
   check('MD can never exceed OBV', L.totals(client({ order: { products: [{ value: 100 }], md: 500 } })).md, 100);
 
+  // ---- Money from the Accounts sheet: bank % and free accessories % (Inderjit, 66.50 L, bank 30%, free accessories 5%) ----
+  const ij = L.totals(client({ order: { products: [{ value: 6650000 }], bankPct: 30, faPct: 5 } }));
+  check('bank part = OBV x bank %', ij.bankBase, 1995000);
+  check('GST 18% on the bank part', ij.tax, 359100);
+  check('to receive in bank = bank part + GST', ij.bank, 2354100);
+  check('management discount = OBV x (100 - bank %)', ij.md, 4655000);
+  const hm = L.totals(client({ order: { products: [{ value: 2315312 }], bankPct: 30, faPct: 6 } }));
+  check('PI sample Dr Himanshu: final price, GST, free accessories, total, management', [hm.bankBase, hm.tax, hm.freight, hm.bank, hm.md, hm.mgmt], [694594, 125027, 97243, 819620, 1620718, 1717962]);
+  check('PI sample: discount to be discussed after 11,52,250 approved', hm.mgmt - 1152250, 565712);
+  check('free accessories = management part x FA %', ij.freight, 232750);
+  check('total = OBV + GST + free accessories (sheet 72.4185 L)', ij.total, 7241850);
+  check('management to collect = total - bank', ij.mgmt, 7241850 - 2354100);
+  check('typing a % overrides an old typed amount', L.totals(client({ order: { products: [{ value: 1000000 }], md: 900000, bankPct: 50, freight: 99999, faPct: 0 } })).total, 500000 + 590000);
+  check('old orders show the bank % their amounts come to', t.bankPct, 90);
+
   // ---- Plans and ledger ----
   const sm = client();
   check('SM plan shares 50/30/20', L.shares(sm).map(function (s) { return s.percent; }), [50, 30, 20]);
   check('Founder plan has 5 shares', L.shares(client({ payment: { plan: 'Founder', receipts: [] } })).length, 5);
-  const half = client(); half.payment.receipts.push(paid(Math.round(t.total * 0.5)));
-  check('booking share fully paid -> handed to Design', L.handed(Object.assign(half, { stage: 'booked' })), true);
   const led = L.ledger(client({ payment: { plan: 'SM', receipts: [paid(Math.round(t.total * 0.6))] } }));
   check('ledger fills booking first, rest into production', [led[0].due, led[1].paid > 0], [0, true]);
   check('rejected receipt does not count', L.collected(client({ payment: { plan: 'SM', receipts: [{ amount: 500, status: 'Rejected' }] } })), 0);
@@ -62,29 +77,60 @@
   // ---- Timeline ----
   const d = L.dates(client());
   check('dispatch 30 days before handover', d.dispatch, '2026-12-01');
-  check('PDI 20 days before dispatch', d.pdi, '2026-11-11');
-  check('signoff = production days before PDI', d.signoff, '2026-09-27');
+  check('PDI 21 days before dispatch', d.pdi, '2026-11-10');
+  check('production drawing 45 days before dispatch', d.signoff, '2026-10-17');
   check('no handover -> no dates', L.dates(client({ timeline: { type: 'Standard', productionDays: 45 } })), null);
 
-  // ---- Post-design flow ----
+  // ---- Post-design flow (order since 19 Oct 2026: site measurement, design, appliances, EPT, PDI) ----
   const p = client();
-  check('nothing done -> all red, stage EPT', [L.flowState(p).ept.state, L.flowState(p).design.state, L.postStage(p)], ['todo', 'todo', 'EPT']);
-  p.measurement = { doneAt: '2026-10-01T10:00:00Z' };
-  check('after site measurement: EPT and Design yellow', [L.flowState(p).ept.state, L.flowState(p).design.state], ['progress', 'progress']);
+  check('nothing done -> stage Site measurement, not sent', [L.postStage(p), L.measureState(p).step, L.measureState(p).state], ['Site measurement', 'Not sent', 'todo']);
+  check('Design sends the measurement -> Sent', [L.sendMeasurement(p, 'Design'), L.measureState(p).step, L.measureState(p).state], [true, 'Sent', 'progress']);
+  check('sent only once', L.sendMeasurement(p), false);
+  p.measurement.date = '2026-10-25'; p.measurement.alignedAt = '2026-10-20T10:00:00Z';
+  check('visit date set -> Aligned', L.measureState(p).step, 'Aligned');
+  p.measurement.doneAt = '2026-10-25T10:00:00Z';
+  check('visit done -> Done; stage Design; design yellow', [L.measureState(p).step, L.postStage(p), L.flowState(p).design.state], ['Done', 'Design', 'progress']);
   const f = L.flow(p);
+  f.design.approvedAt = '2026-10-26';
+  check('design approved -> stage Appliances', L.postStage(p), 'Appliances');
+  check('PDI not ready before appliances and EPT', L.readyForPdi(p), false);
+  f.appliances.signedAt = '2026-10-27';
+  check('appliances signed -> stage EPT', L.postStage(p), 'EPT');
   L.flowLog(f.ept, 'EPT drawing sent to client'); L.flowLog(f.ept, 'Client asked for changes'); L.flowLog(f.ept, 'EPT drawing sent to client');
   check('EPT counts sent and returned', [L.flowState(p).ept.sent, L.flowState(p).ept.returned], [2, 1]);
-  f.ept.signedAt = '2026-10-02'; f.appliances.items.push({ name: 'Hob' });
-  check('EPT signed -> green; appliances yellow; stage Appliances', [L.flowState(p).ept.state, L.flowState(p).appliances.state, L.postStage(p)], ['done', 'progress', 'Appliances']);
-  f.appliances.signedAt = '2026-10-03'; f.design.approvedAt = '2026-10-04';
-  check('all three green -> stage PDI', L.postStage(p), 'PDI');
+  f.ept.signedAt = '2026-10-28';
+  check('all four done -> ready for PDI, stage PDI', [L.readyForPdi(p), L.postStage(p)], [true, 'PDI']);
   check('factory refused before PDI approval', L.toFactory(p), false);
   f.pdi.approvedAt = '2026-10-05';
-  check('PDI approved, 30% not in -> stage Collect 30%, no factory', [L.postStage(p), L.toFactory(p)], ['Collect 30%', false]);
+  check('PDI approved, 80% not in -> stage Accounts go-ahead, no factory', [L.postStage(p), L.toFactory(p), L.gate(p, 'factory').ready], ['Accounts go-ahead', false, false]);
   p.payment.receipts.push(paid(Math.round(L.totals(p).total * 0.8)));
-  check('PDI approved + 30% in -> shot to factory', L.toFactory(p), true);
-  check('factory date set and stage Factory', [!!p.factoryAt, L.postStage(p)], [true, 'Factory']);
+  check('80% in but no Accounts approval -> still no factory', [L.toFactory(p), L.gate(p, 'factory').ready, L.postStage(p)], [false, true, 'Accounts go-ahead']);
+  L.approveGate(p, 'factory');
+  check('Accounts approves -> shot to factory, stage Factory', [!!p.factoryAt, L.postStage(p)], [true, 'Factory']);
   check('shot to factory only once', L.toFactory(p), false);
+  check('dispatch waits for 100%', L.gate(p, 'dispatch').ready, false);
+  p.payment.receipts.push(paid(L.totals(p).total - L.collected(p)));
+  check('100% in -> dispatch ready; approved -> stage Dispatch', [L.gate(p, 'dispatch').ready, (L.approveGate(p, 'dispatch'), L.postStage(p))], [true, 'Dispatch']);
+
+  // ---- Accounts gates on a booked client ----
+  const g = client({ stage: 'booked', gates: {} });
+  check('gate %: booking 50, drawing 80, factory 80, dispatch 100', ['design', 'drawing', 'factory', 'dispatch'].map(function (k) { return L.gatePct(g, k); }), [50, 80, 80, 100]);
+  check('AVP plan: booking gate 25%, drawing 80%', [L.gatePct(client({ payment: { plan: 'AVP', receipts: [] } }), 'design'), L.gatePct(client({ payment: { plan: 'AVP', receipts: [] } }), 'drawing')], [25, 80]);
+  g.payment.receipts.push(paid(Math.round(L.totals(g).total * 0.5)));
+  check('50% in -> ready, but not handed to Design until Accounts approves', [L.gate(g, 'design').ready, L.handed(g)], [true, false]);
+  L.approveGate(g, 'design');
+  check('Accounts approves -> handed to Design', L.handed(g), true);
+  check('drawing gate shows what is short for 80%', L.gate(g, 'drawing').short, Math.round(L.totals(g).total * 0.8) - L.collected(g));
+  const old = client({ stage: 'booked', payment: { plan: 'SM', receipts: [paid(10000000)] } });
+  check('an order fully booked before the rule keeps its place in Design', [!!old.gates.design, L.handed(old)], [true, true]);
+
+  // ---- PI (bank amount only) ----
+  const pc = client({ stage: 'booked', gates: {}, order: { products: [{ value: 6650000 }], bankPct: 30, faPct: 5 }, payment: { plan: 'SM', receipts: [paid(1000000)] } });
+  const pi = AccountsParts.piMaths(pc, 'design');
+  check('booking PI: 50% of bank amount minus bank received', [pi.due, pi.got, pi.net], [1177050, 1000000, 177050]);
+  check('PI net split into value + GST', pi.netBase + pi.netGst, pi.net);
+  check('production PI at 80%, dispatch PI at 100%', [AccountsParts.piMaths(pc, 'drawing').due, AccountsParts.piMaths(pc, 'dispatch').net], [Math.round(2354100 * 0.8), 2354100 - 1000000]);
+  check('management money never counts on a PI', AccountsParts.piMaths(client({ order: { products: [{ value: 6650000 }], bankPct: 30 }, payment: { plan: 'SM', receipts: [{ amount: 500000, kind: 'md', status: 'Confirmed' }] } }), 'design').got, 0);
 
   // ---- Leads ----
   const lead = client({ stage: 'qualified', receivedAt: new Date(Date.now() - 30 * 3600000).toISOString() });

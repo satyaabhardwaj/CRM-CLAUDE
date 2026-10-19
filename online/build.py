@@ -3,7 +3,7 @@
 
 Run:  python3 online/build.py     (from the crm-claude folder)
 It writes online/index.html. Today's saved data goes inside it, locked with the password given in CRM_PASS
-(CRM_PASS=... python3 online/build.py). A second password in CRM_PASS_BANK opens a bank-only copy (no tokens, freight or management discount).
+(CRM_PASS=... python3 online/build.py). A second password in CRM_PASS_BANK opens a bank-only copy (no tokens, free accessories or management discount).
 Neither password is ever written to any file.
 Nothing in the laptop copy is changed.
 """
@@ -26,7 +26,7 @@ def scripts(page):
     return [src.lstrip("/") for src in re.findall(r'<script src="([^"]+)"', read(page))]
 
 
-COMMON = ["shared/kit.js", "shared/people.js", "shared/pin.js", "shared/rules.js", "shared/signals.js"]
+COMMON = ["shared/vendor/jspdf.umd.min.js", "shared/kit.js", "shared/people.js", "shared/pin.js", "shared/rules.js", "shared/signals.js"]
 PAGES = {"sales": "sales/index.html", "design": "design/index.html", "measurement": "measurement/index.html", "accounts": "accounts/index.html", "management": "management/index.html"}
 START = {"sales": "SalesBin.register(); Sales.start();"}
 
@@ -46,14 +46,20 @@ def bank_only(store):
         o = c.get("order") or {}
         products = o.get("products") or []
         obv = sum(float(p.get("value") or 0) for p in products) + float(o.get("installation") or 0)
-        md = min(obv, max(0.0, float(o.get("md") or 0)))
-        keep = (obv - md) / obv if obv else 1.0
+        # Since 19 Oct an order carries a bank % (bankPct); older orders a typed management discount (md).
+        if o.get("bankPct") not in (None, ""):
+            keep = min(100.0, max(0.0, float(o["bankPct"]))) / 100
+        else:
+            md = min(obv, max(0.0, float(o.get("md") or 0)))
+            keep = (obv - md) / obv if obv else 1.0
         for p in products:
             p["value"] = int(round(float(p.get("value") or 0) * keep))
         if o.get("installation"):
             o["installation"] = int(round(float(o["installation"]) * keep))
         o["md"] = 0
         o["freight"] = 0
+        o["bankPct"] = 100
+        o["faPct"] = 0
         pay = c.get("payment") or {}
         pay["receipts"] = [r for r in pay.get("receipts") or [] if r.get("mode") != "Token" and r.get("kind") != "md"]
         pay.pop("tokenPlan", None)
