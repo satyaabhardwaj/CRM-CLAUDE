@@ -12,22 +12,32 @@ Local verification only; no cloud deployment is authorized. The target is Vercel
 | Restore | One command, `scripts/restore_postgres.py`, into a new database only. The 21 Oct duplicate-schema failure is fixed. Rehearsed on 21 Oct: tables, clients and all 15 attachment bytes matched, with RLS on and no public grants. The rehearsal databases and bucket were dropped. |
 | QA leftovers | All QA and restore databases, the 85 stray `test_*` schemas in the live database and the QA bucket were removed (Gate A). `test_api.py` now refuses non-test databases. |
 | Legacy code | Archived on branch `archive/legacy-2026-10` and removed from `main`. |
-| Backend tests | 110 passed and 1 optional Storage test skipped, on isolated PostgreSQL (21 Oct, Phase 3). |
+| Backend tests | See the rc3 regression below. |
 
-### Last full regression (21 Oct, code 0a2f907; to be repeated in Phase 6)
+### Full regression for v1.0-rc3 (22 Oct, code 7305e0f)
 
-Image: `magppie-crm:quiet-graphite-0a2f907`.
+Image: `magppie-crm:rc3-7305e0f` (sha256:2b3a3d24ceef…). All checks ran on synthetic data, with new QA databases and buckets that were dropped afterwards.
 
 | Check | Result |
 |---|---|
-| Six frontend test suites | 209 passed |
-| Backend on isolated PostgreSQL | 102 passed, 1 optional Storage test skipped |
-| Same-image Docker security smoke | 90 passed |
-| Five modules at 320/390/768/1440 px | 20 views; no document horizontal overflow |
-| Login, MFA, recovery, logout | Passed, with recovery mail mocked |
-| Private Storage | 5 MiB signed upload/download passed; public, unsigned and tampered URLs denied |
+| Six frontends: format check, tests, build | All pass; 212 tests (auth 38, sales 46, design 47, accounts 26, measurement 18, management 37) |
+| Backend + foundation on isolated PostgreSQL, including the real Storage test on a new private QA bucket | 124 passed, 0 skipped |
+| `scripts/check.py` | Pass |
+| CRUD and role suite (admin, reader, assigned read/write, logged out) plus the MFA policy | 28 passed |
+| Docker multi-stage build; compose on 127.0.0.1:4316 (separate QA project, same hardening) | Healthy; read-only root fs, all capabilities dropped, no-new-privileges, uid 10001, loopback-only port |
+| Container security smoke, four roles | 121 of 121 checks passed: admin MFA policy, MFA, recovery, revocation, factory mail 403, signatures off, private signed upload/download, tampered/unsigned/public URL denied |
+| Viewport matrix: 10 screens (five modules, security, login, MFA challenge, forgot, reset) at 320/390/768/1440 | 40 views, no horizontal document overflow |
+| Browser storage after sign-in | Only `crm.ui.density` in localStorage; session cookie not readable by JavaScript |
+| Secret scan | 24 known secret values (compared in memory) and patterns: 0 hits in the 15 built asset files, in the image assets, or in the image app files (the only matches were public Zoho endpoint defaults); no env, key or data files in the image |
+| Live data | Unchanged: 28 clients, 15 tables, 15 attachments |
 
-The evidence is in `.local/final-docker-regression-20261021/` and `.local/master-20261021/`, both private.
+Evidence (private): `.local/rc3-regression-20261022/`. Not covered:
+- GitHub CI status (check the Actions tab);
+- physical phones and other browsers;
+- real SMTP;
+- a hosted Supabase project;
+- real Zoho (mocked).
+The running 4302 container still uses the older image.
 
 ## Current auth and integration status
 

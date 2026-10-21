@@ -2,7 +2,10 @@
 
 All notable changes to the Magppie CRM. Dates are 2026.
 
-## Unreleased (toward v1.0-rc3)
+## v1.0-rc3 (22 Oct)
+
+### Phase 6: regression (22 Oct)
+- Full regression passed: frontends 212 tests; backend 124 (including real Storage); CRUD/roles 28; container smoke 121/121; 40 viewport views; secret scan clean. Details are in FINAL_DEPLOYMENT_CHECKLIST.
 
 ### Phase 2: cleanup (21 Oct, Gate A)
 - Archived retired code on branch `archive/legacy-2026-10` and removed it from `main`:
