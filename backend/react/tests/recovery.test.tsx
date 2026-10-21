@@ -96,3 +96,32 @@ it("shows server error without treating it as success", async () => {
   expect(host.textContent).toContain("Recovery unavailable");
   expect(host.querySelector("form")).not.toBeNull();
 });
+
+it("reset guidance matches server limits and offers a new link on rejection", async () => {
+  history.replaceState(null, "", "/reset-password#token=" + "a".repeat(43));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      new Response('{"error":"Reset link is invalid or expired."}', {
+        status: 400,
+      }),
+    ),
+  );
+  await render(true);
+  expect(host.textContent).toContain("16-1024");
+  expect(host.querySelector("#new-password")?.getAttribute("minlength")).toBe(
+    "16",
+  );
+  expect(host.querySelector("#new-password")?.getAttribute("maxlength")).toBe(
+    "1024",
+  );
+  await act(async () =>
+    host
+      .querySelector("form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
+  );
+  expect(host.textContent).toContain("invalid or expired");
+  expect(host.querySelector('a[href="/forgot-password"]')).not.toBeNull();
+  expect(location.hash).toBe("");
+  expect(sessionStorage.length).toBe(0);
+});

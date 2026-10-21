@@ -1,5 +1,7 @@
 import { useRef, useState, type FormEvent } from "react";
 
+import { AuthLayout, Spinner } from "./MFA";
+
 export function Recovery({ reset = false }: { reset?: boolean }) {
   const [token] = useState(() => {
     const value =
@@ -59,7 +61,7 @@ export function Recovery({ reset = false }: { reset?: boolean }) {
     }
   }
   return (
-    <main className="auth-card">
+    <AuthLayout>
       <p className="auth-eyebrow">MAGPPIE CRM</p>
       <h1>{reset ? "Reset password" : "Forgot password?"}</h1>
       <p className="auth-intro">
@@ -70,7 +72,10 @@ export function Recovery({ reset = false }: { reset?: boolean }) {
       {reset && !validToken ? (
         <p role="alert">
           This reset link is missing or invalid.{" "}
-          <a href="/forgot-password">Request a new link</a>.
+          <a className="auth-link-button" href="/forgot-password">
+            Request a new link
+          </a>
+          .
         </p>
       ) : (
         !done && (
@@ -81,6 +86,7 @@ export function Recovery({ reset = false }: { reset?: boolean }) {
                 <input
                   id="new-password"
                   type="password"
+                  aria-describedby="password-guidance"
                   autoComplete="new-password"
                   required
                   minLength={16}
@@ -88,10 +94,14 @@ export function Recovery({ reset = false }: { reset?: boolean }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                <p id="password-guidance" className="auth-hint">
+                  Use 16-1024 characters. Choose a long, unique password.
+                </p>
                 <label htmlFor="confirm-password">Confirm password</label>
                 <input
                   id="confirm-password"
                   type="password"
+                  aria-describedby="password-guidance"
                   autoComplete="new-password"
                   required
                   minLength={16}
@@ -115,6 +125,7 @@ export function Recovery({ reset = false }: { reset?: boolean }) {
               </>
             )}
             <button disabled={busy}>
+              {busy && <Spinner />}
               {busy
                 ? "Please wait…"
                 : reset
@@ -124,17 +135,24 @@ export function Recovery({ reset = false }: { reset?: boolean }) {
           </form>
         )
       )}
-      <p role="status" aria-live="polite">
+      {done && (
+        <h2 className="auth-success-title">
+          {reset ? "Password updated" : "Check your email"}
+        </h2>
+      )}
+      <p className="auth-feedback" role="status" aria-live="polite">
         {message}
       </p>
       {reset && !done && validToken && (
         <p>
-          <a href="/forgot-password">Request another link</a>
+          <a className="auth-link-button" href="/forgot-password">
+            Request another link
+          </a>
         </p>
       )}
       <p>
         <a href="/login">Back to sign in</a>
       </p>
-    </main>
+    </AuthLayout>
   );
 }

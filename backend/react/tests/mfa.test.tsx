@@ -96,6 +96,7 @@ it("blocks duplicate verification while pending", async () => {
   });
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(host.querySelector("button")!.disabled).toBe(true);
+  expect(host.querySelector(".auth-spinner")).not.toBeNull();
   await act(async () => finish(new Response("{}")));
 });
 it("does not expose setup controls when service is unavailable", async () => {
@@ -132,4 +133,72 @@ it("shows setup key only after authenticated setup, then one-time backup codes",
   expect(host.textContent).toContain("synthetic-backup-code");
   expect(host.textContent).not.toContain("SYNTHETICKEY");
   expect(host.querySelector("form")).toBeNull();
+  const copy = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: copy },
+  });
+  const buttons = Array.from(host.querySelectorAll("button"));
+  await act(async () =>
+    buttons.find((b) => b.textContent === "Copy recovery codes")!.click(),
+  );
+  expect(copy).toHaveBeenCalledWith("synthetic-backup-code");
+  expect(host.textContent).toContain("Codes copied");
+  const create = vi.fn().mockReturnValue("blob:synthetic");
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: create,
+  });
+  Object.defineProperty(URL, "revokeObjectURL", {
+    configurable: true,
+    value: vi.fn(),
+  });
+  const click = vi
+    .spyOn(HTMLAnchorElement.prototype, "click")
+    .mockImplementation(() => {});
+  await act(async () =>
+    buttons.find((b) => b.textContent === "Download codes")!.click(),
+  );
+  expect(create).toHaveBeenCalledTimes(1);
+  expect(click).toHaveBeenCalledTimes(1);
+  click.mockRestore();
+  expect(localStorage.length).toBe(0);
+  expect(sessionStorage.length).toBe(0);
+});
+
+it("pastes six digits, moves focus and submits the unchanged factor payload", async () => {
+  const fetcher = vi.fn().mockResolvedValue(new Response("{}"));
+  vi.stubGlobal("fetch", fetcher);
+  await render(<MFAChallenge navigate={vi.fn()} />);
+  const inputs = host.querySelectorAll<HTMLInputElement>("input");
+  expect(inputs.length).toBe(6);
+  expect(inputs[0].autocomplete).toBe("one-time-code");
+  const paste = new Event("paste", { bubbles: true, cancelable: true });
+  Object.defineProperty(paste, "clipboardData", {
+    value: { getData: () => "123456" },
+  });
+  await act(async () => inputs[0].dispatchEvent(paste));
+  expect(
+    Array.from(inputs)
+      .map((i) => i.value)
+      .join(""),
+  ).toBe("123456");
+  expect(document.activeElement).toBe(inputs[5]);
+  await submit();
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ code: "123456" });
+  expect(host.textContent).toContain("5 minutes");
+});
+it("empty digit backspace returns focus to the previous box", async () => {
+  await render(<MFAChallenge />);
+  const inputs = host.querySelectorAll<HTMLInputElement>("input");
+  await act(async () =>
+    inputs[2].dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Backspace",
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(document.activeElement).toBe(inputs[1]);
 });

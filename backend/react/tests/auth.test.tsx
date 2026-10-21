@@ -87,6 +87,7 @@ it("prevents repeated login submission and restores retry after failure", async 
   });
   expect(fetcher).toHaveBeenCalledTimes(2);
   expect(host.querySelector<HTMLButtonElement>("#submit")!.disabled).toBe(true);
+  expect(host.querySelector(".auth-spinner")).not.toBeNull();
   await act(async () => fail(new Error("Connection unavailable")));
   expect(host.textContent).toContain("Connection unavailable");
   expect(host.querySelector<HTMLButtonElement>("#submit")!.disabled).toBe(
@@ -183,4 +184,25 @@ it("shows loading instead of inventing a staff identity", async () => {
   await render(<HeaderSession />);
   expect(host.textContent).toContain("Loading account");
   expect(host.textContent).not.toContain("Workspace view");
+});
+
+it("password visibility and Caps Lock feedback do not send credentials", async () => {
+  const fetcher = vi
+    .fn()
+    .mockResolvedValue(new Response("{}", { status: 401 }));
+  vi.stubGlobal("fetch", fetcher);
+  await render(<Login />);
+  const calls = fetcher.mock.calls.length;
+  const password = host.querySelector<HTMLInputElement>("#password")!;
+  const toggle = host.querySelector<HTMLButtonElement>(
+    '[aria-label="Show password"]',
+  )!;
+  await act(async () => toggle.click());
+  expect(password.type).toBe("text");
+  expect(toggle.getAttribute("aria-label")).toBe("Hide password");
+  const event = new KeyboardEvent("keydown", { bubbles: true, key: "A" });
+  Object.defineProperty(event, "getModifierState", { value: () => true });
+  await act(async () => password.dispatchEvent(event));
+  expect(host.textContent).toContain("Caps Lock");
+  expect(fetcher).toHaveBeenCalledTimes(calls);
 });

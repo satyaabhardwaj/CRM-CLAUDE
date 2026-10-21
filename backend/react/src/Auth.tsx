@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { MFAChallenge } from "./MFA";
+import { MFAChallenge, AuthLayout, Spinner } from "./MFA";
 import { signIn, signOut } from "./api";
 export function HeaderSession() {
   const details = useRef<HTMLDetailsElement>(null);
@@ -186,6 +186,8 @@ export function Login({
     [message, setMessage] = useState(""),
     [signedIn, setSignedIn] = useState(false),
     [mfaRequired, setMfaRequired] = useState(false),
+    [showPassword, setShowPassword] = useState(false),
+    [capsLock, setCapsLock] = useState(false),
     pending = useRef(false);
   useEffect(() => {
     const controller = new AbortController();
@@ -220,9 +222,9 @@ export function Login({
   }
   if (mfaRequired) return <MFAChallenge navigate={navigate} />;
   return (
-    <main className="auth-card">
+    <AuthLayout>
       <p className="auth-eyebrow">YOUR WORKSPACE</p>
-      <h1>MAGPPIE CRM</h1>
+      <h1>Welcome back</h1>
       <p className="auth-intro">Welcome back. Sign in to continue.</p>
       <form aria-busy={busy} onSubmit={(event) => void submit(event)}>
         <label htmlFor="email">Email</label>
@@ -235,28 +237,51 @@ export function Login({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          maxLength={1024}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <div className="auth-label-row">
+          <label htmlFor="password">Password</label>
+          <a href="/forgot-password">Forgot password?</a>
+        </div>
+        <div className="auth-password">
+          <input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            aria-describedby="caps-lock"
+            onKeyDown={(e) => setCapsLock(e.getModifierState("CapsLock"))}
+            onKeyUp={(e) => setCapsLock(e.getModifierState("CapsLock"))}
+            onBlur={() => setCapsLock(false)}
+            autoComplete="current-password"
+            required
+            maxLength={1024}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button
+            className="auth-reveal"
+            type="button"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-pressed={showPassword}
+            onClick={() => setShowPassword(!showPassword)}
+          >
+            {showPassword ? "Hide" : "Show"}
+          </button>
+        </div>
+        <p id="caps-lock" className="auth-hint" role="status">
+          {capsLock ? "Caps Lock is on." : ""}
+        </p>
         <button id="submit" disabled={busy}>
+          {busy && <Spinner />}
           {busy ? "Signing in…" : "Log in"}
         </button>
-        <p id="message" role="alert" aria-live="polite">
+        <p
+          id="message"
+          className="auth-feedback"
+          role="alert"
+          aria-live="polite"
+        >
           {message}
         </p>
       </form>
-      <p>
-        <a href="/forgot-password">Forgot password?</a>
-      </p>
       {signedIn && <SignOut navigate={navigate} />}
-      <footer className="auth-footer">MAGPPIE · Your team, connected</footer>
-    </main>
+    </AuthLayout>
   );
 }
