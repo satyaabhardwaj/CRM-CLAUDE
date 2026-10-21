@@ -94,4 +94,4 @@ See [deploy/README.md](../deploy/README.md). It runs the same image on 127.0.0.1
 
 ## Measurement (Zoho)
 
-Measurement reads Zoho Orders read-only, through the backend. Credentials come from the file named in the ignored `measurement/backend/env-path.txt`, or from `MEASUREMENT_ENV_FILE`. The required keys are `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET` and `ZOHO_REFRESH_TOKEN`. See [measurement/README.md](../measurement/README.md).
+Measurement reads Zoho Orders read-only, through the backend. Credentials come from the file named in the ignored `measurement/backend/env-path.txt`, or from `MEASUREMENT_ENV_FILE`. The required keys are `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET` and `ZOHO_REFRESH_TOKEN`. On this laptop the file is `C:\Users\am600\Magppie-Keys\crm-measurement-zoho.env` (only the `ZOHO_*` lines, outside OneDrive and outside the project). After changing it, restart with **Stop CRM.cmd** and **Start CRM.cmd**. See [measurement/README.md](../measurement/README.md).

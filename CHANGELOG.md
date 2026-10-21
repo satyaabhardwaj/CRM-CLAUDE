@@ -11,6 +11,7 @@ All notable changes to the Magppie CRM. Dates are 2026.
 - The backend runner no longer logs a traceback when a browser drops a connection on Windows (WinError 10054).
 - `Start CRM.cmd` points at `docs/SETUP.md`; SETUP has the daily start/stop steps and "do not update the Supabase CLI".
 - `.claude/` is ignored. `@playwright/test` 1.64.0 added for the UI audit.
+- Gate 1 cleanup (approved): the Zoho read keys now come from `C:\Users\am600\Magppie-Keys\crm-measurement-zoho.env`. Removed: the stale `C:\Projects\CRM-CLAUDE` copy (rc2), the retired-cluster `backend-local.json`, key lines in the old launcher log, 235 old `.local` evidence items, old CRM/Supabase images, QA containers, the old `magppie-crm-local` volumes and the build cache. Live data unchanged.
 
 ### Phase 7: preview preparation (22 Oct)
 - New operator command `backend.runtime_role`: a least-privilege runtime role (`crm_app`), with read/write on the CRM tables and a role-scoped RLS policy only. It has no DDL, no BYPASSRLS and no Supabase API roles, and it is idempotent. The password is sent to the server only as a SCRAM verifier. The command verifies itself and is tested against a real PostgreSQL role.
