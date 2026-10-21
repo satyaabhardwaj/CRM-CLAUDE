@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT))
 
 
 def main():
+    import argparse
     import uvicorn
     from fastapi import HTTPException
     from sqlalchemy import create_engine, insert
@@ -23,6 +24,11 @@ def main():
     from ai.agents import transcriber
     from sign import zoho_sign
 
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--port', type=int, default=4303)
+    parser.add_argument('--dataset', choices=['workflow', 'stress', 'one', 'empty'], default='workflow',
+                        help='workflow: the 4 original clients; the others come from tests/ui/layout-audit/stress_data.py')
+    args = parser.parse_args()
     folder = ROOT / '.local' / ('workflow-qa-' + uuid.uuid4().hex)
     folder.mkdir(parents=True)
     engine = create_engine('sqlite:///' + (folder / 'qa.db').as_posix())
@@ -37,8 +43,13 @@ def main():
             payment={'plan': 'SM', 'receipts': []}, gates={},
             design={'step': 'withDesign', 'designer': 'Rishabh', 'proposals': []},
             timeline={'type': 'Standard', 'productionDays': 45, 'handover': '2026-12-31'}))
+    snapshot, synthetic_requests = {'rev': 0, 'clients': clients}, None
+    if args.dataset != 'workflow':
+        sys.path.insert(0, str(ROOT / 'tests' / 'ui' / 'layout-audit'))
+        from stress_data import build
+        snapshot, synthetic_requests = build(args.dataset)
     with engine.begin() as db:
-        import_snapshot(db, {'rev': 0, 'clients': clients})
+        import_snapshot(db, snapshot)
         for role in ('admin', 'reader'):
             db.execute(insert(users).values(id='qa-' + role, role=role, active=1))
 
@@ -60,16 +71,16 @@ def main():
             from measurement.backend.connection import ZohoError
             raise ZohoError('Synthetic unavailable provider')
         return {'synced_at': '2026-10-21T06:00:00Z', 'orders_scanned': 4,
-            'requests': [] if mode == 'empty' else [dict(id='qa-request-' + str(i), stage=stage,
+            'requests': [] if mode == 'empty' else synthetic_requests if synthetic_requests is not None else [dict(id='qa-request-' + str(i), stage=stage,
                 client='QA Measurement ' + str(i), status='To Schedule', date='2026-10-25',
                 assigned_person='QA Measurer', owner='QA Sales', coordinates=[28.6, 77.2],
                 modified_at='2026-10-21T06:00:00Z') for i, stage in enumerate(
                     ['First Measurement', 'EPT Marking', 'EPT Verification', 'PDI'])]}
     connection.requests = requests
-    app = create_app(Settings(str(engine.url), origin='http://127.0.0.1:4303', uploads=folder/'uploads'), engine, authenticate)
+    app = create_app(Settings(str(engine.url), origin='http://127.0.0.1:%d' % args.port, uploads=folder/'uploads'), engine, authenticate)
     (ROOT / '.local' / 'workflow-qa-current.txt').write_text(str(folder))
-    print('Synthetic QA only: http://127.0.0.1:4303/login', flush=True)
-    uvicorn.run(app, host='127.0.0.1', port=4303, access_log=False)
+    print('Synthetic QA only (%s): http://127.0.0.1:%d/login' % (args.dataset, args.port), flush=True)
+    uvicorn.run(app, host='127.0.0.1', port=args.port, access_log=False)
 
 
 if __name__ == '__main__':

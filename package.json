@@ -7,7 +7,9 @@
     "db:status": "supabase status",
     "build": "node scripts/build-frontends.mjs",
     "db:migrate": "python scripts/migrate_schema.py",
-    "db:seed": "python -m backend.seed_local"
+    "db:seed": "python -m backend.seed_local",
+    "ui:audit": "node tests/ui/layout-audit/audit.mjs",
+    "ui:css-map": "node tests/ui/layout-audit/css-map.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",

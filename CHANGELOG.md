@@ -4,6 +4,11 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ## Unreleased
 
+### UI polish, Phase 2: layout audit (22 Oct, read-only)
+- New `tests/ui/layout-audit` (`npm run ui:audit`): Playwright visits every screen and state at 10 widths on synthetic data. It reports page overflow, overlaps, obscured or off-screen controls, clipped text, squeezed scroll areas, touch targets under 44 px, CLS (load, refresh, tab switch), and focus or scroll lost after a background refresh. `npm run ui:css-map` lists breakpoints, `!important`, hard-coded values and duplicate selectors.
+- `scripts/serve_workflow_qa.py` takes `--dataset stress|one|empty` and `--port`; the default is unchanged.
+- No app code changed. The audit report is private (`.local/ui-polish/AUDIT.md`).
+
 ### UI polish, Phase 1: move and local start (22 Oct)
 - The project now runs from `C:\Users\am600\Projects\CRM-CLAUDE` (moved out of OneDrive). No tracked file points at the old path.
 - New **Stop CRM.cmd** (`scripts/stop_local.py`): stops only this folder's CRM server, then `supabase stop` with data kept.
