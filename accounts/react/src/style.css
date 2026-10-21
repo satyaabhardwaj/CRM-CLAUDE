@@ -1,11 +1,5 @@
-#app {
-  width: 100% !important;
-  height: 100dvh !important;
-  zoom: 1 !important;
-  transform: none !important;
-}
+/* Accounts screens. The frame, header, tabs and sidebar are in shared/workspace.css. */
 .a-main .main {
-  overflow-y: auto;
   padding-bottom: 25px;
 }
 .a-summary {
@@ -15,6 +9,10 @@
 .a-details {
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   align-items: start;
+}
+.a-summary > *,
+.a-details > * {
+  min-width: 0;
 }
 .a-lists {
   display: grid;
@@ -61,6 +59,7 @@
 .a-table-scroll {
   overflow: auto;
   flex: none;
+  scrollbar-gutter: stable;
 }
 .a-table {
   width: 100%;
@@ -103,13 +102,10 @@
   border-radius: 16px;
   color: var(--ink);
 }
-.a-dialog::backdrop {
-  background: #0005;
-}
 .a-dialog .sheet-h {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: var(--z-raised);
   background: white;
 }
 .a-dialog .sheet-b {
@@ -145,64 +141,24 @@
 .a-notices .note {
   display: block;
 }
-input,
-select {
-  max-width: 100%;
-}
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 2px solid #226bb5;
-  outline-offset: 3px;
-}
 .a-main .master {
   flex: 1;
   min-height: 250px;
   overflow: auto;
 }
-@media (max-width: 1000px) {
+@media (max-width: 1023.98px) {
   .a-lists.four {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .a-summary,
   .a-details {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .a-notices {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .top {
-    flex-wrap: wrap;
-  }
-  .top > .flexrow {
-    flex-wrap: wrap;
-  }
 }
-@media (max-width: 600px) {
-  .top {
-    padding: 10px 12px;
-  }
-  .top > .flexrow:first-child {
-    flex: 1;
-  }
-  .brand {
-    font-size: 15px;
-  }
-  .depts {
-    max-width: calc(100vw - 24px);
-    overflow-x: auto;
-  }
-  .depts a {
-    padding: 8px;
-    font-size: 12px;
-  }
-  .stagebar {
-    padding: 8px 12px;
-  }
-  .body.a-main {
-    padding: 12px;
-  }
+@media (max-width: 767.98px) {
   .a-lists,
   .a-lists.four,
   .a-notices {

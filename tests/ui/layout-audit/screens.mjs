@@ -23,11 +23,11 @@ async function click(page, locator, what) {
   await settle(page);
 }
 
-// Opens the sidebar page by its visible label; on narrow screens the sidebar is a drawer behind a toggle.
+// Opens the sidebar page by its visible label; below 1024 the sidebar is a drawer behind the header's menu button.
 async function sidebar(page, name) {
-  const item = page.locator('.crm-nav-item', { hasText: name });
+  const item = page.locator('.crm-sidebar .crm-nav-item', { hasText: name });
   if (await item.first().isVisible().catch(() => false)) return click(page, item, 'sidebar ' + name);
-  await click(page, page.locator('.crm-sidebar-toggle'), 'sidebar toggle');
+  await click(page, page.locator('.app-menu'), 'menu button');
   await click(page, page.locator('dialog.crm-drawer[open] .crm-nav-item', { hasText: name }), 'drawer ' + name);
 }
 
@@ -44,12 +44,18 @@ const common = (module, path) => [
 ];
 
 const sidebarStates = (module, path) => [
-  { id: `${module}/sidebar-collapsed`, module, path, minWidth: 701, setup: async (p) => {
+  { id: `${module}/sidebar-collapsed`, module, path, minWidth: 1024, setup: async (p) => {
     await click(p, p.locator('.crm-sidebar-toggle'), 'sidebar toggle');
   }, cleanup: async (p) => p.locator('.crm-sidebar-toggle').first().click().catch(() => {}) },
-  { id: `${module}/sidebar-drawer`, module, path, maxWidth: 700, overlay: true, setup: async (p) => {
-    await click(p, p.locator('.crm-sidebar-toggle'), 'sidebar toggle');
+  { id: `${module}/sidebar-drawer`, module, path, maxWidth: 1023, overlay: true, setup: async (p) => {
+    await click(p, p.locator('.app-menu'), 'menu button');
   } },
+  // Only Sales and Design have a header search; below 1280 it opens from an icon.
+  ...(['sales', 'design'].includes(module) ? [{ id: `${module}/search-open`, module, path, maxWidth: 1279, setup: async (p) => {
+    // Between 768 and 1024 the search is already inline; that is the state to check.
+    if (!(await p.locator('.app-search-toggle').isVisible()) && (await p.locator('.app-header-search input').isVisible())) return;
+    await click(p, p.locator('.app-search-toggle'), 'search toggle');
+  } }] : []),
 ];
 
 const SALES_PAGES = [

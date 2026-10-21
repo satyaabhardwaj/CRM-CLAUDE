@@ -1,4 +1,4 @@
-import { HeaderSession } from "../../../backend/react/src/Auth";
+import { AppHeader } from "../../../backend/react/src/Shell";
 import {
   Component,
   useEffect,
@@ -93,34 +93,7 @@ export function App() {
   };
   return (
     <Boundary>
-      <header className="top">
-        <HeaderSession />
-        <div className="flexrow management-brand">
-          <div className="brand">
-            MAGPPIE{" "}
-            <span>
-              {window.Kit.headName()} · {window.People.list[0].role}
-            </span>
-          </div>
-          <nav className="depts" aria-label="Departments">
-            {[
-              ["sales", "Sales"],
-              ["design", "Design"],
-              ["measurement", "Measurement"],
-              ["accounts", "Accounts"],
-              ["management", window.Kit.headName()],
-            ].map(([id, label]) => (
-              <a
-                key={id}
-                href={"/" + id + "/"}
-                className={id === "management" ? "on" : ""}
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
-        </div>
-      </header>
+      <AppHeader current="management" />
       <div className="crm-page-toolbar management-tools">
         <nav className="tabs" aria-label="Management views">
           {tabs.map(([id, label]) => (

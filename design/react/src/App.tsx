@@ -1,5 +1,5 @@
 import { Sidebar } from "../../../backend/react/src/Sidebar";
-import { HeaderSession } from "../../../backend/react/src/Auth";
+import { AppHeader, BellPlaceholder } from "../../../backend/react/src/Shell";
 import {
   Component,
   useEffect,
@@ -204,31 +204,10 @@ export function App() {
     );
   return (
     <Boundary>
-      <header className="top">
-        <HeaderSession />
-        <div className="flexrow">
-          <div className="brand">
-            MAGPPIE <span>Design</span>
-          </div>
-          <nav className="depts" aria-label="Departments">
-            {[
-              ["sales", "Sales"],
-              ["design", "Design"],
-              ["measurement", "Measurement"],
-              ["accounts", "Accounts"],
-              ["management", window.Kit.headName()],
-            ].map(([id, label]) => (
-              <a
-                key={id}
-                className={id === "design" ? "on" : ""}
-                href={"/" + id + "/"}
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
-        </div>
-        <div className="flexrow design-tools">
+      <AppHeader
+        current="design"
+        navigation="Design navigation"
+        search={
           <input
             aria-label="Find a client"
             type="search"
@@ -236,9 +215,15 @@ export function App() {
             value={find}
             onChange={(e) => setFind(e.target.value)}
           />
-          {status.ready && <Notifications all={all} ctx={ctx} />}
-        </div>
-      </header>
+        }
+        actions={
+          status.ready ? (
+            <Notifications all={all} ctx={ctx} />
+          ) : (
+            <BellPlaceholder />
+          )
+        }
+      />
       <div className="crm-page-toolbar" aria-label="Design filters">
         <Select
           label="Viewing (staff filter)"
@@ -296,21 +281,33 @@ export function App() {
             ))}
           </div>
           <div className="body">
-            {menu.length > 0 && (
-              <Sidebar
-                id="design"
-                label="Design navigation"
-                active={page}
-                items={menu.map((p) => ({
-                  id: p.id,
-                  label: p.title,
-                  description: p.summary,
-                  count: p.count,
-                  group: tab === "pre" ? "Pre-design" : "Post-design",
-                }))}
-                onNavigate={(id) => go(tab, id)}
-              />
-            )}
+            {/* The sidebar stays on every tab so the content never jumps sideways; on
+                My tasks it lists both portals' pages. */}
+            <Sidebar
+              id="design"
+              label="Design navigation"
+              active={tab === "today" ? "" : page}
+              items={(tab === "today" ? ["pre", "post"] : [tab]).flatMap(
+                (portal) =>
+                  pages(portal, filtered).map((p) => ({
+                    id: p.id,
+                    label: p.title,
+                    description: p.summary,
+                    count: p.count,
+                    group: portal === "pre" ? "Pre-design" : "Post-design",
+                  })),
+              )}
+              onNavigate={(id) =>
+                go(
+                  tab !== "today"
+                    ? tab
+                    : pages("pre", filtered).some((p) => p.id === id)
+                      ? "pre"
+                      : "post",
+                  id,
+                )
+              }
+            />
             <main className="main">
               <Summary all={filtered} ctx={ctx} />
               {tab !== "today" && (

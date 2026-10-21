@@ -1,5 +1,5 @@
 import { Sidebar } from "../../../backend/react/src/Sidebar";
-import { HeaderSession } from "../../../backend/react/src/Auth";
+import { AppHeader } from "../../../backend/react/src/Shell";
 import {
   Component,
   lazy,
@@ -84,33 +84,11 @@ function App() {
   const ready = !live.loading && !live.error && !!live.syncedAt;
   return (
     <>
-      <header className="top">
-        <HeaderSession />
-        <div className="flexrow">
-          <div className="brand">
-            MAGPPIE <span>Measurement</span>
-          </div>
-          <nav className="depts" aria-label="Departments">
-            {[
-              ["sales", "Sales"],
-              ["design", "Design"],
-              ["measurement", "Measurement"],
-              ["accounts", "Accounts"],
-              ["management", "Tavneet"],
-            ].map(([id, label]) => (
-              <a
-                key={id}
-                href={"/" + id + "/"}
-                className={id === "measurement" ? "on" : ""}
-                aria-current={id === "measurement" ? "page" : undefined}
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
-        </div>
-        <Notifications />
-      </header>
+      <AppHeader
+        current="measurement"
+        navigation="Measurement navigation"
+        actions={<Notifications />}
+      />
       <nav className="stagebar" aria-label="Measurement stages">
         {["all", ...STAGES.map(slug)].map((id, i) => (
           <button

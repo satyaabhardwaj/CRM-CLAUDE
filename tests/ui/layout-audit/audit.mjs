@@ -113,7 +113,8 @@ async function shell(page) {
       return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
     };
     const top = document.querySelector('#app > .top, header.top');
-    const tabs = [...document.querySelectorAll('nav.depts a')].map((a) => ({ label: a.textContent.trim(), on: a.classList.contains('on'), ...box(a),
+    // Tab x is measured inside the strip: on phones the strip scrolls the current department into view.
+    const tabs = [...document.querySelectorAll('nav.depts a')].map((a) => ({ label: a.textContent.trim(), on: a.classList.contains('on'), ...box(a), x: a.offsetLeft,
       weight: getComputedStyle(a).fontWeight }));
     return { header: box(top), brand: box(document.querySelector('.brand')), avatar: box(document.querySelector('summary[aria-label="User menu"]')),
       search: box(document.querySelector('.crm-global-search, input[type=search]')), tabs,

@@ -1,4 +1,4 @@
-import { HeaderSession } from "../../../backend/react/src/Auth";
+import { AppHeader, BellPlaceholder } from "../../../backend/react/src/Shell";
 import { Component, useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -71,39 +71,20 @@ function App() {
   });
   return (
     <>
-      <header className="top">
-        <HeaderSession />
-        <div className="flexrow">
-          <div className="brand">
-            MAGPPIE <span>Accounts</span>
-          </div>
-          <nav className="depts" aria-label="Departments">
-            {[
-              ["sales", "Sales"],
-              ["design", "Design"],
-              ["measurement", "Measurement"],
-              ["accounts", "Accounts"],
-              ["management", "Tavneet"],
-            ].map(([id, label]) => (
-              <a
-                key={id}
-                href={"/" + id + "/"}
-                className={id === "accounts" ? "on" : ""}
-                aria-current={id === "accounts" ? "page" : undefined}
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
-        </div>
-        {store.data && (
-          <Notifications
-            data={store.data}
-            writable={store.writable}
-            refresh={store.refresh}
-          />
-        )}
-      </header>
+      <AppHeader
+        current="accounts"
+        actions={
+          store.data ? (
+            <Notifications
+              data={store.data}
+              writable={store.writable}
+              refresh={store.refresh}
+            />
+          ) : (
+            <BellPlaceholder />
+          )
+        }
+      />
       <nav className="stagebar" aria-label="Accounts stages">
         {tabs
           .filter(([id]) => !bankOnly() || id !== "master")

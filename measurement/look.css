@@ -1,83 +1,241 @@
-/* Loaded only by Measurement. Keep the reference's compact navigation and white cards. */
-#app:has(.brand span) { width:100% !important; height:100dvh !important; zoom:1 !important; transform:none !important; }
-body { background:#f3f4f6; }
-#app .body { gap:20px; padding:20px 24px; }
-#app .main { overflow-y:auto; min-height:0; }
-#app .nav { width:76px; }
-#app .nav-in, #app .nav.open .nav-in { width:76px; padding:0; box-shadow:none; background:transparent; }
-#app .nav.open .slim { display:flex; }
-#app .nav.open .wide { display:none; }
-#app .nav .stages { display:flex; flex-direction:column; gap:4px; }
-#app .nav button { min-height:48px; }
-#app .stat { min-height:74px; }
-#app .twolists { min-height:350px; }
-#app .measurement-home { grid-template-columns:repeat(3,minmax(0,1fr)); }
-#app .card-h { background:white; color:var(--ink); border-bottom:1px solid var(--line); }
-#app .row { overflow-wrap:anywhere; }
-.m-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:14px 16px; background:white; border-radius:16px; flex:none; }
-.m-toolbar input { width:240px; max-width:100%; }
-.m-toolbar select { width:170px; }
-.m-toolbar .sub { margin-left:auto; }
-.m-filters { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
-.m-table-wrap { overflow:auto; background:white; border-radius:16px; flex:1; min-height:200px; }
-.m-table { width:100%; border-collapse:collapse; text-align:left; }
-.m-table th { color:var(--ink3); font-size:12px; font-weight:500; background:#fafafa; position:sticky; top:0; }
-.m-table th,.m-table td { padding:13px 16px; border-bottom:1px solid var(--line); }
-.m-table td { font-size:13px; }
-.m-table td .sub { margin-top:5px; }
-.m-table caption { text-align:left; padding:16px; font-weight:600; }
-.m-dialog { border:1px solid var(--line); border-radius:18px; width:min(720px,calc(100vw - 24px)); max-height:90dvh; padding:24px; color:var(--ink); }
-.m-dialog::backdrop { background:#0005; }
-.m-dialog h2 { margin-bottom:18px; }
-.m-dialog .m-fields { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.m-dialog input,.m-dialog select,.m-dialog textarea { width:100%; padding:10px; border:1px solid var(--edge); border-radius:8px; }
-.m-dialog .m-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
-.m-dialog fieldset { border:1px solid var(--line); border-radius:10px; margin:0 0 16px; padding:12px; }
-.m-dialog .m-check { display:inline-flex; align-items:center; gap:6px; margin:5px 16px 5px 0; }
-.m-dialog input[type=checkbox] { width:auto; }
-.m-error { color:#ad2525; margin:12px 0; }
-.m-note { padding:12px 16px; background:white; border-radius:12px; font-size:13px; color:var(--ink3); }
-.m-map { height:350px; background:#e9eef0; border-radius:12px; z-index:0; }
-.m-map .leaflet-interactive:focus { outline:3px solid #111; }
-.m-pin { background:white; border:3px solid #567c9c; border-radius:50%; text-align:center; line-height:24px; font-weight:600; color:#111; }
-.m-work { padding:12px 0; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:8px; }
-.m-work .flexrow { flex-wrap:wrap; }
-.m-status { padding:20px; }
-#app .sheet { z-index:1000; }
-#app .sheet .cols { align-items:start; }
-#app button:focus-visible,#app a:focus-visible { outline:2px solid #226bb5; outline-offset:3px; }
-@media(max-width:1000px) {
- #app .measurement-home { grid-template-columns:1fr !important; flex:none; }
- #app .measurement-home > .card { min-height:220px; }
- #app .cols { grid-template-columns:repeat(2,minmax(0,1fr)); }
- #app .top { flex-wrap:wrap; }
- #app .top > .flexrow:first-child { flex-wrap:wrap; flex:1; }
+/* Loaded only by Measurement: toolbar, request table, dialogs, map. The frame, header, tabs and sidebar
+   are in shared/workspace.css. */
+#app .stat {
+  min-height: 74px;
+  text-align: left;
 }
-@media(max-width:600px) {
- #app .top { padding:10px 12px; gap:6px; }
- #app .brand { font-size:15px; }
- #app .depts { max-width:calc(100vw - 24px); overflow-x:auto; }
- #app .depts a { padding:8px; font-size:12px; }
- #app .stagebar { padding:8px 12px; }
- #app .body { padding:12px; gap:12px; flex-direction:column; }
- #app .nav { width:100%; height:42px; }
- #app .nav-in,#app .nav.open .nav-in { position:static; width:100%; }
- #app .nav .stages { flex-direction:row; }
- #app .nav button { min-height:40px; }
- #app .statrow { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
- #app .stat { padding:10px; min-height:66px; }
- #app .twolists,#app .cols { grid-template-columns:1fr !important; flex:none; }
- #app .sheet { left:0; right:0; top:0; }
- #app .sheet-h { padding:16px; }
- #app .sheet-h h2 { font-size:20px; }
- #app .sheet-b { padding:8px 12px 18px; }
- .m-toolbar { padding:12px; }
- .m-toolbar input,.m-toolbar select { width:100%; }
- .m-toolbar .sub { margin-left:0; }
- .m-dialog .m-fields { grid-template-columns:1fr; }
- .m-table thead { display:none; }
- .m-table,.m-table tbody,.m-table tr,.m-table td { display:block; }
- .m-table tr { padding:12px; border-bottom:1px solid var(--line); }
- .m-table td { border:0; padding:5px 0; display:flex; gap:10px; justify-content:space-between; }
- .m-table td::before { content:attr(data-label); color:var(--ink3); font-size:12px; }
+#app .measurement-home {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+#app .row {
+  overflow-wrap: anywhere;
+}
+.m-toolbar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 14px var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+}
+.m-toolbar input {
+  width: 240px;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+}
+.m-toolbar select {
+  width: 170px;
+}
+.m-toolbar .sub {
+  margin-left: auto;
+}
+.m-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.m-table-wrap {
+  flex: 1;
+  min-height: 200px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+}
+.m-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.m-table th {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface-2);
+  color: var(--color-ink-3);
+  font-size: var(--text-12);
+  font-weight: var(--weight-medium);
+}
+.m-table th,
+.m-table td {
+  padding: 13px var(--space-4);
+  border-bottom: 1px solid var(--color-line);
+}
+.m-table td {
+  font-size: var(--text-13);
+}
+.m-table td .sub {
+  margin-top: 5px;
+}
+.m-table caption {
+  padding: var(--space-4);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+}
+.m-dialog {
+  width: min(720px, calc(100vw - 24px));
+  max-height: 90dvh;
+  padding: var(--space-6);
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  color: var(--color-ink);
+}
+.m-dialog h2 {
+  margin-bottom: 18px;
+}
+.m-dialog .m-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+.m-dialog input,
+.m-dialog select,
+.m-dialog textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--color-edge);
+  border-radius: var(--radius-sm);
+}
+.m-dialog select {
+  padding-right: 28px;
+}
+.m-dialog .m-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+.m-dialog fieldset {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+}
+.m-dialog .m-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 5px var(--space-4) 5px 0;
+}
+.m-dialog input[type="checkbox"] {
+  width: auto;
+}
+.m-error {
+  margin: var(--space-3) 0;
+  color: var(--color-danger);
+}
+.m-note {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  color: var(--color-ink-3);
+  font-size: var(--text-13);
+}
+/* The map row takes the map's height; the lists below it keep theirs. */
+#app .twolists:has(.m-map) {
+  flex: none;
+}
+.m-map {
+  z-index: var(--z-base);
+  height: 350px;
+  min-height: 280px;
+  background: #e9eef0;
+  border-radius: var(--radius-lg);
+}
+.m-map .leaflet-interactive:focus {
+  outline: 3px solid #111;
+}
+.m-pin {
+  background: var(--color-surface);
+  border: 3px solid #567c9c;
+  border-radius: 50%;
+  color: #111;
+  font-weight: var(--weight-semibold);
+  line-height: 24px;
+  text-align: center;
+}
+.m-work {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-line);
+}
+.m-work .flexrow {
+  flex-wrap: wrap;
+}
+.m-status {
+  padding: var(--space-5);
+}
+@media (max-width: 1023.98px) {
+  #app .measurement-home {
+    flex: none;
+    min-height: 0;
+    grid-template-columns: 1fr;
+  }
+  #app .measurement-home > .card {
+    min-height: 220px;
+  }
+  #app .cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767.98px) {
+  #app .statrow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+  #app .stat {
+    min-height: 66px;
+    padding: 10px;
+  }
+  #app .twolists,
+  #app .cols {
+    grid-template-columns: 1fr;
+  }
+  .m-toolbar {
+    padding: var(--space-3);
+  }
+  .m-toolbar input,
+  .m-toolbar select {
+    width: 100%;
+  }
+  .m-toolbar .sub {
+    margin-left: 0;
+    /* Room for the longest filter summary, so changing stage does not push the tiles down. */
+    min-height: 3lh;
+  }
+  .m-dialog .m-fields {
+    grid-template-columns: 1fr;
+  }
+  .m-table thead {
+    display: none;
+  }
+  .m-table,
+  .m-table tbody,
+  .m-table tr,
+  .m-table td {
+    display: block;
+  }
+  .m-table tr {
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--color-line);
+  }
+  .m-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 5px 0;
+    border: 0;
+  }
+  .m-table td::before {
+    content: attr(data-label);
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
 }

@@ -8,6 +8,7 @@ npm run ui:audit                                 # all screens, 10 widths, Chrom
 npm run ui:audit -- --only "^sales/" --widths 390,1440 --quick
 node tests/ui/layout-audit/report.mjs .local/ui-polish/audit-<stamp>/results.json
 node tests/ui/layout-audit/css-map.mjs           # breakpoints, !important, colours, duplicate selectors
+node tests/ui/layout-audit/shots.mjs --out DIR   # one screenshot per module at 390 and 1440 (before/after)
 ```
 
 Options: `--out DIR`, `--only REGEX` (screen ids), `--widths 320,390,…`, `--browser chromium|firefox|webkit`, `--workers N`, `--quick` (skips data states and the 9-second refresh checks).

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { DRAWER_QUERY, OPEN_NAVIGATION } from "./Shell";
 
 export type SidebarItem = {
   id: string;
@@ -65,26 +66,42 @@ export function Sidebar({
     }
   });
   const dialog = useRef<HTMLDialogElement>(null),
-    trigger = useRef<HTMLButtonElement>(null);
+    trigger = useRef<HTMLButtonElement>(null),
+    opener = useRef<HTMLElement | null>(null),
+    swipe = useRef<number | null>(null);
   const [drawer, setDrawer] = useState(false);
-  const [mobile, setMobile] = useState(
-    () => matchMedia("(max-width: 700px)").matches,
-  );
+  const [mobile, setMobile] = useState(() => matchMedia(DRAWER_QUERY).matches);
   useEffect(() => {
-    const query = matchMedia("(max-width: 700px)");
-    const update = () => setMobile(query.matches);
+    const query = matchMedia(DRAWER_QUERY);
+    const update = () => {
+      setMobile(query.matches);
+      if (!query.matches && dialog.current?.open) close();
+    };
     query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
+    // The header's menu button asks for the drawer; focus goes back to it on close.
+    const open = (e: Event) => openDrawer((e as CustomEvent).detail);
+    window.addEventListener(OPEN_NAVIGATION, open);
+    return () => {
+      query.removeEventListener("change", update);
+      window.removeEventListener(OPEN_NAVIGATION, open);
+    };
   }, []);
+  function openDrawer(from?: unknown) {
+    opener.current =
+      from instanceof HTMLElement
+        ? from
+        : (document.activeElement as HTMLElement);
+    dialog.current?.showModal();
+    setDrawer(true);
+  }
   function close() {
     dialog.current?.close();
     setDrawer(false);
-    trigger.current?.focus();
+    (opener.current?.isConnected ? opener.current : trigger.current)?.focus();
   }
   function toggle() {
-    if (matchMedia("(max-width: 700px)").matches) {
-      dialog.current?.showModal();
-      setDrawer(true);
+    if (matchMedia(DRAWER_QUERY).matches) {
+      openDrawer(trigger.current);
     } else {
       setCollapsed(!collapsed);
       try {
@@ -148,7 +165,18 @@ export function Sidebar({
           aria-expanded={mobile ? drawer : !collapsed}
           onClick={toggle}
         >
-          <span aria-hidden="true">☰</span>
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <path d={collapsed ? "m9 6 6 6-6 6" : "m15 6-6 6 6 6"} />
+          </svg>
           <span className="crm-nav-label">{label}</span>
         </button>
         <nav aria-label={label}>{links()}</nav>
@@ -164,12 +192,36 @@ export function Sidebar({
         onClick={(e) => {
           if (e.target === dialog.current) close();
         }}
+        onPointerDown={(e) => {
+          swipe.current = e.clientX;
+        }}
+        onPointerUp={(e) => {
+          // A swipe towards the edge it came from closes the drawer.
+          if (swipe.current !== null && swipe.current - e.clientX > 60) close();
+          swipe.current = null;
+        }}
       >
         <div className="crm-drawer-content">
           <div className="crm-drawer-title">
             <b>{label}</b>
-            <button type="button" onClick={close} aria-label="Close navigation">
-              ✕
+            <button
+              type="button"
+              className="app-icon-button"
+              onClick={close}
+              aria-label="Close navigation"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
             </button>
           </div>
           <nav aria-label={label}>{links()}</nav>

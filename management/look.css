@@ -1,12 +1,5 @@
-/* Management has its own look: a dark top bar, few numbers, problems in red. */
-.top.dark { background: #1D1D1F; border-bottom: none; color: #FFFFFF; }
-.top.dark .brand span { color: #A1A1A6; }
-.top.dark .note { font-size: 12px; color: #A1A1A6; }
-.top.dark select { color: var(--ink); }
-.top.dark .depts a { color: #D2D2D7; }
-.top.dark .depts a:hover { background: #3A3A3C; }
-.top.dark .depts a.on { background: #FFFFFF; color: #1D1D1F; }
-.mg { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 14px; padding: 18px 24px 20px; }
+/* Management screens: tiles, people, analysis bars. The header and tabs are in shared/workspace.css. */
+.mg { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 14px; padding: 18px var(--page-gutter) 20px; }
 .mg-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; flex: none; }
 .mg-tile { background: var(--card); border-radius: 16px; padding: 14px 18px; }
 .mg-tile.alarm { background: #FDE7E5; }
@@ -20,7 +13,6 @@
 .chipline b { color: var(--ink); font-weight: 600; }
 .mg-two { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 14px; }
 .mg .card { min-height: 0; }
-.mg .card-h { background: #F1F3F7; }
 .mg .card-h h2 { font-size: 15px; }
 .mg .list-h { padding: 14px 16px 10px; }
 .mg .list-h h1 { font-size: 18px; }
@@ -28,18 +20,15 @@
 .person:first-child { border-top: none; }
 .person:hover, .person.on { background: #EEF2F8; }
 .person b { font-size: 15px; font-weight: 600; }
-.bad { color: #A1160A !important; font-weight: 600; }
+.bad, b.bad, span.bad { color: #A1160A; font-weight: 600; }
 .facts b.bad { color: #A1160A; }
 
 /* Analysis: eight cards, bars in one colour, red only for what is wrong. */
-.tabs { display: flex; gap: 2px; background: #3A3A3C; border-radius: 10px; padding: 2px; }
-.tabs button { border: none; background: transparent; color: #D2D2D7; font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 8px; cursor: pointer; }
-.tabs button.on { background: #FFFFFF; color: #1D1D1F; }
 .ana-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .ana-bars { display: flex; flex-direction: column; gap: 9px; }
-.ana-row { display: grid; grid-template-columns: 128px minmax(0, 1fr); column-gap: 10px; row-gap: 3px; align-items: center; font-size: 13px; }
+.ana-row { display: grid; grid-template-columns: minmax(0, 128px) minmax(0, 1fr); column-gap: 10px; row-gap: 3px; align-items: center; font-size: 13px; }
 .ana-row:hover .ana-track { background: #DDE3EC; }
-.ana-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.ana-name { overflow-wrap: anywhere; color: var(--ink); }
 .ana-track { height: 10px; border-radius: 4px; background: #EEF1F5; overflow: hidden; }
 .ana-track i { display: block; height: 100%; border-radius: 0 4px 4px 0; background: #2A6FDB; }
 .ana-track i.bad { background: #D93025; }

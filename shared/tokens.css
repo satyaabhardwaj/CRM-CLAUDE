@@ -1,15 +1,125 @@
+/* Design tokens: the one source of truth for spacing, type, colour, layers and motion.
+   Every module page and the sign-in pages read these. See docs/UI_GUIDE.md.
+   Breakpoints (mobile-first, also in backend/react/src/Shell.tsx): 640, 768, 1024, 1280. */
 :root {
-  --page: #f3f5f8;
-  --card: #fff;
-  --ink: #202733;
-  --ink2: #465366;
-  --ink3: #626f80;
-  --line: #e3e8ef;
-  --edge: #c6ced9;
-  --blue: #245bb0;
-  --ui-hover: #edf2f9;
-  --ui-radius: 12px;
-  --ui-shadow: 0 3px 14px #172b4d08;
-  --ui-focus: #3875ce;
-  --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Spacing (4 px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Type scale: size / fixed line-height */
+  --text-12: 12px;
+  --leading-12: 16px;
+  --text-13: 13px;
+  --leading-13: 18px;
+  --text-14: 14px;
+  --leading-14: 20px;
+  --text-16: 16px;
+  --leading-16: 24px;
+  --text-18: 18px;
+  --leading-18: 26px;
+  --text-20: 20px;
+  --leading-20: 28px;
+  --text-24: 24px;
+  --leading-24: 32px;
+  --text-30: 30px;
+  --leading-30: 38px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Shape */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+  --shadow-1: 0 1px 2px #172b4d0d, 0 3px 14px #172b4d08;
+  --shadow-2: 0 8px 28px #172b4d24;
+  --shadow-3: 0 16px 60px #172b4d38;
+
+  /* Controls */
+  --control-sm: 32px;
+  --control-md: 40px;
+  --control-lg: 44px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+
+  /* Shell */
+  --header-h: 56px;
+  --tabs-h: 44px;
+  --sidebar-w: 248px;
+  --sidebar-w-collapsed: 64px;
+  --page-gutter: var(--space-4);
+
+  /* Layers */
+  --z-base: 0;
+  --z-raised: 1;
+  --z-sticky: 100;
+  --z-dropdown: 200;
+  --z-drawer: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+
+  /* Motion */
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Colour: semantic. Text colours keep at least 4.5:1 on --color-page and --color-surface. */
+  --color-page: #f3f5f8;
+  --color-surface: #ffffff;
+  --color-surface-2: #f6f8fb;
+  --color-ink: #202733;
+  --color-ink-2: #465366;
+  --color-ink-3: #5f6b7c;
+  --color-line: #e3e8ef;
+  --color-edge: #c6ced9;
+  --color-hover: #edf2f9;
+  --color-accent: #245bb0;
+  --color-accent-ink: #1e4f99;
+  --color-accent-soft: #eaf0fb;
+  --color-focus: #3875ce;
+  --color-success: #14602f;
+  --color-success-soft: #e8f3eb;
+  --color-warning: #6b4a00;
+  --color-warning-soft: #fbf3dc;
+  --color-danger: #a1160a;
+  --color-danger-strong: #d93025;
+  --color-danger-soft: #fce9e7;
+  --color-on-dark: #ffffff;
+  --color-backdrop: #172b4d66;
+
+  /* Legacy names, kept as aliases while screens move over. */
+  --page: var(--color-page);
+  --card: var(--color-surface);
+  --ink: var(--color-ink);
+  --ink2: var(--color-ink-2);
+  --ink3: var(--color-ink-3);
+  --line: var(--color-line);
+  --edge: var(--color-edge);
+  --blue: var(--color-accent);
+  --bg: var(--color-page);
+  --ui-hover: var(--color-hover);
+  --ui-radius: var(--radius-md);
+  --ui-shadow: var(--shadow-1);
+  --ui-focus: var(--color-focus);
+  --ui-font: var(--font);
+}
+@media (min-width: 768px) {
+  :root {
+    --page-gutter: var(--space-6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+  }
 }

@@ -4,6 +4,29 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ## Unreleased
 
+### UI polish, Phase 3: design system and app shell (22 Oct)
+- **Tokens** (`shared/tokens.css`): spacing, type scale with fixed line heights, weights, radius, shadows, control heights, a z-index scale, motion and semantic colours. The old names stay as aliases.
+- **One breakpoint set everywhere: 640 / 768 / 1024 / 1280.** It replaces 600/700/1000/1100/1200 in CSS and the 700 px JavaScript query.
+- **No more squeezed lists.** Below 1024 the page scrolls as one document and lists take their natural height. From 1024 the main column scrolls and lists keep at least 320 px. This fixes the phone and landscape lists that collapsed to 0–48 px.
+- **One header for all five modules** (`backend/react/src/Shell.tsx`):
+  - fixed height, and the logo and department tabs sit in the same place in every module;
+  - the active tab has an underline indicator, with no weight change;
+  - search collapses to an icon below 1280;
+  - New opportunity floats on phones;
+  - the user menu is last in the keyboard order;
+  - "Tavneet" is now **Management**; the Person selector stays in the Management toolbar.
+- **Sidebar:**
+  - below 1024 it is a drawer opened from the header, with Escape, swipe and backdrop to close, and focus returns to the menu button;
+  - fixed 248 px on desktop, collapsing to 64 px icons;
+  - right-aligned counts, and no bold on the active item.
+  - Design keeps its sidebar on My tasks, so the content no longer jumps.
+- **Stage and view tabs** share the department tab style. The status bars, filter toolbar and page header follow one pattern.
+- **CSS clean-up:**
+  - `!important` 23 → 0, duplicated selectors 63 → 0;
+  - every z-index is a token, and `scrollbar-gutter: stable` is set on every scroller;
+  - the dead workflow-panel CSS is removed.
+- Presentation only: no API, data, save, permission, auth or calculation change.
+
 ### UI polish, Phase 2: layout audit (22 Oct, read-only)
 - New `tests/ui/layout-audit` (`npm run ui:audit`): Playwright visits every screen and state at 10 widths on synthetic data. It reports page overflow, overlaps, obscured or off-screen controls, clipped text, squeezed scroll areas, touch targets under 44 px, CLS (load, refresh, tab switch), and focus or scroll lost after a background refresh. `npm run ui:css-map` lists breakpoints, `!important`, hard-coded values and duplicate selectors.
 - `scripts/serve_workflow_qa.py` takes `--dataset stress|one|empty` and `--port`; the default is unchanged.

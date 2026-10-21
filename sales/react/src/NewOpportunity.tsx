@@ -166,7 +166,7 @@ export function NewOpportunity({
           ])}
           {select("segment", "Segment", ["Retail", "Pro-Retail", "Projects"])}
           {select("priority", "Priority prospect", ["High", "Medium", "Low"])}
-          <div style={{ gridColumn: "span 3" }}>
+          <div className="span-3">
             <ArchitectPicker
               on={d.architect}
               id={d.architectId}

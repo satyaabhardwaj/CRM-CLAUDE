@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import type { Context } from "./types";
 import { binClient, clients, rules, type SalesClient } from "./model";
 import { Button, day, now, Pill, Select } from "./ui";
@@ -257,6 +257,8 @@ export function Grid({
   tools?: ReactNode;
   empty?: string;
 }) {
+  // Columns travel as a CSS variable so narrow layouts can re-flow rows without !important.
+  const grid = { "--row-cols": cols } as CSSProperties;
   return (
     <section className="card list">
       <div className="list-h">
@@ -264,7 +266,7 @@ export function Grid({
         {tools}
       </div>
       <div className="rows">
-        <div className="row head" style={{ gridTemplateColumns: cols }}>
+        <div className="row head grid-cols" style={grid}>
           {heads.map((h, i) => (
             <div key={i}>{h}</div>
           ))}
@@ -275,8 +277,8 @@ export function Grid({
               <button
                 key={r.id}
                 type="button"
-                className="row"
-                style={{ gridTemplateColumns: cols }}
+                className="row grid-cols"
+                style={grid}
                 onClick={r.onClick}
               >
                 {r.cells.map((cell, i) => (
@@ -284,11 +286,7 @@ export function Grid({
                 ))}
               </button>
             ) : (
-              <div
-                key={r.id}
-                className="row"
-                style={{ gridTemplateColumns: cols }}
-              >
+              <div key={r.id} className="row grid-cols" style={grid}>
                 {r.cells.map((cell, i) => (
                   <span key={i}>{cell}</span>
                 ))}

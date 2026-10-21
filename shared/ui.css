@@ -1,279 +1,55 @@
-@import url("./tokens.css");
-
-/* Shared presentation layer. No feature state, calculations or data selectors. */
-body {
-  font-family: var(--ui-font);
-  line-height: 1.45;
-}
-body:has(#session-root) #app {
-  height: 100dvh !important;
-}
-#app > .top {
-  padding: 12px 24px;
-  gap: 16px;
-  border-color: var(--line);
-}
-.brand {
-  letter-spacing: 0.02em;
-}
-.card,
-.stat {
-  box-shadow: var(--ui-shadow);
-}
-.card-h {
-  padding: 14px 16px;
-  align-items: center;
-  border-bottom: 1px solid var(--line);
-}
-.card-h h2 {
-  line-height: 1.4;
-}
-.card-b {
-  padding: 14px 16px;
-  gap: 10px;
-}
-.list-h {
-  align-items: center;
-  flex-wrap: wrap;
-}
-.list-h h1 {
-  font-size: clamp(20px, 2vw, 24px);
-  line-height: 1.25;
-}
-.page-h {
-  gap: 16px;
-  flex-wrap: wrap;
-  align-items: end;
-}
-.page-h > div:first-child {
-  flex: 1 1 240px;
-  min-width: 0;
-}
-.page-h > .field {
-  flex: 0 1 240px;
-  min-width: 160px;
-}
-.page-h > .field input {
-  width: 100%;
-}
-.stagebar {
-  gap: 6px;
-  scrollbar-width: thin;
-}
-.stagebar button {
-  min-height: 38px;
-}
-.management-tools .tabs {
-  background: var(--page);
-  gap: 4px;
-  padding: 4px;
-}
-.management-tools .tabs button {
-  color: var(--ink2);
-  min-height: 36px;
-}
-.management-tools .tabs button.on {
-  background: var(--ink);
-  color: white;
-}
-.management-tools .tabs button:hover:not(.on) {
-  background: var(--ui-hover);
-}
-.management-readonly {
-  color: var(--ink3);
-  font-size: 12px;
-  padding: 4px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  white-space: nowrap;
-}
-.management-item {
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  background: var(--card);
-  padding: 14px 16px;
-  cursor: pointer;
-}
-.management-item:hover {
-  background: var(--ui-hover);
-}
-.management-item .who {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.nav-in {
-  scrollbar-width: thin;
-}
-.btn,
-.choice button,
-.ordertabs button {
-  border-radius: var(--ui-radius);
-}
-button,
-a,
-input,
-select,
-textarea {
+/* Interaction layer shared by every module: transitions, focus, disabled, dialogs, reduced motion.
+   Components themselves (cards, lists, buttons, fields) are in look.css; the shell is in workspace.css. */
+:is(button, a, input, select, textarea, summary) {
   transition:
-    background-color 140ms ease,
-    border-color 140ms ease,
-    box-shadow 140ms ease,
-    color 140ms ease;
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
-button:disabled {
+:is(button):disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
-:is(button, a, input, select, textarea):focus-visible {
-  outline: 3px solid var(--ui-focus);
+:is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--color-focus);
   outline-offset: 3px;
 }
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-select,
-textarea {
-  border-color: var(--edge);
-  border-radius: 8px;
-}
-input::placeholder,
-textarea::placeholder {
-  color: var(--ink3);
+:is(input, textarea)::placeholder {
+  color: var(--color-ink-3);
   opacity: 1;
 }
-.empty,
-.react-empty {
-  padding: 28px 20px;
-  line-height: 1.7;
-  color: var(--ink3);
-}
-.sales-status,
-.management-status,
 [role="alert"] {
   overflow-wrap: anywhere;
-}
-.sales-status,
-.management-status {
-  border-bottom: 1px solid var(--line);
 }
 dialog {
   border-radius: 18px;
 }
 dialog::backdrop {
-  background: #172b4d66;
+  background: var(--color-backdrop);
 }
-.sheet-h,
-.sheet-foot {
-  gap: 12px;
-}
-.header-session {
-  position: absolute;
-  top: 12px;
-  right: 24px;
-  width: 112px;
-  display: flex;
-  justify-content: flex-end;
-  font-size: 12px;
-}
-#app > .top {
-  position: relative;
-  padding-right: 152px;
-}
-.header-session button {
-  font: inherit;
-  font-weight: 600;
-  padding: 6px 12px;
-  min-height: 34px;
-  border: 1px solid var(--edge);
-  border-radius: 8px;
-  background: var(--card);
-  cursor: pointer;
-}
-.header-session button:hover:not(:disabled) {
-  background: var(--ui-hover);
-}
-@media (max-width: 700px) {
-  #app > .top {
-    padding: 10px 12px;
-    gap: 10px;
-  }
-  .stagebar {
-    padding-inline: 12px;
-  }
-  #app .depts a { flex: 0 0 auto; }
-  #app > .top {
-    padding-top: 64px;
-    padding-right: 12px;
-  }
-  #app > .top .brand {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    max-width: calc(100% - 144px);
-    white-space: normal;
-    line-height: 1.35;
-  }
-  .header-session {
-    right: 12px;
-  }
-  #app .depts,
-  #app .stagebar,
-  #app .tabs {
-    scrollbar-width: thin;
-    scrollbar-color: var(--edge) transparent;
-  }
-  #app > .top > .bell {
-    position: absolute;
-    top: 12px;
-    right: 94px;
-  }
-  #app > .top:has(> .bell) .brand {
-    max-width: calc(100% - 184px);
-  }
-  .management-readonly {
-    position: absolute;
-    right: 12px;
-    bottom: 22px;
-  }
-  .management-tools {
-    width: 100%;
-  }
-  .management-tools .management-select {
-    max-width: calc(100% - 80px);
-  }
-
+@media (max-width: 767.98px) {
   .card-h,
   .card-b {
-    padding-inline: 12px;
+    padding-inline: var(--space-3);
   }
   .list-h {
-    padding: 16px 12px;
     gap: 10px;
+    padding: var(--space-4) var(--space-3);
   }
-  .page-h > .field {
-    flex: 1 1 100%;
-    min-width: 0;
-  }
+  /* 16 px stops phones from zooming into a field on focus. */
   input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
-    font-size: 16px;
+    font-size: var(--text-16);
   }
 }
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    transition: none !important;
-    animation: none !important;
-    scroll-behavior: auto !important;
-  }
-}
-@media print {
-  #session-root,
-  .header-session {
-    display: none;
-  }
-  body:has(#session-root) #app {
-    height: auto !important;
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+    scroll-behavior: auto;
   }
 }

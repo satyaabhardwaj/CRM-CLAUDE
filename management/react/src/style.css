@@ -1,25 +1,10 @@
-#app {
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  width: 100%;
-}
+/* Management screens. The frame, header, tabs and toolbar are in shared/workspace.css. */
 .management-body {
   padding: 0;
   min-height: 0;
 }
-.management-brand,
-.management-tools {
-  gap: 12px;
-  min-width: 0;
-}
-.management-tools {
-  flex-wrap: wrap;
-}
 .management-select {
   display: block;
-  min-width: 150px;
 }
 .management-select select {
   width: 100%;
@@ -31,28 +16,29 @@
   overflow: hidden;
   clip-path: inset(50%);
 }
-.management-status {
-  padding: 10px 24px;
-  background: white;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.management-status[role="alert"] {
-  color: #a1160a;
-}
 .management-item {
-  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-lg);
+  padding: 14px var(--space-4);
+  border: 0;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-surface);
   text-align: left;
+  cursor: pointer;
+}
+.management-item:hover {
+  background: var(--color-hover);
 }
 .management-item .who {
-  min-width: 0;
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
 }
 .management-item .pill {
   max-width: 55%;
@@ -66,6 +52,7 @@
   overflow: auto;
   min-height: 0;
   flex: 1;
+  scrollbar-gutter: stable;
 }
 .management-people-row {
   grid-template-columns: 1.5fr 1fr 0.7fr 0.8fr 0.8fr 0.9fr 0.9fr 0.9fr 1fr 1fr 1fr 1fr 1fr;
@@ -133,14 +120,6 @@
   gap: 8px;
   flex-wrap: wrap;
 }
-#app > .top {
-  height: auto;
-  min-height: 56px;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding-top: 10px;
-  padding-bottom: 10px;
-}
 .mg .card-b {
   overflow: auto;
 }
@@ -151,14 +130,7 @@
 .ana-grid .card-b {
   min-height: 0;
 }
-.ana-name {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-.ana-row {
-  grid-template-columns: minmax(0, 128px) minmax(0, 1fr);
-}
-@media (max-width: 1200px) {
+@media (max-width: 1279.98px) {
   .ana-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: none;
@@ -174,10 +146,6 @@
     flex: none;
     overflow: visible;
   }
-  .management-tools {
-    width: 100%;
-    justify-content: space-between;
-  }
   .management-dialog .cols {
     grid-template-columns: 1fr;
   }
@@ -185,42 +153,9 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
-@media (max-width: 700px) {
-  #app > .top {
-    padding: 12px;
-  }
-  #app > .top > .management-brand {
-    flex-wrap: wrap;
-    width: 100%;
-  }
-  .management-brand .depts {
-    flex: 1 0 100%;
-    order: 2;
-    overflow: auto;
-    max-width: 100%;
-    white-space: nowrap;
-  }
-  .management-brand > .note {
-    width: auto;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: inherit;
-  }
-  .management-tools {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .tabs {
-    overflow: auto;
-    white-space: nowrap;
-  }
-  .tabs button {
-    flex: none;
-  }
+@media (max-width: 767.98px) {
   .mg {
     padding: 12px;
-    overflow: auto;
   }
   .mg-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -1,5 +1,9 @@
 import { Sidebar } from "../../../backend/react/src/Sidebar";
-import { HeaderSession } from "../../../backend/react/src/Auth";
+import {
+  AppHeader,
+  BellPlaceholder,
+  ShellIcon,
+} from "../../../backend/react/src/Shell";
 import {
   Component,
   useEffect,
@@ -272,31 +276,10 @@ export function App() {
   const disabled = !status.writable || status.dirty;
   return (
     <Boundary>
-      <header className="top">
-        <HeaderSession />
-        <div className="flexrow">
-          <div className="brand">
-            MAGPPIE <span>Sales</span>
-          </div>
-          <nav className="depts" aria-label="Departments">
-            {[
-              ["sales", "Sales"],
-              ["design", "Design"],
-              ["measurement", "Measurement"],
-              ["accounts", "Accounts"],
-              ["management", window.Kit.headName()],
-            ].map(([id, label]) => (
-              <a
-                key={id}
-                className={id === "sales" ? "on" : ""}
-                href={"/" + id + "/"}
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
-        </div>
-        <div className="crm-global-search">
+      <AppHeader
+        current="sales"
+        navigation="Sales navigation"
+        search={
           <input
             type="search"
             aria-label="Find a client"
@@ -304,30 +287,26 @@ export function App() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-        </div>
-        <div className="flexrow sales-tools">
-          {status.ready && (
-            <>
-              {!dash.page && (
-                <button
-                  className="btn sales-rail-toggle"
-                  aria-expanded={rail}
-                  onClick={() => setRail(!rail)}
-                >
-                  {rail ? "Hide today" : "Also today"}
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn round"
-                aria-label="Download the weekly sales report"
-                onClick={() => weeklyReport(ctx)}
-              >
-                ↓
-              </button>
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn round"
+              aria-label="Download the weekly sales report"
+              disabled={!status.ready}
+              onClick={() => weeklyReport(ctx)}
+            >
+              <ShellIcon name="download" />
+            </button>
+            {status.ready ? (
               <Notifications ctx={ctx} writable={!disabled} />
-            </>
-          )}
+            ) : (
+              <BellPlaceholder />
+            )}
+          </>
+        }
+        primary={
           <Button
             tone="dark"
             disabled={!status.ready || disabled}
@@ -338,8 +317,8 @@ export function App() {
           >
             New opportunity
           </Button>
-        </div>
-      </header>
+        }
+      />
       <div className="crm-page-toolbar" aria-label="Sales filters">
         <Select
           label="Viewing (staff filter)"
@@ -371,6 +350,16 @@ export function App() {
             <Field label="From" type="date" value={from} onCommit={setFrom} />
             <Field label="To" type="date" value={to} onCommit={setTo} />
           </>
+        )}
+        {status.ready && !dash.page && (
+          <button
+            type="button"
+            className="btn sales-rail-toggle toolbar-end"
+            aria-expanded={rail}
+            onClick={() => setRail(!rail)}
+          >
+            {rail ? "Hide today" : "Also today"}
+          </button>
         )}
       </div>
       {(!status.ready ||

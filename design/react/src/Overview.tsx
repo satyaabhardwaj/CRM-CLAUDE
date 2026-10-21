@@ -356,7 +356,11 @@ export function Notifications({ all, ctx }: { all: Client[]; ctx: Context }) {
         ) : null}
       </button>
       {open && (
-        <div className="bell-panel" role="dialog" aria-label="Notifications">
+        <div
+          className="bell-panel bell-panel-3"
+          role="dialog"
+          aria-label="Notifications"
+        >
           {cols.map((col) => (
             <div className="bell-col" key={col.src}>
               <div className="note-h">

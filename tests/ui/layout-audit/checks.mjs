@@ -71,9 +71,12 @@ export function inspect(opts) {
   const scope = modal || document.body;
   // Popovers the state opened on purpose (bell, user menu, dialogs, drawer) may cover the page; only
   // collisions inside one layer, or with something not opened on purpose, count.
-  const OVERLAYS = '.bell-panel, .user-menu-panel, dialog[open], .crm-drawer';
+  // The floating New opportunity button and an opened Also today panel float above the page on purpose.
+  const OVERLAYS = '.bell-panel, .user-menu-panel, dialog[open], .crm-drawer, .app-primary, .rail.sales-rail-open, .rail.design-rail-open';
   const layer = (el) => (el && el.closest ? el.closest(OVERLAYS) : null);
   const crossesOverlay = (a, b) => layer(a) !== layer(b) && (layer(a) || layer(b));
+  // Content scrolled under the sticky header is hidden by design, not by a layout fault.
+  const underHeader = (a, b) => !!a.closest('.app-header') !== !!b.closest('.app-header');
 
   // 1. Horizontal page overflow and its widest causes.
   const docW = document.documentElement.scrollWidth;
@@ -120,7 +123,7 @@ export function inspect(opts) {
     if (!hit || el.contains(hit) || hit.contains(el)) continue;
     if (hit.closest('label') && hit.closest('label').contains(el)) continue;
     if (el.closest('label') && el.closest('label').contains(hit)) continue;
-    if (crossesOverlay(el, hit)) continue;
+    if (crossesOverlay(el, hit) || underHeader(el, hit)) continue;
     add('obscured', el, { by: describe(hit), byText: label(hit) });
   }
 
@@ -169,7 +172,7 @@ export function inspect(opts) {
     for (let a = 0; a < ids.length; a++) for (let b = a + 1; b < ids.length; b++) {
       const A = leaves[ids[a]], B = leaves[ids[b]];
       if (A.el === B.el || A.el.contains(B.el) || B.el.contains(A.el)) continue;
-      if (crossesOverlay(A.el, B.el)) continue;
+      if (crossesOverlay(A.el, B.el) || underHeader(A.el, B.el)) continue;
       const w = Math.min(A.r.right, B.r.right) - Math.max(A.r.left, B.r.left);
       const h = Math.min(A.r.bottom, B.r.bottom) - Math.max(A.r.top, B.r.top);
       if (w < 3 || h < 3) continue;

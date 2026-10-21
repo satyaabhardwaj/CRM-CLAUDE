@@ -409,9 +409,8 @@ export function TeamPage({ ctx }: { ctx: Context }) {
       />
       <div className="sub">
         To see one person's own screens, pick them in "Viewing" at the top. Full
-        charts are under the "{window.Kit.headName()}" screen. Up and down
-        compare this month with last month: order value booked plus money
-        received.
+        charts are under the "Management" screen. Up and down compare this month
+        with last month: order value booked plus money received.
       </div>
     </div>
   );

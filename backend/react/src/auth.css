@@ -53,11 +53,11 @@ body {
   border-radius: var(--ui-radius);
   background: #fff;
   position: relative;
-  z-index: 1;
+  z-index: var(--z-raised);
 }
 .auth-brand-copy {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-raised);
 }
 .auth-brand-title {
   font-size: 24px;
@@ -86,7 +86,7 @@ body {
   border: 1px solid var(--auth-line);
   border-radius: var(--ui-radius);
   box-shadow: var(--ui-shadow);
-  animation: auth-enter 200ms ease-out;
+  animation: auth-enter var(--motion-base) ease-out;
 }
 .auth-trust {
   display: flex;
@@ -151,8 +151,8 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition:
-    background-color 140ms ease,
-    box-shadow 140ms ease;
+    background-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
 }
 .auth-card button {
   display: inline-flex;
@@ -395,7 +395,7 @@ body {
   .auth-brand-foot {
     font-size: 11px;
     position: relative;
-    z-index: 1;
+    z-index: var(--z-raised);
   }
   .auth-content {
     padding: 48px 32px;
@@ -417,11 +417,9 @@ body {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .auth-layout *,
-  .auth-layout *::before,
-  .auth-layout *::after {
-    animation: none !important;
-    transition: none !important;
-    scroll-behavior: auto !important;
+  /* Transitions already read the motion tokens, which are 0 ms here. */
+  .auth-card,
+  .auth-spinner {
+    animation: none;
   }
 }

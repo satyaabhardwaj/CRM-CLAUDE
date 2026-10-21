@@ -9,7 +9,8 @@
 }
 .react-empty {
   padding: 24px 4px;
-  color: var(--ink3);
+  color: var(--color-ink-3);
+  line-height: 1.7;
 }
 .react-dialog-heading {
   display: flex;
@@ -64,17 +65,7 @@
 #app .card-b {
   min-height: 0;
 }
-#app .stat {
-  text-align: left;
-}
-#app .stagebar button span {
-  margin-left: 8px;
-}
-.m-dialog :focus-visible {
-  outline: 2px solid #226bb5;
-  outline-offset: 3px;
-}
-@media (max-width: 600px) {
+@media (max-width: 767.98px) {
   .react-detail .cols,
   .m-dialog .cols {
     grid-template-columns: 1fr;
@@ -82,20 +73,10 @@
   .react-detail .card {
     min-width: 0;
   }
-  #app .main {
-    flex: 1;
-  }
   .react-dialog-heading h2 {
     font-size: 20px;
   }
   .m-dialog {
     padding: 16px;
   }
-}
-
-.m-toolbar input {
-  min-height: 36px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
 }

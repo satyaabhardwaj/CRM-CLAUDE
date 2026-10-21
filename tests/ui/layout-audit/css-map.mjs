@@ -29,6 +29,22 @@ function rules(css) {
   return out;
 }
 
+// Split a selector list on commas that are not inside :is(), :not() or attribute brackets.
+function topLevel(list) {
+  const parts = [];
+  let depth = 0,
+    buf = '';
+  for (const ch of list) {
+    if (ch === '(' || ch === '[') depth++;
+    if (ch === ')' || ch === ']') depth--;
+    if (ch === ',' && depth === 0) {
+      parts.push(buf);
+      buf = '';
+    } else buf += ch;
+  }
+  return [...parts, buf];
+}
+
 const report = { files: {}, duplicates: [] };
 const owners = new Map();
 for (const f of FILES) {
@@ -51,20 +67,33 @@ for (const f of FILES) {
   const fontSizes = [...new Set([...css.matchAll(/font-size:\s*([\d.]+px)/g)].map((m) => m[1]))].sort((a, b) => parseFloat(a) - parseFloat(b));
   const rs = rules(css);
   for (const [sel, , m] of rs)
-    for (const s of sel.split(',').map((x) => x.trim().replace(/\s+/g, ' ')).filter(Boolean)) {
+    for (const s of topLevel(sel).map((x) => x.trim().replace(/\s+/g, ' ')).filter(Boolean)) {
       const key = m ? s + ' @ ' + m : s;
       if (!owners.has(key)) owners.set(key, new Set());
       owners.get(key).add(f);
     }
   report.files[f] = { lines: raw.split('\n').length, rules: rs.length, media, important, hex, rgb, px, vars, zIndex, fontSizes };
 }
-for (const [sel, files] of owners) if (files.size > 1) report.duplicates.push({ selector: sel, files: [...files] });
+// Count a selector as duplicated only when two files that load on the same page both define it.
+const SHARED = ['shared/tokens.css', 'shared/look.css', 'shared/ui.css', 'shared/workspace.css'];
+const PAGES = {
+  sales: [...SHARED, 'sales/react/src/style.css'],
+  design: [...SHARED, 'design/react/src/style.css'],
+  measurement: [...SHARED, 'measurement/look.css', 'measurement/react/src/style.css'],
+  accounts: [...SHARED, 'accounts/react/src/style.css'],
+  management: [...SHARED, 'management/look.css', 'management/react/src/style.css'],
+  auth: ['shared/tokens.css', 'backend/react/src/auth.css'],
+};
+for (const [sel, files] of owners) {
+  const pages = Object.entries(PAGES).filter(([, list]) => list.filter((f) => files.has(f)).length > 1).map(([p]) => p);
+  if (pages.length) report.duplicates.push({ selector: sel, files: [...files], pages });
+}
 report.duplicates.sort((a, b) => b.files.length - a.files.length);
 
 const breakpoints = {};
 for (const [f, d] of Object.entries(report.files))
   for (const [q, n] of Object.entries(d.media)) {
-    const px = q.match(/(max|min)-width:\s*(\d+)px/);
+    const px = q.match(/(max|min)-width:\s*(\d+(?:\.\d+)?)px/);
     if (px) (breakpoints[px[1] + ' ' + px[2]] ||= []).push(f + (n > 1 ? ' x' + n : ''));
   }
 report.breakpoints = breakpoints;
