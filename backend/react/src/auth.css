@@ -102,3 +102,29 @@ body {
     transition: none !important;
   }
 }
+
+.setup-secret,
+.recovery-codes code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.recovery-codes {
+  padding-left: 18px;
+  font-size: 13px;
+}
+.recovery-codes li {
+  margin-bottom: 12px;
+}
+.auth-card select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: white;
+  font: inherit;
+}
+.auth-card [role="status"],
+.auth-card [role="alert"] {
+  overflow-wrap: anywhere;
+}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { MFAChallenge } from "./MFA";
 import { signIn, signOut } from "./api";
 export function HeaderSession() {
   const details = useRef<HTMLDetailsElement>(null);
@@ -10,18 +11,46 @@ export function HeaderSession() {
       return "comfortable";
     }
   });
-  const context = window as unknown as {
-    Kit?: { headName?: () => string };
-    People?: { list?: { role: string }[] };
-  };
-  const name = context.Kit?.headName?.() || "Workspace";
-  const role = context.People?.list?.[0]?.role || "CRM";
-  const initials = name
-    .split(/\s+/)
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  const [account, setAccount] = useState<{
+    email: string;
+    role: string;
+  } | null>(null);
+  const [accountError, setAccountError] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/api/auth/me", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Account unavailable");
+        const value: unknown = await response.json();
+        if (
+          !value ||
+          typeof value !== "object" ||
+          !("email" in value) ||
+          typeof value.email !== "string" ||
+          !value.email.trim() ||
+          !("role" in value) ||
+          typeof value.role !== "string" ||
+          !["admin", "reader", "assigned"].includes(value.role)
+        )
+          throw new Error("Account unavailable");
+        if (!controller.signal.aborted)
+          setAccount({ email: value.email, role: value.role });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setAccountError(true);
+      });
+    return () => controller.abort();
+  }, []);
+  const initials = account
+    ? account.email
+        .split("@")[0]
+        .split(/[._+\-\s]+/)
+        .filter(Boolean)
+        .map((part) => part[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
+    : "?";
   useEffect(() => {
     document.documentElement.dataset.density = density;
     try {
@@ -49,14 +78,25 @@ export function HeaderSession() {
         }
       }}
     >
-      <summary aria-label="User menu" title="Workspace profile and settings">
+      <summary aria-label="User menu" title="Signed-in account and settings">
         <span className="user-avatar">{initials}</span>
       </summary>
       <div className="user-menu-panel">
         <div className="user-menu-identity">
-          <b>{name}</b>
-          <span>{role} - Workspace view</span>
+          {account ? (
+            <>
+              <b>{account.email}</b>
+              <span>{account.role}</span>
+            </>
+          ) : (
+            <span role="status">
+              {accountError
+                ? "Account details unavailable"
+                : "Loading account..."}
+            </span>
+          )}
         </div>
+        <a href="/security">Account security</a>
         <button
           type="button"
           onClick={() => setPanel(panel === "profile" ? "" : "profile")}
@@ -66,14 +106,10 @@ export function HeaderSession() {
         </button>
         {panel === "profile" && (
           <section className="user-menu-info">
-            <b>Workspace profile</b>
-            <p>
-              {name} - {role}
-            </p>
-            <p>
-              This is the workspace viewing context, not your sign-in identity.
-              Account details are managed by your administrator.
-            </p>
+            <b>Signed-in account</b>
+            <p>{account?.email || "Account details unavailable"}</p>
+            {account && <p>{account.role}</p>}
+            <p>Account details are managed by your administrator.</p>
           </section>
         )}
         <button
@@ -149,6 +185,7 @@ export function Login({
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [signedIn, setSignedIn] = useState(false),
+    [mfaRequired, setMfaRequired] = useState(false),
     pending = useRef(false);
   useEffect(() => {
     const controller = new AbortController();
@@ -166,9 +203,10 @@ export function Login({
     setBusy(true);
     setMessage("Signing in…");
     try {
-      await signIn(email, password);
+      const result = await signIn(email, password);
       setPassword("");
-      navigate("/");
+      if (result.mfa_required) setMfaRequired(true);
+      else navigate("/");
     } catch (error) {
       setMessage(
         error instanceof Error && error.name !== "TimeoutError"
@@ -180,6 +218,7 @@ export function Login({
       setBusy(false);
     }
   }
+  if (mfaRequired) return <MFAChallenge navigate={navigate} />;
   return (
     <main className="auth-card">
       <p className="auth-eyebrow">YOUR WORKSPACE</p>
@@ -213,6 +252,9 @@ export function Login({
           {message}
         </p>
       </form>
+      <p>
+        <a href="/forgot-password">Forgot password?</a>
+      </p>
       {signedIn && <SignOut navigate={navigate} />}
       <footer className="auth-footer">MAGPPIE · Your team, connected</footer>
     </main>

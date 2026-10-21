@@ -15,6 +15,14 @@ export async function signIn(email: string, password: string) {
         ? data.error
         : "Could not sign in.",
     );
+  return {
+    mfa_required: !!(
+      data &&
+      typeof data === "object" &&
+      "mfa_required" in data &&
+      data.mfa_required === true
+    ),
+  };
 }
 export async function signOut() {
   const response = await fetch("/api/auth/logout", {

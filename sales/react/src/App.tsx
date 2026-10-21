@@ -342,7 +342,7 @@ export function App() {
       </header>
       <div className="crm-page-toolbar" aria-label="Sales filters">
         <Select
-          label="Viewing"
+          label="Viewing (staff filter)"
           value={who}
           placeholder={false}
           options={[

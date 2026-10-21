@@ -241,7 +241,7 @@ export function App() {
       </header>
       <div className="crm-page-toolbar" aria-label="Design filters">
         <Select
-          label="Viewing"
+          label="Viewing (staff filter)"
           value={designer}
           options={[
             ["", "Everyone · head " + window.People.designHead],

@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeAll, afterEach, it, expect, vi } from "vitest";
-import { Login, SignOut } from "../src/Auth";
+import { HeaderSession, Login, SignOut } from "../src/Auth";
 import { signIn, signOut, installSessionRedirect } from "../src/api";
 let root: Root | undefined, host: HTMLDivElement;
 beforeAll(() => {
@@ -142,4 +142,45 @@ it("expired sessions redirect but 403 does not", async () => {
   expect(navigate).toHaveBeenCalledTimes(1);
   expect(navigate).toHaveBeenCalledWith("/login");
   restore();
+});
+
+it.each(["admin", "reader", "assigned"])(
+  "shows authenticated email and %s role independently of staff context",
+  async (role) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: "qa",
+            email: "qa.person@example.test",
+            role,
+            active: 1,
+          }),
+        ),
+      ),
+    );
+    await render(<HeaderSession />);
+    expect(host.querySelector(".user-avatar")?.textContent).toBe("QP");
+    expect(host.textContent).toContain("qa.person@example.test");
+    expect(host.textContent).toContain(role);
+    expect(host.textContent).not.toContain("Workspace view");
+    expect(host.textContent).toContain("Sign out");
+  },
+);
+it.each([
+  new Response("{}", { status: 503 }),
+  new Response('{"role":"admin","email":null}'),
+])("keeps sign out available when identity cannot load", async (response) => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+  await render(<HeaderSession />);
+  expect(host.textContent).toContain("Account details unavailable");
+  expect(host.textContent).toContain("Sign out");
+  expect(host.querySelector(".user-avatar")?.textContent).toBe("?");
+});
+it("shows loading instead of inventing a staff identity", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
+  await render(<HeaderSession />);
+  expect(host.textContent).toContain("Loading account");
+  expect(host.textContent).not.toContain("Workspace view");
 });

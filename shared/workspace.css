@@ -463,3 +463,6 @@ html[data-density="compact"] .card-b {
     min-width: 0 !important;
   }
 }
+
+/* Account emails must wrap inside the shared menu at narrow widths. */
+.user-menu-identity b, .user-menu-info p { overflow-wrap: anywhere; min-width: 0; }
