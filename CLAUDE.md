@@ -1,3 +1,5 @@
+Current architecture and development setup are documented in `docs/VERCEL_SUPABASE.md` and `docs/ARCHITECTURE.md`. The inventory below describes the original implementation; preserve its business rules, but use native React entries and the FastAPI backend for current work. No cloud deployment is authorized.
+
 # Magppie CRM (Claude): rules for anyone who edits this folder
 
 Started 10 Oct 2026. Separate from `Documents/crm` (the Codex build). Nothing here reads or changes that folder.
