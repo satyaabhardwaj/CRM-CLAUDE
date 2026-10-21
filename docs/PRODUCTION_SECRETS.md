@@ -2,13 +2,11 @@
 
 Prepared 2026-10-21 from the current checkout. Preparation only: no cloud resources, accounts, data, or provider settings were changed. Keep this document value-free; record secret values in a private password manager, not here, Git, tickets, screenshots, logs, or frontend build variables.
 
-## Update: hosted identity guard
+## Current status (21 October 2026)
 
-The subsequent implementation is documented in [AUTH_REALMS.md](AUTH_REALMS.md). Hosted login now requires explicit CRM_ENV, public HTTPS origin and CRM_AUTH_REALM plus matching account/session bindings. Alembic 0004 does not approve existing users. The observations below about missing automatic environment isolation describe the pre-fix review; recovery and MFA remain unimplemented. No live migration was applied. Production provisioning additionally requires `--confirm-target "HOST/DATABASE"` and explicitly exported configuration.
+Hosted identity isolation, password recovery and authenticator MFA are implemented; see [AUTH_REALMS.md](AUTH_REALMS.md), [ACCOUNT_RECOVERY.md](ACCOUNT_RECOVERY.md) and [MFA.md](MFA.md). Local activation applied migrations through 0006 and configured a persistent MFA encryption key. Enrollment is opt-in; recovery delivery is still disabled. Hosted provisioning requires explicit destination configuration and `--confirm-target "HOST/DATABASE"`. No cloud setup is authorized.
 
-Recovery implementation is now documented in [ACCOUNT_RECOVERY.md](ACCOUNT_RECOVERY.md). Delivery remains disabled and no live migration/enrollment was performed; historical recovery-gap observations below predate that implementation. MFA is still pending.
-
-Authenticator MFA has subsequently been implemented and QA-tested: see [MFA.md](MFA.md). Production activation and mandatory-enrollment policy remain separate. Historical gap descriptions below predate that implementation.
+Latest local regression and restore/Storage verification are summarized in [FINAL_DEPLOYMENT_CHECKLIST.md](FINAL_DEPLOYMENT_CHECKLIST.md). The original secret scan below is historical evidence, not a fresh production-asset scan.
 
 ## Inventory
 
@@ -70,7 +68,7 @@ Sources: `.env.production.example`, `backend/config.py`, `backend/auth.py`, `bac
 - [ ] Use a verified TLS database connection with the provider's CA/hostname verification where supported; the example sslmode=require encrypts but is not equivalent to explicit verify-full hostname validation.
 - [ ] Keep the Supabase service-role key server-only. Its privileges exceed browser access; private bucket policy and application authorization remain necessary.
 - [ ] Set CRM_ORIGIN to the exact public HTTPS origin. Cookies currently use Secure when this origin starts with https:, HttpOnly, SameSite=Strict, path=/ and a one-hour login lifetime. No cookie domain is set (host-only).
-- [ ] Verify HTTPS redirects/proxy routing and authenticated origin checks on the future host. CRM_ENV=production alone does not reject a localhost HTTP origin in Settings.load; add an external release configuration check before exposure.
+- [ ] Verify HTTPS redirects/proxy routing and authenticated origin checks on the future host. Settings rejects development authentication on Vercel and requires a public HTTPS origin plus a unique realm in production/preview. Verify the deployed configuration as well.
 - [ ] Never use VITE_ or other public frontend prefixes for secrets; inspect fresh production assets after every configuration change.
 - [ ] Keep SMTP and signature credentials absent. A test-recipient address still sends messages. Factory mail must remain denied; no Zoho write scopes or write calls are authorized.
 - [ ] Configure Measurement credentials with only required read permissions if real read-only data is needed; no integration calls were made for this review.
@@ -80,7 +78,7 @@ Loader caveats: backend.local.load reads ignored .env.local, otherwise .local/ba
 
 ## Development identities and production provisioning
 
-**Not an unconditional pass:** no fixed user is created by backend.seed_local, but authentication does not prohibit demo credentials based on environment. If their credential rows are imported, those passwords can work in production. A fresh database without crm_sessions rejects old cookies because no matching session digest exists. A restored dump containing valid sessions does not automatically invalidate them simply because the origin/environment changed.
+Hosted authentication requires matching environment/realm account and session bindings. Copied development credentials or unbound sessions are rejected; provisioning creates fresh bindings. This does not detect deliberately reusing a demo password for a newly provisioned production account. Use unique passwords, fresh accounts and a unique realm; never import development identities or sessions.
 
 - [ ] Migrate only approved business data/attachments into the future destination. Do not copy development crm_users, crm_credentials, crm_sessions or grants as production identities. Map approved grants to newly provisioned identities separately.
 - [ ] If a full restore is chosen, obtain a reviewed destination-only identity/session revocation plan before exposure. Preserve the source. Do not use backend.reset_admin as a routine provisioning command: it removes all credentials/sessions and disables existing users.
@@ -93,7 +91,7 @@ After explicit future authorization, the operator should:
 3. Apply migrations separately with the migration role, then provision from the repository root:
 
    ```powershell
-   .venv/Scripts/python.exe -m backend.provision_user --email "ADMIN_EMAIL_YOU_CONTROL" --role admin
+   .venv/Scripts/python.exe -m backend.provision_user --email "ADMIN_EMAIL_YOU_CONTROL" --role admin --confirm-target "HOST/DATABASE"
    ```
 
 4. Enter a unique password of at least 16 characters at the two hidden prompts. Never pass the password as a command argument or paste it into chat. The command inserts a new user; it does not replace old accounts or revoke sessions. Resolve duplicate emails deliberately, not with reset_admin.
@@ -104,19 +102,19 @@ After explicit future authorization, the operator should:
 - [ ] Database: provision replacement credentials with the same reviewed grants, update the appropriate runtime or migration secret separately, restart/redeploy only with authorization, verify access, then revoke the old credential. Avoid simultaneous blind rotation of every integration.
 - [ ] Storage service-role key: follow provider-supported rotation, update server secret references, verify private upload/download and denial before retiring the old key. Never use a browser key as a substitute.
 - [ ] Zoho/AI: issue replacement with minimal scopes, update server-only configuration, restart to discard cached access tokens, then revoke old tokens/keys. Any test that contacts providers requires separate authorization.
-- [ ] CRM passwords: a secure per-user change/reset flow is not implemented. A future change must invalidate that user's sessions. Do not assume changing a password hash alone revokes existing sessions.
+- [ ] CRM passwords: the implemented reset flow revokes that user's sessions and outstanding reset tokens; enrolled MFA remains required. Direct password-hash edits are not the supported recovery flow.
 - [ ] Session compromise: revoke affected destination session rows through a reviewed operator procedure; global configuration rotation does not revoke these opaque DB-backed sessions automatically.
 - [ ] Keep a private audit of owner, rotation time, checks and revocation, never actual values. Restore procedures must not resurrect revoked accounts or sessions from old backups.
 
-## Account recovery and MFA gaps (design only)
+## Remaining recovery/MFA operations
 
-Current custom password authentication has no self-service recovery, verified-email enrollment, password-change/recovery UI, MFA challenge/enrollment, recovery-code storage or per-user session-management flow. Supabase hosting does not automatically add Supabase Auth features to this custom login.
+- Configure and verify a dedicated recovery SMTP sender, then explicitly enable delivery. Independently verify each recovery email before operator enrollment; no automated mailbox-verification challenge is provided.
+- Choose mandatory-MFA policy before broad rollout; current enrollment is opt-in. TOTP and single-use recovery codes are implemented; passkeys and automatic QR rendering are not.
+- Document identity-verified lost-factor recovery. Password reset does not disable MFA; no shared bypass or automatic factor removal exists.
+- Back up the MFA encryption key separately and protect it. Rotation requires a reviewed re-encryption/re-enrollment procedure; do not regenerate it on restart.
+- Validate hosted edge throttling, global rate-limit capacity and SMTP delivery/retry operations. There is no durable recovery-mail queue.
 
-Suggested future design: choose either a deliberate managed-auth migration or extend the current identity model; do not run two competing identity authorities. For the latter, add generic recovery responses, per-account/IP throttling, cryptographically random one-use expiring reset tokens stored only as hashes, verified delivery to the account email, atomic token consumption, password-policy enforcement, user session revocation and non-sensitive audit events. Recovery mail must be a separately authorized service, never the disabled factory-mail path.
-
-For MFA, prefer WebAuthn/passkeys with verified origin/RP binding and a reviewed TOTP fallback if needed. Store TOTP seeds encrypted under a separately managed key, issue one-use hashed recovery codes, require recent authentication for enrollment/removal and make admin MFA mandatory before broad rollout. Define a documented, audited lost-factor recovery procedure without security questions or shared bypass passwords. None of this is implemented by this document.
-
-## Review evidence and limitations
+## Historical secret-review evidence and limitations
 
 Read-only source/config inspection and redacted scanning on 2026-10-21: 542 text files, including 30 compiled asset files across the six module asset directories and the latest avatar verification build. Pattern checks covered private keys, provider token shapes, JWTs, literal secret assignments and PostgreSQL URLs; three available local secret values were also compared in memory without printing them. No known-secret exact match or credential-pattern hit occurred in compiled assets. Twenty source matches were example URLs, disposable synthetic CI/test credentials, or prompt/scanner strings; no actual production secret was identified.
 

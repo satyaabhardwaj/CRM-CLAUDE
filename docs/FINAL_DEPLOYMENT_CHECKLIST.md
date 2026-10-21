@@ -1,74 +1,70 @@
-# Final local container verification — 21 October 2026
+# Deployment readiness — 21 October 2026
 
-Latest rebuild and real-data UI verification: [Real-data UI check](REAL_DATA_UI_CHECK.md). This supersedes the image digest in the earlier UI reports below.
+Local verification only. No cloud deployment is authorized. Target: Vercel React assets + FastAPI, Supabase PostgreSQL + private Storage. Vercel builds source; the Docker image is local verification evidence, not its deployment artifact.
 
-Latest local presentation rebuild: [Workspace UI redesign](WORKSPACE_UI_REDESIGN.md) records the current image, navigation/menu changes and fresh verification. Historical image digests below are retained as earlier evidence.
+## Current verified baseline
 
-Subsequent presentation-only rebuild: see [UI/UX cleanup](UI_UX_CLEANUP.md) for the newer image digest, UI checks and rollback tag. The image identity below records the earlier pre-cleanup verification; the production setup gates remain applicable.
+Code: `0a2f907`; image `magppie-crm:quiet-graphite-0a2f907`, digest `sha256:6f0075a9d0e3f9ebbf3604572e6c5b62aa8b81ce40faa542c742f0eb16371dde`. This supersedes image/test totals in earlier UI reports. Docker CRM uses loopback 4302; native 4301 is separate.
 
-Local verification is complete for the checks below. Cloud release is not authorized and hosted readiness is not yet verified. Target architecture remains Vercel (React assets + FastAPI) and Supabase (PostgreSQL + private Storage). Vercel uses the source configuration, not this Docker image.
+| Check | Latest result | Evidence |
+|---|---|---|
+| Six frontend test suites | 209 passed | `.local/final-docker-regression-20261021/*-react-tests.log` |
+| Backend on isolated PostgreSQL | 102 passed, 1 optional Storage test skipped | `backend-tests.log` in that directory |
+| Same-image Docker security smoke | 90 passed | `container-security.json` |
+| Five modules, 320/390/768/1440px | 20 views; no document horizontal overflow | `screenshots/viewport-matrix.json` |
+| Login/MFA/recovery/logout | QA regression passed; recovery mail mocked | regression `REPORT.md` |
+| Restore rehearsal | 15 public tables and 28 clients match backup fingerprints | readiness evidence below |
+| Restored attachments | All 15 byte hashes match backup | readiness evidence below |
+| Private Storage | 5 MiB signed upload/download, authenticated read, public/unsigned/tampered URL denial passed | readiness evidence below |
+| Live preservation | All public-table fingerprints and all 15 attachment hashes unchanged during rehearsal | readiness evidence below |
 
-## Verified in this rebuild
+Latest regression: `.local/final-docker-regression-20261021/REPORT.md`.
+Backup used: `.local/final-docker-regression-20261021/backup/` (dump, manifest, attachment bytes). Its original manifest records `restore_verified: false` because restoration was not performed when the backup was taken. The subsequent rehearsal evidence is separate; the original backup was not rewritten.
 
-- Docker build completed successfully; all six frontends compiled inside the multi-stage build.
-- Image `magppie-crm:local-verified`: `sha256:72b0731b306639101d2282a5356f84fb6d0b32c9c342ec7e56e0953cbcb437b6`.
-- Only CRM was recreated. Compose waited for healthy status; database-aware runtime health check passed. Supabase services remained running; all services with health checks were healthy.
-- Running image matches the rebuilt image. Non-root `crm` user, read-only root filesystem, all capabilities dropped and no-new-privileges confirmed.
-- CRM published only on `127.0.0.1:4302` (internal 8000). Supabase published ports remain loopback-only. Native CRM on 4301 is separate.
-- Existing admin login succeeded through HTTP and browser. All five authenticated module routes returned HTTP 200.
-- All 28 client documents match the pre-audit hash. All 15 attachments were downloaded internally through the rebuilt container's Storage connection and their SHA-256 hashes matched the pre-replacement baseline. Docker volume inventory is unchanged.
-- Factory send API returned 403. Signature provider is off. No customer edits, payment approvals or outbound factory emails were performed.
-- Browser navigation rendered Sales, Accounts, Design and Management. At 390px Sales team cards use one readable column; at 320px Management navigation is 296px wide. Accounts and Design fit 320px without document overflow.
-- Measurement live Zoho synchronization completed in the rebuilt container: 7,959 orders scanned and 118 requests displayed (95 open, 23 done). This verifies a local integration run; hosted cold-start/time-limit behavior remains unverified.
+Restore/Storage evidence: `.local/readiness-restore-storage-20261021/results-crm_restore_qa_7905c529d6744903b96d10916bae2035.json`.
 
-Earlier local workflow verification: 183 frontend tests, 30 backend tests, six formatting checks and six production builds passed. These test suites were run before this image rebuild, not rerun as part of it. The rebuild compiled the same source again. See [workflow evidence](LOCAL_WORKFLOW_VERIFICATION.md) for synthetic write workflows, authorization, payment calculations, failure states and the 20-case responsive matrix.
+Restored database: `crm_restore_qa_7905c529d6744903b96d10916bae2035`.
+Private QA bucket: `crm-qa-d1e1e3cae22c4ed08c91f67d8c7396bf`.
+These are isolated database/bucket namespaces on the existing loopback-only local services, not a second Supabase installation. No app was pointed at restored identities/sessions. Restored private data remains sensitive and is retained locally; cleanup requires approval.
 
-Earlier local backup/restore rehearsal evidence is in [Supabase verification](VERCEL_SUPABASE_VERIFICATION.md). This rebuild preserved those backups; it did not create a new coordinated backup. A fresh backup with writes paused is required at cutover.
+The first rehearsal attempt failed at duplicate default public-schema creation. The successful retry used another fresh database and a restore list excluding only that schema creation; all table/data/index/constraint entries were restored without dropping existing schemas. The failed QA database is retained too. No application or backup-script fix was applied.
 
-## Your setup before cloud release
+The original optional pytest Storage test remains recorded as skipped. This follow-up used the real Storage API and application Attachments implementation against a new private QA bucket without its deletion cleanup. It does not retroactively change the earlier suite counts.
 
-- [ ] Confirm owned Vercel team and Supabase account access, project names, region and acceptable plan/budget. No services have been purchased by this task.
-- [ ] Choose production domain and provide DNS access, or approve the initial provider domain.
-- [ ] Choose production admin identity and unique password; provide teammate identities and their roles/client access. Enter secrets privately, never in chat or committed source. Do not reuse the development dummy login in production.
-- [ ] Configure production database, Storage and Zoho secrets through private provider environment settings using `.env.production.example`. Runtime and migration database credentials must be separate; service-role keys stay server-only.
-- [ ] Confirm which existing records belong in production and a cutover window. No sample-looking records will be removed automatically.
-- [ ] Agree on backup retention, recovery objectives, responsible owner and alert recipient. Keep encrypted off-machine backups.
-- [ ] Explicitly authorize cloud setup/deployment in a later request.
+## Current auth and integration status
 
-## Engineering release gates after authorization
+- Local migrations through 0006 and persistent MFA encryption key were activated in the earlier authorized task. No user enrollment/password/role changes occurred in this readiness task.
+- Hosted auth requires a unique environment realm and account/session bindings; copied development credentials/cookies are not valid hosted identities.
+- Recovery and MFA are implemented. Recovery delivery remains disabled until separate SMTP setup and mailbox ownership enrollment are authorized. MFA enrollment is opt-in; mandatory policy and lost-factor operator procedure remain decisions.
+- Factory email remains blocked (403 in latest regression); signatures remain off. No outbound email, signature or Zoho writes in these checks.
+- Latest regression mocked Zoho reads; earlier real local Measurement sync evidence is historical, not proof of hosted cold-start/runtime behavior.
 
-- [ ] Configure production HTTPS origin, secure cookies, least-privilege database access and private Storage policies; no development internal URLs.
-- [ ] Run reviewed Alembic migrations and Storage migrations separately from build/start. Import only into a verified destination; preserve source data and reconcile counts/hashes.
-- [ ] Create production users/grants, invalidate development sessions in the destination and verify each role's allowed and denied operations. Decide and implement required account recovery/MFA before release.
-- [ ] Verify Vercel runtime compatibility, cold starts, Zoho synchronization duration, payload limits, multi-instance concurrency and rate limits on the actual hosted target.
-- [ ] Configure monitoring, alerts and scheduled backups; rehearse restore into a separate destination.
-- [ ] Run hosted login, all five workflows, private upload/download, calculations, role denials and factory-email-block smoke checks.
-- [ ] Run image OS vulnerability scan if distributing the container. Prior dependency audit evidence does not replace an OS-layer scan.
-- [ ] Test physical mobile devices and additional browser engines as required. Current browser evidence is Chromium viewport emulation.
+## User setup before cloud release
 
-Factory emails must remain disabled throughout deployment unless separately authorized. Local results do not establish production readiness or guarantee zero defects.
+- [ ] Approve Vercel/Supabase account/team, project names, region and budget.
+- [ ] Choose domain and DNS access, or an initial provider domain.
+- [ ] Choose separate preview and production databases/buckets/credentials.
+- [ ] Choose admin identity, fresh password, teammate roles/grants and MFA policy.
+- [ ] Privately configure server-only database/Storage/Zoho secrets, exact HTTPS origin, unique auth realm and persistent MFA encryption key. Migration credentials stay separate from app runtime/build.
+- [ ] Configure recovery-only SMTP and verify mailbox ownership before enabling delivery; keep factory mail disabled.
+- [ ] Approve data scope, cutover window, backup retention/recovery objectives, monitoring owner and alerts.
+- [ ] Explicitly authorize cloud setup/deployment later. Historical Vercel project linkage/deletion status must be rechecked before any change; unrelated projects stay untouched.
 
-## Repeat the local container run
+## Engineering gates after authorization
 
-From the repository root, start `Start CRM.cmd` for Docker/local Supabase, then:
+- [ ] Verify actual hosted framework routing, runtime/build compatibility, time/body limits, Zoho cold starts and multi-instance concurrency.
+- [ ] Apply reviewed Alembic and Storage migrations with separate migration credentials; do not run migrations at app startup/build.
+- [ ] Configure least-privilege runtime grants/RLS, private bucket policies, TLS and HTTPS cookie/origin behavior.
+- [ ] Take a fresh coordinated cutover backup; import only approved business data/attachments into a verified destination and reconcile hashes. Provision fresh production identities/grants; do not import development sessions or enrollments.
+- [ ] Verify hosted login/logout, MFA/recovery delivery, role denials, private signed files, calculations and factory-mail 403 on preview before production.
+- [ ] Schedule database AND attachment backups, protect the MFA key separately, and rehearse hosted recovery into a separate destination.
+- [ ] Verify physical mobile devices/additional browsers as required. Local UI evidence uses Chromium viewport emulation.
+- [ ] If distributing Docker, scan OS layers; local tests do not establish vulnerability-free production readiness.
 
-```powershell
-.venv/Scripts/python.exe scripts/prepare_container_local.py --port 4302
-docker compose --env-file .local/compose.env -f docker-compose.yml -f deploy/compose.local.yml up -d --build --wait
-```
+## Rollback and safety
 
-Open `http://127.0.0.1:4302/login`. Keep `.local/container.env` and `.local/compose.env` private. See [container runbook](../deploy/README.md) for port contracts and backup commands.
+Keep a compatible previous app release and additive database schema. Never roll back to a backend that bypasses hosted identity/MFA. Restore databases into a separate target, verify hashes and reconcile new writes before an explicitly approved connection switch; never overwrite live data automatically.
 
-## Local app rollback
+Never run `supabase db reset`, `stop --no-backup`, `docker compose down --volumes` or `docker volume prune` on the data-bearing environment. No files, buckets, objects or databases were deleted in this follow-up. No cloud settings or live application configuration changed.
 
-The previous image is retained as `magppie-crm:before-mobile-fixes-20261021`. To restore that app image only, in a fresh PowerShell session:
-
-```powershell
-$env:CRM_IMAGE = 'magppie-crm:before-mobile-fixes-20261021'
-docker compose --env-file .local/compose.env -f docker-compose.yml -f deploy/compose.local.yml up -d --no-build --wait crm
-Remove-Item Env:CRM_IMAGE
-```
-
-Then verify health, login and private downloads. This does not roll back database data. Never use `down --volumes`, `docker volume prune` or `supabase db reset`. Database recovery means restoring to a separate database, validating it and explicitly switching connections; never overwriting the active database as an automatic rollback.
-
-No files or data were deleted in this rebuild. No cloud deployment or cloud project changes were made.
+See [Vercel/Supabase runbook](VERCEL_SUPABASE.md), [production secrets](PRODUCTION_SECRETS.md), [auth realms](AUTH_REALMS.md), [recovery](ACCOUNT_RECOVERY.md), [MFA](MFA.md), and [container runbook](../deploy/README.md).

@@ -1,14 +1,14 @@
 # Hosted identity isolation
 
-Implemented 2026-10-21; no live migration or cloud activation.
+Implemented 2026-10-21. Subsequent authorized local activation applied migrations through 0006; cloud activation remains pending. Local activation evidence: `.local/auth-activation-20261021/verification.json`.
 
 ## Behaviour
 
-Development keeps the existing users, passwords, sessions and admin/reader/assigned grants. It does not query the new binding tables, so the current local database needs no migration for this change. Public hosted origins cannot use development mode through Settings.load; Vercel explicitly rejects development mode.
+Development keeps the existing users, passwords, sessions and admin/reader/assigned grants. It does not query the new binding tables, so development login does not depend on hosted bindings. Public hosted origins cannot use development mode through Settings.load; Vercel explicitly rejects development mode.
 
 Production/preview require explicit CRM_ENV, a public HTTPS CRM_ORIGIN, and CRM_AUTH_REALM (a unique UUID per environment). Missing or incorrect account bindings deny password authentication and session issuance. Every protected request also requires the matching account AND session binding. An old/copied session without a binding is rejected even if its user has a valid production account binding. Existing roles, grants, cookie flags, session expiry and logout remain unchanged.
 
-Alembic 0004 adds crm_auth_accounts and crm_auth_sessions; it never classifies existing users as production. RLS is enabled and PUBLIC/anon/authenticated access revoked. The future least-privilege backend role needs appropriate access/policies for these two tables. Session bindings cascade on session deletion. Schema changes were applied to an isolated QA database only.
+Alembic 0004 adds crm_auth_accounts and crm_auth_sessions; it never classifies existing users as production. RLS is enabled and PUBLIC/anon/authenticated access revoked. The future least-privilege backend role needs appropriate access/policies for these two tables. Session bindings cascade on session deletion. Schema changes were first tested in isolated QA and subsequently applied during authorized local activation.
 
 ## Future setup, only after authorization
 

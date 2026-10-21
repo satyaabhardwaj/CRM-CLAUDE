@@ -1,6 +1,6 @@
 # Authenticator MFA
 
-Implemented and tested on isolated QA only, 2026-10-21. No live database migration, enrollment, encryption-key configuration, service replacement, cloud deployment or outbound provider call occurred.
+Implemented and QA-tested on 2026-10-21; subsequently activated locally with migrations through 0006 and a persistent private encryption key. Activation did not enroll users or change roles/passwords. Recovery delivery remains disabled; no cloud activation. Evidence: `.local/auth-activation-20261021/verification.json`.
 
 ## User flow
 
@@ -24,9 +24,9 @@ Enrollment is opt-in for all current roles; mandatory-admin/all-user policy is n
 
 Endpoints: `GET /api/auth/mfa`; `POST /api/auth/mfa/setup`, `/confirm`, `/verify`, `/recovery-codes`, `/disable`. The existing `/api/auth/login` returns HTTP 202 plus `mfa_required: true` for enrolled users; the native login UI handles the second step. Successful non-MFA login remains unchanged.
 
-Alembic `0006` adds `crm_mfa`, `crm_mfa_codes`, `crm_mfa_challenges` with RLS and PUBLIC/anon/authenticated access revoked. It does not enroll users or alter business documents. Hosted runtime-role grants/policies must explicitly cover these tables. The current unmigrated local database is supported when the key is unset: existing password login continues without MFA-table queries during authentication. Configuring a key before the schema exists fails startup.
+Alembic `0006` adds `crm_mfa`, `crm_mfa_codes`, `crm_mfa_challenges` with RLS and PUBLIC/anon/authenticated access revoked. It does not enroll users or alter business documents. Hosted runtime-role grants/policies must explicitly cover these tables. For unmigrated development databases, when the key is unset: existing password login continues without MFA-table queries during authentication. Configuring a key before the schema exists fails startup.
 
-## Future activation (requires authorization)
+## Hosted activation (requires authorization)
 
 1. Back up the destination database, verify its identity, apply reviewed migrations through `0006` with the migration role. Never run them automatically on startup.
 2. Generate a unique Fernet key for that environment using `cryptography.fernet.Fernet.generate_key()` in a trusted private process. Store directly in a secret manager, not source, browser variables, screenshots or chat. Set `CRM_MFA_ENCRYPTION_KEY` for the server only. The production example leaves it empty deliberately.
@@ -38,7 +38,7 @@ Rotation requires a separately reviewed decrypt/re-encrypt migration or controll
 
 If both the authenticator and recovery codes are lost, password reset alone cannot regain access. An identity-verified operator recovery procedure is still needed; no shared bypass password or automatic MFA-removal endpoint is supplied. Factory emails, signatures and Zoho writes remain disabled/uninvoked throughout these checks.
 
-## Verification and evidence
+## Historical implementation verification and evidence
 
 Private evidence directory: `.local/mfa-20261021/`.
 

@@ -5,10 +5,10 @@ Vercel deploy, Supabase link/db push, create hosted projects, or upload customer
 data to a cloud service without a new explicit instruction.
 
 Local cutover completed on 21 October 2026: the CRM now uses local Supabase
-PostgreSQL (56322) and private Storage (56321). All 28 clients, seven CRM tables,
+PostgreSQL (56322) and private Storage (56321). All 28 clients, the original CRM tables,
 existing credentials/grants and 15 attachments were reconciled before activation.
 Original PostgreSQL and filesystem uploads remain intact for recovery.
-See `VERCEL_SUPABASE_VERIFICATION.md` for verification and backup locations.
+See `VERCEL_SUPABASE_VERIFICATION.md` for the original cutover. Subsequent auth migrations through 0006 are active locally; current regression, backup restore and private Storage evidence are in `FINAL_DEPLOYMENT_CHECKLIST.md`. Recovery delivery remains disabled; MFA enrollment is opt-in.
 
 ## Responsibilities
 
@@ -110,7 +110,7 @@ page HTTP response alone is not a database health check.
 ## Future deployment gate
 
 The old snapshot publisher is disabled and its prior source backed up privately
-under `.local/retired-deployment`. The main existing cloud project is
+under `.local/retired-deployment`. The last recorded cloud project (not rechecked in this local task) is
 `magppie-crm` (`prj_Fb4pDLafxWGaPKVKI7kxvokGCCvh`); the connector requires user
 confirmation in Vercel to delete it. It has **not** been deleted by these files.
 Unrelated projects, including the helper project, are not changed.
@@ -156,8 +156,7 @@ Run each module's `npm --prefix MODULE/react test`, the root `npm run build`, an
 requires local configuration exported and `RUN_LOCAL_SUPABASE=1`; it uploads a
 synthetic 5 MB private file, verifies signed download/public denial and deletes
 only its generated test object. Its default skip is not a successful integration
-check. For PostgreSQL API tests, set `TEST_DATABASE_URL` to the local development
-connection; tests create uniquely named schemas, preserving existing CRM tables.
+check. For PostgreSQL API tests, set `TEST_DATABASE_URL` to a separate local `crm_crud_test_*` database; tests create uniquely named schemas. Never point tests at the live CRM database or bucket. For Storage use a new private QA bucket; the existing opt-in test deletes its synthetic object and requires explicit cleanup authorization.
 
 For a consistent local backup rehearsal, pause app writes and run
 `python scripts/backup_postgres.py --output .local/backups/UNIQUE-NAME --writes-paused --restore-check`.

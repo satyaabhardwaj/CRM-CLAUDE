@@ -1,6 +1,6 @@
 # Account recovery
 
-Implemented locally, 2026-10-21. No live migration, user enrollment, real mail or cloud action has been performed. Authenticator MFA is now documented in [MFA.md](MFA.md); password reset does not bypass an enrolled factor.
+Implemented locally, 2026-10-21. Subsequent authorized local activation applied migrations through 0006 and activated the UI/routes. Recovery delivery remains OFF; no live mailbox enrollment, real recovery mail or cloud activation was performed. Authenticator MFA is now documented in [MFA.md](MFA.md); password reset does not bypass an enrolled factor.
 
 ## Flow and protection
 
@@ -13,7 +13,7 @@ Implemented locally, 2026-10-21. No live migration, user enrollment, real mail o
 - Request limits are shared in PostgreSQL: three requests per normalized-email hash per hour, 100 globally per hour. Reset attempts: five per token hash and 100 globally per hour. Generic responses hide account existence. These conservative global limits can affect availability under abuse; provider/WAF edge limits and trusted-client-IP configuration remain future hosted work.
 - Factory mail is not reused. Signature and Zoho providers are not invoked. Mail tests inject a capture function; no messages leave the QA environment.
 
-## Schema and activation (future explicit authorization only)
+## Schema and hosted activation (future explicit authorization only)
 
 Alembic `0005` adds `crm_recovery_emails` and `crm_password_resets`; it does not modify existing accounts. RLS and revoked PUBLIC/anon/authenticated access match existing backend-owned tables. Review grants/policies for the runtime DB role before hosted use. No destructive automatic downgrade is provided.
 
@@ -38,7 +38,7 @@ After a separately authorized destination migration, independently verify owners
 
 This attests an operator verification; it is not an automated email-verification challenge. It never changes passwords or roles. New accounts can instead use `backend.provision_user` with `--recovery-email-verified` after the same ownership verification. Hosted provisioning still requires `--confirm-target`. Do not attest unverified mailboxes. Existing local login works without applying these migrations while recovery remains disabled.
 
-## Evidence
+## Historical implementation evidence
 
 Private folder: `.local/recovery-20261021/`.
 
@@ -49,4 +49,4 @@ Private folder: `.local/recovery-20261021/`.
 - `assets/`: isolated production auth build, including TypeScript check; running live assets were not replaced.
 - `browser-results.json`, `forgot-*.png`, `reset-*.png`: Edge/Chromium at 320, 390, 768 and 1440px; complete mock-mail recovery, mismatch feedback, new login with reader role, replay denial and invalid-link UI.
 
-Live source DB remains at its prior schema; QA databases and evidence were retained. A backup restore was not rehearsed in this task. Real SMTP delivery and cloud behavior are not claimed as verified. Subsequent local MFA verification is documented separately in MFA.md.
+At the original implementation checkpoint the live DB remained at its prior schema; subsequent local activation is described above. QA databases and evidence were retained. A backup restore was not rehearsed in this task. Real SMTP delivery and cloud behavior are not claimed as verified. Subsequent local MFA verification is documented separately in MFA.md.
