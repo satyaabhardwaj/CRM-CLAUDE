@@ -1,0 +1,27 @@
+{
+  "name": "magppie-sales",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "format": "prettier --write src tests vite.config.ts tsconfig.json package.json",
+    "format:check": "prettier --check src tests vite.config.ts tsconfig.json package.json"
+  },
+  "dependencies": {
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "jsdom": "28.1.0",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3",
+    "vite": "8.3.4",
+    "vitest": "4.1.12"
+  }
+}

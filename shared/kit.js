@@ -158,8 +158,8 @@
   function send(tries) {
     return fetch('/api/store', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Kit.store.data) })
       .then(function (r) {
-        if (r.status !== 409) return r.json().then(function (out) { if (out && out.rev != null) Kit.store.data.rev = out.rev; remember(); });
-        if (tries >= 4) return null;
+        if (r.status !== 409) { if (!r.ok) throw new Error('Save failed'); return r.json().then(function (out) { if (out && out.rev != null) Kit.store.data.rev = out.rev; remember(); }); }
+        if (tries >= 4) throw new Error('Save conflict');
         return fetch('/api/store').then(function (x) { return x.json(); }).then(function (latest) {
           const mine = Kit.store.data;
           const at = {};
@@ -183,12 +183,28 @@
   function push() {
     if (busy) { again = true; return; }
     busy = true;
-    send(0).catch(function () {}).then(function () { busy = false; if (again) { again = false; push(); } else waiting = false; });
+    send(0).then(function () {
+      const notice = document.getElementById('save-error');
+      if (notice) notice.remove();
+      busy = false;
+      if (again) { again = false; push(); } else waiting = false;
+    }).catch(function () {
+      busy = false;
+      waiting = true;
+      if (document.getElementById('save-error')) return;
+      const notice = document.createElement('button');
+      notice.id = 'save-error';
+      notice.setAttribute('role', 'alert');
+      notice.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:10000;padding:14px;background:#fff;color:#a11;border:2px solid #a11;border-radius:8px';
+      notice.textContent = 'Changes not saved. Click to retry.';
+      notice.onclick = function () { notice.remove(); push(); };
+      document.body.appendChild(notice);
+    });
   }
   Kit.store = {
     data: null,
     load: function () {
-      return fetch('/api/store').then(function (r) { return r.json(); }).then(function (data) {
+      return fetch('/api/store').then(function (r) { if (!r.ok) throw new Error('Could not load saved data'); return r.json(); }).then(function (data) {
         Kit.store.data = data;
         remember();
         return data;
@@ -206,12 +222,12 @@
       redraw = function () { redraws.forEach(function (fn) { fn(); }); };
       setInterval(function () {
         if (busy || waiting || Kit.busy()) return;
-        fetch('/api/store').then(function (r) { return r.json(); }).then(function (data) {
+        fetch('/api/store').then(function (r) { if (!r.ok) throw new Error('Could not refresh saved data'); return r.json(); }).then(function (data) {
           if (busy || waiting || Kit.busy() || (data.rev || 0) === (Kit.store.data.rev || 0)) return;
           Kit.store.data = data;
           remember();
           onChange();
-        });
+        }).catch(function () { /* Keep the last valid view; the next poll retries. */ });
       }, 4000);
     },
     // A file that did not reach the laptop must never be shown as uploaded: say so, and stop there.
