@@ -1,0 +1,6 @@
+# Connect the audit container to the existing CLI-managed local Supabase network.
+networks:
+  crm:
+    external: true
+    name: magppie-crm-loopback
+    driver: null

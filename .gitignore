@@ -3,6 +3,8 @@
 *.env
 !*.env.example
 data/
+uploads/
+backups/
 online/index.html
 *.zip
 .DS_Store
@@ -12,3 +14,34 @@ __pycache__/
 # Any saved copy of the client data, wherever it is.
 **/store*.json
 **/seed.json
+
+.env.*
+!.env.example
+!.env.local.example
+!.env.production.example
+.vercel/
+supabase/.temp/
+supabase/.branches/
+.local/
+dist/
+*.log
+.venv/
+
+.pytest_cache/
+
+# Measurement frontend dependencies and reproducible build output
+node_modules/
+measurement/assets/
+
+accounts/assets/
+
+# Sales React build output
+sales/assets/
+
+# Design React build output
+design/assets/
+
+# Management React build output
+management/assets/
+
+backend/web/assets/

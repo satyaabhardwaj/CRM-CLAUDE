@@ -3,4 +3,4 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 export PYTHONDONTWRITEBYTECODE=1
-exec python3 core/server.py
+exec python3 measurement/server.py

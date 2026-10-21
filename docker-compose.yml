@@ -1,0 +1,39 @@
+name: magppie-crm-container
+services:
+  crm:
+    image: ${CRM_IMAGE:-magppie-crm:local-verified}
+    build:
+      context: .
+      target: runtime
+    env_file:
+      - ${CRM_ENV_FILE:?Choose a private container env file; see deploy/README.md}
+    environment:
+      PORT: '8000'
+      CRM_STORAGE_BACKEND: supabase
+    ports:
+      - '${CRM_BIND_ADDRESS:-127.0.0.1}:${CRM_PORT:-4302}:8000'
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 30s
+    healthcheck:
+      test: [CMD, python, -m, backend.healthcheck]
+      interval: 15s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    networks: [crm]
+networks:
+  crm:
+    driver: bridge
+# The app is stateless. Durable database/attachment volumes belong to Supabase.
+# Do not mount the source tree, .env files or local customer files into the image.

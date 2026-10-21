@@ -1,0 +1,18 @@
+{
+  "name": "magppie-crm-workspace",
+  "private": true,
+  "scripts": {
+    "db:start": "supabase start --network-id magppie-crm-loopback --exclude realtime,imgproxy,edge-runtime,logflare,vector,supavisor",
+    "db:stop": "supabase stop",
+    "db:status": "supabase status",
+    "build": "node scripts/build-frontends.mjs",
+    "db:migrate": "python scripts/migrate_schema.py",
+    "db:seed": "python -m backend.seed_local"
+  },
+  "devDependencies": {
+    "supabase": "2.75.0"
+  },
+  "overrides": {
+    "tar": "7.5.22"
+  }
+}
