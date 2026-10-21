@@ -1,0 +1,104 @@
+@import "../../../shared/tokens.css";
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 16px/1.5 var(--ui-font);
+}
+#auth-root {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+}
+.auth-card {
+  width: min(100%, 440px);
+  padding: clamp(24px, 5vw, 40px);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: 0 16px 48px #172b4d0c;
+}
+.auth-eyebrow {
+  color: var(--ink3);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+.auth-card h1 {
+  font-size: clamp(26px, 5vw, 32px);
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  margin: 0 0 12px;
+}
+.auth-intro {
+  color: var(--ink3);
+  margin: 0 0 28px;
+}
+.auth-card label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 18px;
+}
+.auth-card input,
+.auth-card button {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 10px;
+  padding: 12px;
+  font: inherit;
+  margin-top: 8px;
+}
+.auth-card input {
+  border: 1px solid var(--edge);
+  background: white;
+  color: var(--ink);
+}
+.auth-card button {
+  border: 1px solid var(--ink);
+  color: white;
+  background: var(--ink);
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 24px;
+  transition: background-color 140ms ease;
+}
+.auth-card button:hover:not(:disabled) {
+  background: var(--ink2);
+}
+.auth-card button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.auth-card :is(input, button):focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 3px;
+}
+#message {
+  min-height: 24px;
+  color: #a3261b;
+  font-size: 14px;
+  margin: 14px 0 0;
+  overflow-wrap: anywhere;
+}
+.auth-card form[aria-busy="true"] #message {
+  color: var(--ink3);
+}
+.auth-footer {
+  margin: 24px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  color: var(--ink3);
+  font-size: 12px;
+  text-align: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

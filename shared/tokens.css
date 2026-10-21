@@ -1,0 +1,15 @@
+:root {
+  --page: #f3f5f8;
+  --card: #fff;
+  --ink: #202733;
+  --ink2: #465366;
+  --ink3: #626f80;
+  --line: #e3e8ef;
+  --edge: #c6ced9;
+  --blue: #245bb0;
+  --ui-hover: #edf2f9;
+  --ui-radius: 12px;
+  --ui-shadow: 0 3px 14px #172b4d08;
+  --ui-focus: #3875ce;
+  --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}

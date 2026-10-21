@@ -1,0 +1,292 @@
+#app {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+}
+.management-body {
+  padding: 0;
+  min-height: 0;
+}
+.management-brand,
+.management-tools {
+  gap: 12px;
+  min-width: 0;
+}
+.management-tools {
+  flex-wrap: wrap;
+}
+.management-select {
+  display: block;
+  min-width: 150px;
+}
+.management-select select {
+  width: 100%;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.management-status {
+  padding: 10px 24px;
+  background: white;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.management-status[role="alert"] {
+  color: #a1160a;
+}
+.management-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+.management-item .who {
+  min-width: 0;
+  flex: 1;
+}
+.management-item .pill {
+  max-width: 55%;
+  white-space: normal;
+}
+.management-table {
+  flex: 1;
+  min-height: 0;
+}
+.management-scroll {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+}
+.management-people-row {
+  grid-template-columns: 1.5fr 1fr 0.7fr 0.8fr 0.8fr 0.9fr 0.9fr 0.9fr 1fr 1fr 1fr 1fr 1fr;
+  min-width: 1400px;
+}
+.management-client-row {
+  grid-template-columns: 1.5fr 1fr 0.9fr 0.9fr 0.8fr 0.9fr 0.9fr 0.6fr 2fr;
+  min-width: 1150px;
+}
+.management-table button.row {
+  width: 100%;
+  min-height: 58px;
+}
+.management-table .row > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.management-table .pill {
+  white-space: normal;
+}
+.management-filters {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.management-dialog {
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  inset: 0;
+  width: 1200px;
+  max-width: calc(100vw - 24px);
+  max-height: 92dvh;
+  height: 92dvh;
+  overflow: auto;
+}
+.management-dialog::backdrop {
+  background: #0005;
+}
+.management-dialog .sheet-b {
+  overflow: visible;
+  max-height: none;
+}
+.management-dialog .sheet-h {
+  gap: 12px;
+}
+.management-dialog .sheet-h > .btn {
+  flex: none;
+}
+.management-dialog .cols {
+  align-items: start;
+}
+.management-dialog .rows {
+  max-height: 430px;
+}
+.management-dialog .mini {
+  width: 100%;
+  text-align: left;
+}
+.management-dialog .pill {
+  white-space: normal;
+}
+.management-dialog .line {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#app > .top {
+  height: auto;
+  min-height: 56px;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.mg .card-b {
+  overflow: auto;
+}
+.ana-grid .card {
+  display: flex;
+  flex-direction: column;
+}
+.ana-grid .card-b {
+  min-height: 0;
+}
+.ana-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ana-row {
+  grid-template-columns: minmax(0, 128px) minmax(0, 1fr);
+}
+@media (max-width: 1200px) {
+  .ana-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+    grid-auto-rows: max-content;
+    overflow: auto;
+    align-content: start;
+  }
+  .ana-grid > .card {
+    min-height: 290px;
+    height: max-content;
+  }
+  .ana-grid .card-b {
+    flex: none;
+    overflow: visible;
+  }
+  .management-tools {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .management-dialog .cols {
+    grid-template-columns: 1fr;
+  }
+  .mg-two {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  #app > .top {
+    padding: 12px;
+  }
+  #app > .top > .management-brand {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .management-brand .depts {
+    flex: 1 0 100%;
+    order: 2;
+    overflow: auto;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+  .management-brand > .note {
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+  }
+  .management-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .tabs {
+    overflow: auto;
+    white-space: nowrap;
+  }
+  .tabs button {
+    flex: none;
+  }
+  .mg {
+    padding: 12px;
+    overflow: auto;
+  }
+  .mg-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .mg-tile {
+    padding: 12px;
+  }
+  .mg-tile b {
+    font-size: 23px;
+  }
+  .mg-two {
+    display: flex;
+    flex-direction: column;
+    min-height: auto;
+    flex: none;
+  }
+  .mg-two > .card {
+    min-height: 220px;
+    max-height: 500px;
+  }
+  .ana-grid {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    flex: none;
+  }
+  .ana-grid > .card {
+    min-height: auto;
+    flex: none;
+  }
+  .ana-grid .card-b {
+    flex: none;
+    overflow: visible;
+  }
+  .management-table {
+    min-height: 420px;
+  }
+  .management-filters {
+    width: 100%;
+    margin-left: 0;
+  }
+  .management-filters .management-select {
+    flex: 1;
+  }
+  .management-item {
+    flex-wrap: wrap;
+  }
+  .management-item .pill {
+    max-width: 100%;
+  }
+  .person .line {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .management-dialog .sheet-h {
+    flex-wrap: wrap;
+  }
+  .management-dialog .sheet-b {
+    padding: 12px;
+  }
+  .management-dialog .facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .management-dialog .mini {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
