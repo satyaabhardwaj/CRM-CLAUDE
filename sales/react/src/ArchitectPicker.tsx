@@ -12,6 +12,7 @@ export function ArchitectPicker({
   onPick: (v: string) => void;
 }) {
   const list = architects()
+      .filter((a) => !a.archived || a.id === id)
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name)),
     a = list.find((a) => a.id === id);
@@ -29,7 +30,12 @@ export function ArchitectPicker({
             value={id}
             options={list.map((a) => [
               a.id,
-              a.name + (a.firm ? " · " + a.firm : "") + " · " + a.rate + "%",
+              a.name +
+                (a.firm ? " · " + a.firm : "") +
+                " · " +
+                a.rate +
+                "%" +
+                (a.archived ? " · Archived" : ""),
             ])}
             onChange={onPick}
             placeholder="Choose the architect"

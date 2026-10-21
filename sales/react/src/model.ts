@@ -52,6 +52,7 @@ export interface Billing {
   sameAsSite?: boolean;
 }
 export interface Architect {
+  archived?: boolean;
   id: string;
   name: string;
   firm: string;

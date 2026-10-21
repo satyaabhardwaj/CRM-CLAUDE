@@ -185,7 +185,12 @@ def test_reader_cannot_write_even_with_old_write_grant(workspace):
     login, engine, sample, identities = workspace
     with engine.begin() as db:
         db.execute(insert(grants).values(user_id=identities['reader'], client_id=sample['id'], can_write=1))
-    assert login('reader').put('/api/clients/synthetic-1', json={'version': 0, 'payload': sample}).status_code == 403
+    reader = login('reader')
+    before = reader.get('/api/store').json()
+    assert reader.put('/api/clients/synthetic-1', json={'version': 0, 'payload': sample}).status_code == 403
+    assert reader.post('/api/uploads/sign/synthetic-1', json={'name': 'denied.txt', 'size': 1}).status_code == 403
+    assert reader.put('/api/upload/synthetic-1/denied.txt', content=b'x').status_code == 403
+    assert reader.get('/api/store').json() == before
 
 
 def test_shared_calculations_survive_crud(workspace):
@@ -254,3 +259,29 @@ def test_architect_cannot_be_hard_deleted(workspace):
     store = client.get('/api/store').json()
     store['architects'] = []
     assert client.put('/api/store', json=store).status_code == 422
+
+
+def test_architect_archive_restore_preserves_records(workspace):
+    login, _, _, _ = workspace
+    client = login()
+    store = client.get('/api/store').json()
+    architect = {'id': 'a001', 'name': 'TEST retained', 'firm': 'Fixture', 'phone': '', 'rate': 5}
+    store['architects'] = [architect]
+    store['clients'][0].update(architectId='a001', architectInvolved=True)
+    assert client.put('/api/store', json=store).status_code == 200
+    original = client.get('/api/store').json()
+    original_row = client.get('/api/clients/synthetic-1').json()
+    for archived in (True, False):
+        change = client.get('/api/store').json()
+        change['architects'][0]['archived'] = archived
+        assert client.put('/api/store', json=change).status_code == 200
+        saved = client.get('/api/store').json()
+        assert saved['architects'] == [dict(architect, archived=archived)]
+        assert saved['clients'] == original['clients']
+        assert client.get('/api/clients/synthetic-1').json() == original_row
+        assert client.put('/api/store', json=change).status_code == 409
+    baseline = client.get('/api/store').json()
+    for invalid in ([], [{'id': 'changed'}], [dict(architect, archived='false')], [architect, architect], None):
+        change = dict(baseline, architects=invalid)
+        assert client.put('/api/store', json=change).status_code == 422
+        assert client.get('/api/store').json() == baseline

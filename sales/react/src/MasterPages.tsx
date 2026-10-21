@@ -12,6 +12,7 @@ import { Button, Field, now, Select } from "./ui";
 import { Grid } from "./lists";
 export function ArchitectPage({ ctx }: { ctx: Context }) {
   const [adding, setAdding] = useState(false),
+    [showArchived, setShowArchived] = useState(false),
     [search, setSearch] = useState(""),
     [draft, setDraft] = useState({ name: "", firm: "", phone: "", rate: "" });
   const all = architects(),
@@ -54,6 +55,9 @@ export function ArchitectPage({ ctx }: { ctx: Context }) {
         />
         <Button onClick={() => setAdding(!adding)}>
           {adding ? "Close form" : "+ Add architect"}
+        </Button>
+        <Button onClick={() => setShowArchived(!showArchived)}>
+          {showArchived ? "Show active" : "Show archived"}
         </Button>
       </div>
       {adding && (
@@ -101,11 +105,13 @@ export function ArchitectPage({ ctx }: { ctx: Context }) {
         </section>
       )}
       <Grid
-        title="Architects"
+        title={showArchived ? "Archived architects" : "Architects"}
         empty={
           search.trim()
             ? "No architects match your search."
-            : "No architects yet. Use Add architect to get started."
+            : showArchived
+              ? "No archived architects."
+              : "No architects yet. Use Add architect to get started."
         }
         heads={[
           "Architect",
@@ -119,6 +125,7 @@ export function ArchitectPage({ ctx }: { ctx: Context }) {
         ]}
         cols="minmax(140px,1.5fr) minmax(120px,1.2fr) minmax(100px,1fr) 90px 60px minmax(100px,1fr) minmax(100px,1fr) 76px"
         rows={all
+          .filter((a) => !!a.archived === showArchived)
           .filter(
             (a) =>
               !search.trim() ||
@@ -160,20 +167,23 @@ export function ArchitectPage({ ctx }: { ctx: Context }) {
                 window.Kit.short(
                   mine.reduce((t, c) => t + L.totals(c).success, 0),
                 ),
-                mine.length ? (
-                  <span className="pill grey">In use</span>
-                ) : (
+                <div>
+                  {a.archived ? (
+                    <span className="pill grey">Archived</span>
+                  ) : mine.length > 0 ? (
+                    <span className="pill grey">In use</span>
+                  ) : null}
                   <Button
                     tone="small architect-remove"
                     onClick={() =>
                       ctx.update(() => {
-                        all.splice(all.indexOf(a), 1);
+                        a.archived = !a.archived;
                       })
                     }
                   >
-                    Remove
+                    {a.archived ? "Restore" : "Archive"}
                   </Button>
-                ),
+                </div>,
               ],
             };
           })}

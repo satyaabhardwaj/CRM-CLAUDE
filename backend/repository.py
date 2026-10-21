@@ -31,6 +31,8 @@ def import_snapshot(db, value):
     event(db,'migration','snapshot.import')
 
 def allowed(db, user, client_id, write=False):
+    if user['role'] == 'reader' and write:
+        raise HTTPException(403,'Reader access is read-only.')
     if user['role'] == 'admin' or (user['role'] == 'reader' and not write):
         return
     grant = db.execute(select(grants).where(grants.c.user_id==user['id'],grants.c.client_id==client_id)).mappings().first()
@@ -54,6 +56,18 @@ def save_legacy(db, user, incoming):
     incoming_ids = {c['id'] for c in incoming['clients']}
     if not existing.issubset(incoming_ids):
         raise HTTPException(422,'Removing client records is disabled; use the existing soft-delete workflow.')
+    previous = db.execute(select(state.c.payload).where(state.c.id==1)).scalar_one()
+    architect_rows = incoming.get('architects', [])
+    if not isinstance(architect_rows, list) or any(
+        not isinstance(a, dict) or not isinstance(a.get('id'), str) or not a['id'].strip()
+        or ('archived' in a and not isinstance(a['archived'], bool)) for a in architect_rows
+    ):
+        raise HTTPException(422,'Invalid architect records.')
+    architect_ids = {a['id'] for a in architect_rows}
+    if len(architect_ids) != len(architect_rows):
+        raise HTTPException(422,'Architect IDs must be unique.')
+    if not {a['id'] for a in previous.get('architects', [])}.issubset(architect_ids):
+        raise HTTPException(422,'Removing architects is disabled; archive them instead.')
     db.execute(update(state).where(state.c.id==1).values(payload={k:v for k,v in incoming.items() if k not in ('rev','clients')}))
     for position, client in enumerate(incoming['clients']):
         if client['id'] in existing:
