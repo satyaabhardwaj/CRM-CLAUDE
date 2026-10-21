@@ -31,6 +31,9 @@ def settings():
                     name, value = line.split("=", 1)
                     if value.strip():
                         found[name.strip()] = value.strip().strip('"').strip("'")
+    for name,value in os.environ.items():
+        if name.startswith(('ZOHO_SIGN_','SIGN_')) or name=='ZOHO_DC':
+            if value: found[name]=value
     return found
 
 

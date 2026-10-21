@@ -1,0 +1,3 @@
+-- No customer data or credentials are committed here.
+-- Run python -m backend.seed_local explicitly for a synthetic development workspace.
+-- Customer migration is a separate, non-overwriting local operation.
