@@ -33,7 +33,7 @@ The evidence is in `.local/final-docker-regression-20261021/` and `.local/master
 
 - Local migrations through 0006 and persistent MFA encryption key were activated in the earlier authorized task. No user enrollment/password/role changes occurred in this readiness task.
 - Hosted auth requires a unique environment realm and account/session bindings; copied development credentials/cookies are not valid hosted identities.
-- Recovery and MFA are implemented. Recovery delivery remains disabled until separate SMTP setup and mailbox ownership enrollment are authorized. MFA enrollment is opt-in; mandatory policy and lost-factor operator procedure are Phase 5 decisions.
+- Recovery and MFA are implemented. Recovery delivery remains disabled until separate SMTP setup and mailbox ownership enrollment are authorized. MFA is required for admins (enforced server-side; fail closed on hosted environments without a key) and optional for reader/assigned. The lost-factor procedure uses `backend.reset_mfa` (owner Satya Bhardwaj).
 - Factory email remains blocked (403 in latest regression); signatures remain off. No outbound email, signature or Zoho writes in these checks.
 - Latest regression mocked Zoho reads; earlier real local Measurement sync evidence is historical, not proof of hosted cold-start/runtime behavior.
 
@@ -42,7 +42,7 @@ The evidence is in `.local/final-docker-regression-20261021/` and `.local/master
 - [ ] Approve Vercel/Supabase account/team, project names, region and budget.
 - [ ] Choose domain and DNS access, or an initial provider domain.
 - [ ] Choose separate preview and production databases/buckets/credentials.
-- [ ] Choose admin identity, fresh password, teammate roles/grants and MFA policy.
+- [ ] Choose admin identity, fresh password and teammate roles/grants. (MFA policy decided 22 Oct: required for admins.)
 - [ ] Privately configure server-only database/Storage/Zoho secrets, exact HTTPS origin, unique auth realm and persistent MFA encryption key. Migration credentials stay separate from app runtime/build.
 - [ ] Configure recovery-only SMTP and verify mailbox ownership before enabling delivery; keep factory mail disabled.
 - [ ] Approve data scope, cutover window, backup retention/recovery objectives, monitoring owner and alerts.

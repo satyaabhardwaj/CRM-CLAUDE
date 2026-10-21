@@ -228,6 +228,7 @@ export function Security() {
     available: boolean;
     enabled: boolean;
     recovery_codes: number;
+    required?: boolean;
   } | null>(null);
   const [secret, setSecret] = useState("");
   const [uri, setUri] = useState("");
@@ -344,6 +345,12 @@ export function Security() {
       {status && !status.available && (
         <p>Authenticator setup is unavailable. Contact your administrator.</p>
       )}
+      {status?.required && !status.enabled && codes === null && (
+        <p className="auth-notice" role="alert">
+          Administrator accounts must use an authenticator app. Set it up to
+          open the workspace.
+        </p>
+      )}
       {codes !== null ? (
         <>
           {codes.length > 0 && (
@@ -445,11 +452,15 @@ export function Security() {
                     <option value="recovery-codes">
                       Replace recovery codes
                     </option>
-                    <option value="disable">Disable authenticator</option>
+                    {!status.required && (
+                      <option value="disable">Disable authenticator</option>
+                    )}
                   </select>
                   <p>
                     This ends all sessions. Replacing codes invalidates the old
                     set.
+                    {status.required &&
+                      " Administrator accounts cannot disable the authenticator."}
                   </p>
                 </>
               )}

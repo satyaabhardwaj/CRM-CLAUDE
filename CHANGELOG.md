@@ -27,6 +27,15 @@ All notable changes to the Magppie CRM. Dates are 2026.
 - Moved older reports to `docs/history/`.
 - Start instructions now point to `Start CRM.cmd` / 4301, and port 4300 is marked retired. The business rules in CLAUDE.md are unchanged.
 
+### Phase 5: product finishing (22 Oct)
+- MFA policy: admins must use an authenticator; reader and assigned stay optional.
+  - It is enforced on the server: an unenrolled admin gets a 403 `mfa_enrollment_required` response from every data API, and pages redirect to `/security`.
+  - Admins cannot disable MFA.
+  - Hosted environments fail closed without the MFA key.
+- Account security page explains the requirement, and the session script sends a blocked admin to `/security`.
+- New operator command `backend.reset_mfa` for identity-verified lost-factor recovery (owner Satya Bhardwaj), documented in SECURITY.
+- No logo change and no business-rule change (as decided).
+
 ## v1.0-rc2 (21 Oct, 7469f56)
 - Hosted identity isolation: environment realm UUID, account and session bindings (Alembic 0004).
 - Password recovery by email, off by default (0005).

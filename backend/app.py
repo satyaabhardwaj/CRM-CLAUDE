@@ -67,12 +67,19 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
         response.headers['Referrer-Policy']='no-referrer' if request.url.path in ('/reset-password', '/forgot-password') else 'same-origin'
         return response
 
-    def who(db, request):
+    def signed_in(db, request):
         return auth.identity(db,request.cookies.get('crm_session'),realm)
 
     from .mfa import MFA
     mfa = MFA(engine, settings)
-    mfa.register(app, who)
+    # Enrolment routes and /api/auth/me only need a session; everything else goes through who().
+    mfa.register(app, signed_in)
+
+    def who(db, request):
+        user = signed_in(db, request)
+        if mfa.enrollment_required(db, user):
+            raise HTTPException(403, {'error':'Set up your authenticator app to continue.','mfa_enrollment_required':True})
+        return user
 
     @app.get('/api/health')
     def health():
@@ -109,9 +116,9 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
     @app.get('/api/auth/me')
     def me(request:Request):
         with engine.connect() as db:
-            user = who(db,request)
+            user = signed_in(db,request)
             email = db.execute(select(credentials.c.email).where(credentials.c.user_id==user['id'])).scalar_one_or_none()
-            return {**user, 'email': email}
+            return {**user, 'email': email, 'mfa_enrollment_required': mfa.enrollment_required(db,user)}
 
     @app.get('/api/store')
     def store(request:Request):
@@ -195,8 +202,9 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
     @app.get('/{path:path}')
     def static(path:str,request:Request):
         with engine.connect() as db:
-            try: user=who(db,request)
+            try: user=signed_in(db,request)
             except HTTPException: return RedirectResponse('/login',status_code=303)
+            if mfa.enrollment_required(db,user): return RedirectResponse('/security',status_code=303)
         if not path: return RedirectResponse('/sales/',status_code=303)
         if user['role']=='assigned': raise HTTPException(403,'Assigned users access /api/clients; legacy dashboards require workspace access.')
         target=(ROOT/path).resolve()

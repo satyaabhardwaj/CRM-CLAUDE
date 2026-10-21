@@ -206,3 +206,32 @@ it("password visibility and Caps Lock feedback do not send credentials", async (
   expect(host.textContent).toContain("Caps Lock");
   expect(fetcher).toHaveBeenCalledTimes(calls);
 });
+it("sends an admin who must enrol MFA to account security", async () => {
+  const target = {
+    fetch: vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('{"error":"x","mfa_enrollment_required":true}', {
+          status: 403,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response('{"error":"Forbidden"}', { status: 403 }),
+      )
+      .mockResolvedValueOnce(
+        new Response("not json", { status: 403 }),
+      ) as typeof fetch,
+  };
+  const navigate = vi.fn(),
+    restore = installSessionRedirect(target, navigate);
+  const response = await target.fetch("/api/store");
+  expect(await response.json()).toEqual({
+    error: "x",
+    mfa_enrollment_required: true,
+  });
+  await target.fetch("/api/store");
+  await target.fetch("/api/store");
+  expect(navigate).toHaveBeenCalledTimes(1);
+  expect(navigate).toHaveBeenCalledWith("/security");
+  restore();
+});

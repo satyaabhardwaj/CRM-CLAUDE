@@ -36,7 +36,7 @@ Development credentials, sessions and MFA enrolments are never copied to a hoste
    - *Preview:* synthetic data, unless a copy is approved.
    - *Production:* take a final coordinated backup, then import only the approved business data and attachments.
    - Reconcile row fingerprints and attachment hashes ([OPERATIONS](OPERATIONS.md)). On any mismatch, stop.
-5. **Identities.** Provision fresh users per role with `backend.provision_user --confirm-target "HOST/DATABASE"`, and apply the MFA policy. Verify that development cookies and passwords are rejected.
+5. **Identities.** Provision fresh users per role with `backend.provision_user --confirm-target "HOST/DATABASE"`, Admins must enrol an authenticator at their first sign-in; set `CRM_MFA_ENCRYPTION_KEY` first, or admins are blocked. Verify that development cookies and passwords are rejected.
 6. **Deploy and verify on the real URL.** Check all of these:
    - login and logout, MFA, recovery mail, and each role's allowed and denied actions;
    - CRUD and Bin restore, and private upload/download;

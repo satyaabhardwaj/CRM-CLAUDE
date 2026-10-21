@@ -39,6 +39,20 @@ export function installSessionRedirect(
   target.fetch = async (...args: Parameters<typeof fetch>) => {
     const response = await original(...args);
     if (response.status === 401) navigate("/login");
+    // Admin MFA policy: an unenrolled admin is sent to account security.
+    else if (response.status === 403) {
+      const data: unknown = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      if (
+        data &&
+        typeof data === "object" &&
+        "mfa_enrollment_required" in data &&
+        data.mfa_enrollment_required === true
+      )
+        navigate("/security");
+    }
     return response;
   };
   return () => {

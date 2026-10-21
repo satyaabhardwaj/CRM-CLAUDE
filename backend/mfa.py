@@ -19,6 +19,10 @@ from .repository import event
 from .recovery import allow
 
 
+# Policy (22 Oct 2026): admins must use an authenticator; reader and assigned may opt in.
+REQUIRED_ROLES = frozenset({'admin'})
+
+
 def totp(secret, counter, digits=6):
     raw = hmac.new(base64.b32decode(secret), struct.pack('>Q',counter), hashlib.sha1).digest()
     offset = raw[-1] & 15
@@ -55,6 +59,15 @@ class MFA:
 
     def factor(self, db, uid):
         return db.execute(select(mfa_factors).where(mfa_factors.c.user_id==uid)).mappings().first() if self.schema else None
+
+    def enrollment_required(self, db, user):
+        """True when policy requires a factor this signed-in user has not enabled yet."""
+        if user['role'] not in REQUIRED_ROLES: return False
+        if not self.schema or self.cipher is None:
+            # Hosted environments fail closed; a development machine without a key cannot enrol.
+            return bool(self.realm)
+        factor = self.factor(db, user['id'])
+        return not (factor and factor['enabled'])
 
     def challenge(self, db, uid):
         factor = self.factor(db,uid)
@@ -118,7 +131,8 @@ class MFA:
             with self.engine.connect() as db:
                 user=who(db,request);factor=self.factor(db,user['id'])
                 count=db.scalar(select(func.count()).select_from(mfa_codes).where(mfa_codes.c.user_id==user['id'])) if self.schema else 0
-            return {'available':self.schema and self.cipher is not None,'enabled':bool(factor and factor['enabled']),'recovery_codes':count}
+            return {'available':self.schema and self.cipher is not None,'enabled':bool(factor and factor['enabled']),'recovery_codes':count,
+                    'required':user['role'] in REQUIRED_ROLES}
 
         def owner(request, password, db):
             user=who(db,request)
@@ -187,6 +201,8 @@ class MFA:
             throttle(request)
             with self.engine.begin() as db:
                 uid=owner(request,body.password,db);factor=self.factor(db,uid)
+                if disable and db.scalar(select(users.c.role).where(users.c.id==uid)) in REQUIRED_ROLES:
+                    raise HTTPException(403,'Your role requires an authenticator. Replace recovery codes instead.')
                 if not factor or not factor['enabled'] or not self.verify(db,factor,body.code):
                     raise HTTPException(400,'Code is invalid, expired or already used.')
                 if disable:

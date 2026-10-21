@@ -202,3 +202,54 @@ it("empty digit backspace returns focus to the previous box", async () => {
   );
   expect(document.activeElement).toBe(inputs[1]);
 });
+it("tells an unenrolled admin MFA is required and never offers disable", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          '{"available":true,"enabled":false,"recovery_codes":0,"required":true}',
+        ),
+      ),
+  );
+  await render(<Security />);
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+    "must use an authenticator app",
+  );
+  await act(async () => root.unmount());
+  host.remove();
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          '{"available":true,"enabled":true,"recovery_codes":9,"required":true}',
+        ),
+      ),
+  );
+  await render(<Security />);
+  const options = Array.from(host.querySelectorAll("option")).map(
+    (o) => o.value,
+  );
+  expect(options).toEqual(["recovery-codes"]);
+  expect(host.textContent).toContain("cannot disable");
+  expect(host.querySelector('[role="alert"]')).toBeNull();
+});
+it("optional roles can still choose to disable", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          '{"available":true,"enabled":true,"recovery_codes":10,"required":false}',
+        ),
+      ),
+  );
+  await render(<Security />);
+  expect(
+    Array.from(host.querySelectorAll("option")).map((o) => o.value),
+  ).toEqual(["recovery-codes", "disable"]);
+});

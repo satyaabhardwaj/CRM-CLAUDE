@@ -9,8 +9,9 @@ Implemented and active locally:
 - migrations through 0006;
 - a persistent local MFA encryption key.
 
+MFA policy: admins must enrol; reader and assigned may opt in (see SECURITY). `CRM_MFA_ENCRYPTION_KEY` is therefore required in preview and production; without it, admins are blocked.
+
 Still pending:
-- MFA enrolment is opt-in (the mandatory policy is a Phase 5 decision);
 - recovery delivery is disabled;
 - hosted provisioning requires explicit destination configuration and `--confirm-target "HOST/DATABASE"`;
 - no cloud setup is authorized.
@@ -124,8 +125,8 @@ After explicit future authorization, the operator should:
 ## Remaining recovery/MFA operations
 
 - Configure and verify a dedicated recovery SMTP sender, then explicitly enable delivery. Independently verify each recovery email before operator enrollment; no automated mailbox-verification challenge is provided.
-- Choose mandatory-MFA policy before broad rollout; current enrollment is opt-in. TOTP and single-use recovery codes are implemented; passkeys and automatic QR rendering are not.
-- Document identity-verified lost-factor recovery. Password reset does not disable MFA; no shared bypass or automatic factor removal exists.
+- MFA policy decided 22 Oct 2026: required for admins, optional for others (enforced server-side). TOTP and single-use recovery codes are implemented; passkeys and automatic QR rendering are not.
+- Lost-factor recovery: identity-verified operator procedure with `backend.reset_mfa` (owner Satya Bhardwaj, see SECURITY). Password reset does not disable MFA; there is no shared bypass.
 - Back up the MFA encryption key separately and protect it. Rotation requires a reviewed re-encryption/re-enrollment procedure; do not regenerate it on restart.
 - Validate hosted edge throttling, global rate-limit capacity and SMTP delivery/retry operations. There is no durable recovery-mail queue.
 

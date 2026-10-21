@@ -55,7 +55,12 @@ Every login and every request must match both an account binding and a session b
 - **Login for an enrolled user:** the password returns a five-minute challenge cookie with no API access. A valid code then issues the normal session.
 - **Limits:** five failed attempts per challenge, ten per user per hour, 100 globally per hour.
 - **Disabling MFA or replacing codes** needs the password plus a code, and it revokes every session.
-- **Policy:** enrolment is currently **opt-in**. A mandatory policy is a Phase 5 decision.
+- **Policy (decided 22 Oct 2026): admins must use MFA; reader and assigned users may opt in.** It is enforced on the server in `backend/mfa.py` (`REQUIRED_ROLES`) and `backend/app.py` (`who`):
+  - An admin without an enabled authenticator can still sign in, but every data API returns 403 with `mfa_enrollment_required: true`. Every page redirects to `/security`.
+  - Until the admin enrols, only login/logout, `/api/auth/me`, `/security` and the MFA endpoints work.
+  - Admins cannot disable their authenticator; they can still replace their recovery codes.
+  - **Hosted (preview/production):** if the encryption key or the MFA tables are missing, admins are blocked (fail closed).
+  - **Development:** on a laptop without `CRM_MFA_ENCRYPTION_KEY`, the policy cannot be met, so it is not enforced there.
 - **The key:** losing `CRM_MFA_ENCRYPTION_KEY` blocks every enrolled user. Back it up separately from database dumps and never regenerate it on restart.
 
 ## Password recovery
@@ -75,7 +80,28 @@ Every login and every request must match both an account binding and a session b
 
 ## Lost MFA (operator procedure)
 
-Password reset does not remove MFA, and no shared bypass exists. The operator procedure and its owner are defined in Phase 5. Until then, a user who has lost both the authenticator and the recovery codes needs an admin to perform a reviewed database change.
+**Owner: Satya Bhardwaj.** Use this procedure when a user has lost both the authenticator app and every recovery code. Password reset never removes MFA, and there is no shared bypass.
+
+1. **Verify identity outside the CRM.**
+   - Use a channel already on record, such as a video call or in person, plus a call-back on a phone number already on record.
+   - Never act on an email or chat request alone.
+   - For an admin, a second admin or the owner must also confirm.
+2. **Check the request is genuine:** the account exists, it is active, and the request matches the person. Note a ticket or reference.
+3. **Run the reset** from a trusted operator terminal, with the destination configuration injected privately:
+
+   ```powershell
+   .venv\Scripts\python.exe -m backend.reset_mfa --email "USER_EMAIL" --confirm-target "HOST/DATABASE" --identity-verified
+   ```
+
+   The command:
+   - removes only that user's authenticator, recovery codes, pending challenges and sessions;
+   - records `mfa.operator_reset` in `crm_audit`;
+   - leaves the password, role and grants unchanged.
+   Hosted targets also need an explicit `CRM_ENV` and the matching realm.
+4. **Tell the user to sign in and enrol again at once.** Admins are sent straight to `/security` and cannot use the workspace until they do.
+5. **Record** who asked, how identity was verified, who ran the reset, and when. Record no secrets or codes.
+
+If the person cannot be verified, do not reset; escalate to the owner. A suspected account takeover is an incident (see [OPERATIONS](OPERATIONS.md#incidents)).
 
 ## Secrets
 

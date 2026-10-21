@@ -54,8 +54,13 @@ def test_hosted_roles_and_session_binding(api, tmp_path, role):
         assert response.status_code == 200
         assert 'Secure' in response.headers['set-cookie']
         assert client.get('/api/auth/me').json()['role'] == role
-        assert client.get('/api/store').status_code == (403 if role == 'assigned' else 200)
-        if role != 'admin':
+        if role == 'admin':
+            # No MFA key in this hosted test, so the admin MFA policy fails closed.
+            blocked = client.get('/api/store')
+            assert blocked.status_code == 403 and blocked.json()['mfa_enrollment_required'] is True
+            assert client.get('/api/auth/me').json()['mfa_enrollment_required'] is True
+        else:
+            assert client.get('/api/store').status_code == (403 if role == 'assigned' else 200)
             assert client.put('/api/store', json=original).status_code == 403
         if role == 'assigned':
             assert client.get('/api/clients/c1').status_code == 200

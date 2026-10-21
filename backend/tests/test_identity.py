@@ -17,11 +17,11 @@ def test_me_reads_only_current_email_without_changing_account_or_session(api, ui
         with engine.connect() as db:
             return [list(db.execute(select(table)).mappings()) for table in (users,credentials,sessions)]
     before=rows()
-    assert client.get('/api/auth/me').json()=={'id':uid,'role':role,'active':1,'email':uid+'@qa.invalid'}
+    assert client.get('/api/auth/me').json()=={'id':uid,'role':role,'active':1,'email':uid+'@qa.invalid','mfa_enrollment_required':False}
     assert rows()==before
 
 
 def test_me_missing_email_does_not_change_authentication(api):
     client, _, _ = api
     sign_in(client)
-    assert client.get('/api/auth/me').json()=={'id':'a','role':'admin','active':1,'email':None}
+    assert client.get('/api/auth/me').json()=={'id':'a','role':'admin','active':1,'email':None,'mfa_enrollment_required':False}

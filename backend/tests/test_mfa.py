@@ -110,7 +110,8 @@ def test_password_reset_cannot_bypass_mfa(setup):
 
 
 def test_management_requires_password_and_factor_revokes_sessions(setup):
-    create,engine,clock=setup;client,uid,email=create();secret,codes=enroll(client,clock)
+    # Readers may disable their optional factor; the admin policy is covered in test_mfa_policy.
+    create,engine,clock=setup;client,uid,email=create('reader');secret,codes=enroll(client,clock)
     begin(client,email);assert client.post('/api/auth/mfa/verify',json={'code':codes[0]}).status_code==200
     assert client.post('/api/auth/mfa/disable',json={'password':'wrong','code':codes[1]}).status_code==401
     result=client.post('/api/auth/mfa/recovery-codes',json={'password':PASSWORD,'code':codes[1]})
