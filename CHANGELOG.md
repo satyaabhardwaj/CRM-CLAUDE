@@ -2,6 +2,11 @@
 
 All notable changes to the Magppie CRM. Dates are 2026.
 
+## Unreleased
+
+### Phase 7: preview preparation (22 Oct)
+- New operator command `backend.runtime_role`: a least-privilege runtime role (`crm_app`), with read/write on the CRM tables and a role-scoped RLS policy only. It has no DDL, no BYPASSRLS and no Supabase API roles, and it is idempotent. The password is sent to the server only as a SCRAM verifier. The command verifies itself and is tested against a real PostgreSQL role.
+
 ## v1.0-rc3 (22 Oct)
 
 ### Phase 6: regression (22 Oct)

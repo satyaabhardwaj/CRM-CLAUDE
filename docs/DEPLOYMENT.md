@@ -31,7 +31,17 @@ Development credentials, sessions and MFA enrolments are never copied to a hoste
    - apply the Storage SQL in `supabase/migrations`;
    - run `alembic upgrade head`.
    Never run migrations on app start or during a build.
-3. **Least privilege.** Create a dedicated runtime role with access only to the CRM tables. Verify RLS and the private bucket policy.
+3. **Least privilege.** With the migration (owner) credential exported, create the runtime role:
+
+   ```powershell
+   .venv\Scripts\python.exe -m backend.runtime_role --role crm_app --confirm-target "HOST/DATABASE"
+   ```
+
+   - The password is typed at a hidden prompt, with at least 24 characters. Only a SCRAM verifier is sent to the server.
+   - The role gets read/write on the CRM tables plus a `crm_runtime` RLS policy for that role only. It has no DDL, no BYPASSRLS and no `anon`/`authenticated` membership; the command prints PASS/FAIL for each check.
+   - Re-run it after every migration, so new tables are covered.
+   - Put that role in `DATABASE_URL`, through the transaction pooler (user `crm_app.<project-ref>`), and keep the owner credential for migrations only.
+   - Verify that the bucket is private.
 4. **Data.**
    - *Preview:* synthetic data, unless a copy is approved.
    - *Production:* take a final coordinated backup, then import only the approved business data and attachments.

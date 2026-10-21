@@ -26,7 +26,7 @@ Required means required for the indicated capability, not permission to enable i
 
 | Name | Purpose | Exposure | Requirement |
 | --- | --- | --- | --- |
-| DATABASE_URL | PostgreSQL runtime connection including dedicated application-role password | Server secret | Required |
+| DATABASE_URL | PostgreSQL runtime connection as the `crm_app` role created by `backend.runtime_role` (transaction pooler) | Server secret | Required |
 | MIGRATION_DATABASE_URL | Separate migration/DDL connection and password | Operator/job secret only | Required operationally; Alembic otherwise falls back to DATABASE_URL |
 | SUPABASE_SERVICE_ROLE_KEY | Privileged private Storage API access | Server secret; never browser | Required with Supabase Storage |
 | Production admin email | Account identifier, returned to the signed-in user | Account-private, not an API secret | Required; chosen during provisioning |
