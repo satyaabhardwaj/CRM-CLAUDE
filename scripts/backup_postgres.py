@@ -86,28 +86,16 @@ def main():
     if fingerprint(source) != before or storage_hashes() != uploads_before or file_hashes(output / 'uploads') != uploads_before:
         raise RuntimeError('Data changed during backup. Pause writes and retry into a new directory.')
     report = {'tables': before, 'uploads': uploads_before, 'storage_backend':settings.storage_backend, 'restore_verified': False}
+    report['dump_sha256'] = hashlib.sha256((output / 'database.dump').read_bytes()).hexdigest()
     if args.restore_check:
-        import psycopg
-        from psycopg import sql
+        # Same path as scripts/restore_postgres.py: a NEW database, never the source.
+        from scripts.restore_postgres import restore_database
         name = 'crm_restore_' + uuid.uuid4().hex
-        with psycopg.connect('', autocommit=True, host=source.host, port=source.port or 5432,
-                             user=source.username, password=source.password, dbname=source.database,
-                             **dict(source.query)) as db:
-            db.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(name)))
         report['rehearsal_database'] = name
         (output / 'manifest.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
-        # Only this newly created DB is touched. DROP without CASCADE refuses
-        # if anything unexpectedly exists in its default schema.
-        with psycopg.connect('', autocommit=True, host=source.host, port=source.port or 5432,
-                             user=source.username, password=source.password, dbname=name,
-                             **dict(source.query)) as db:
-            db.execute('DROP SCHEMA public')
-        env['PGDATABASE'] = name
-        run('pg_restore', '--exit-on-error', '--no-owner', '--no-acl', '--dbname', name, str(output / 'database.dump'))
-        if fingerprint(source.set(database=name)) != before:
+        if restore_database(output, source, source.set(database=name), True) != before:
             raise RuntimeError('Restored database does not match backup baseline.')
-        report.update(restore_verified=True, rehearsal_database=name)
-    report['dump_sha256'] = hashlib.sha256((output / 'database.dump').read_bytes()).hexdigest()
+        report.update(restore_verified=True)
     (output / 'manifest.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
     print(json.dumps({'tables': len(before), 'uploads': len(uploads_before), 'restore_verified': report['restore_verified']}))
 

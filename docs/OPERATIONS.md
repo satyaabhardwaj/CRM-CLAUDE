@@ -14,7 +14,52 @@ Existing Vercel tooling publishes an encrypted offline snapshot, NOT the Python 
 
 Python's own documentation warns that http.server is not a production server: https://docs.python.org/3.11/library/http.server.html . Keep the current local runtime local. A real hosted release must select a supported application runtime behind TLS, persistent storage, identity/session controls, resource-level permissions and monitoring. The existing Vercel static host cannot supply these simply by copying the repository. This is a release blocker, not a functioning placeholder integration.
 
-## Backups / restoration / rollback
+## Backup and restore (current 4301 CRM: PostgreSQL + private Storage)
+
+Backups contain customer data and password/session hashes. Keep them private, outside OneDrive, and encrypted when copied off the machine.
+
+**Backup.** Pause edits, then run (the output directory must be new):
+
+```powershell
+$env:POSTGRES_BIN = "C:\Program Files\PostgreSQL\18\bin"
+.venv\Scripts\python.exe scripts\backup_postgres.py --output .local\backups\NAME --writes-paused --restore-check
+```
+
+It writes `database.dump`, every attachment under `uploads/`, and `manifest.json` (table fingerprints, attachment and dump SHA-256). It fails if data changed during the backup. `--restore-check` restores into a new `crm_restore_<hex>` database and requires the fingerprints to match; drop that database afterwards.
+
+**Restore (one command, repeatable).** It always goes into a NEW database, never over the live one:
+
+```powershell
+.venv\Scripts\python.exe scripts\restore_postgres.py --backup .local\backups\NAME --create-database crm_restore_qa_NAME --bucket crm-restore-qa-name
+```
+
+For a separately created empty database (for example a new Supabase project), set `RESTORE_DATABASE_URL` in the process environment and omit `--create-database`. `--bucket` is optional; it creates a new private bucket, uploads the attachments and reads every byte back.
+
+The script refuses:
+- the live database (same host, port and name as `DATABASE_URL`) or `postgres` when creating;
+- an existing database name, or a target whose `public` schema holds any object;
+- the live bucket or an existing bucket;
+- a backup whose dump, attachment set or attachment bytes differ from its manifest.
+
+How it works:
+- The dump contains `CREATE SCHEMA public`, which every new database already has (the 21 Oct duplicate-schema failure). The script restores through `pg_restore --use-list` and skips only that schema entry and its comment. It drops nothing.
+- It restores in a single transaction. Because dumps carry no ACLs, it then re-applies the migrations' boundary: RLS on every table, with no PUBLIC, anon or authenticated grants.
+- It prints JSON (`tables_match`, `attachments_match`) and exits non-zero on any mismatch. A failed target is left for inspection, never cleaned automatically.
+
+**Switching to a restored database** is a manual, separately approved step:
+1. Pause writes.
+2. Reconcile any writes newer than the backup.
+3. Point `DATABASE_URL` and `SUPABASE_UPLOADS_BUCKET` at the restored copies.
+4. Restart, then check health, login and the counts.
+
+Restored development identities and sessions must not become hosted production identities (see PRODUCTION_SECRETS.md).
+
+**Rehearsal (21 Oct 2026).**
+- A backup with `--restore-check`, then `restore_postgres.py` into `crm_restore_qa_phase3` and bucket `crm-restore-qa-phase3`.
+- All 15 tables and 28 clients matched both the manifest and the live database. All 15 attachments matched byte-for-byte, with 0 public grants and RLS on every table.
+- Repeating the command and targeting `postgres` were both refused. All rehearsal databases and the bucket were then dropped; the live fingerprint was unchanged.
+
+## Historical 4300 standalone backups (archived on branch archive/legacy-2026-10)
 
 1. Stop the sole CRM server and verify port 4300 is no longer listening. Prevent user edits.
 2. Run `python -B scripts/backup.py --server-stopped --destination <private-backup-directory>`. Store encrypted off-device copies with access control and retention; backups contain personal data. The tool creates a new archive and never overwrites/restores files.

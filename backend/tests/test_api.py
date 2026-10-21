@@ -15,6 +15,10 @@ def api(tmp_path):
     # PostgreSQL checks use a new isolated schema, never drop existing schemas.
     if url:
         from sqlalchemy import text,event
+        from sqlalchemy.engine import make_url
+        # Same rule as test_crud: never create test schemas inside the live CRM database.
+        parsed=make_url(url)
+        assert parsed.host in ('localhost','127.0.0.1') and parsed.database.startswith('crm_crud_test_'), 'Refusing a non-test database'
         schema='test_'+uuid.uuid4().hex
         with engine.begin() as db: db.execute(text('CREATE SCHEMA '+schema))
         engine.dispose()
