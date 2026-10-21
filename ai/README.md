@@ -1,7 +1,7 @@
 # AI for the Magppie CRM
 
 Everything that uses an AI model lives in this folder and nowhere else. The screens never talk to an AI
-service directly. They ask the engine (`core/server.py`), and the engine asks the code here.
+service directly. They ask the FastAPI backend (`backend/integrations.py`), and the backend asks the code here.
 
 | Folder | What it holds |
 |---|---|

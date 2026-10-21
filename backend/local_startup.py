@@ -29,7 +29,7 @@ def owned_cluster(root, url):
 def ensure_database():
     url = os.environ.get('DATABASE_URL', '')
     if not url:
-        raise RuntimeError('Database configuration is missing. See docs/VERCEL_SUPABASE.md.')
+        raise RuntimeError('Database configuration is missing. See docs/SETUP.md.')
     owned = owned_cluster(ROOT, url)
     if owned:
         binary, cluster = owned

@@ -25,7 +25,7 @@ The app joins the existing `magppie-crm-loopback` network. Database and Storage 
 | Supabase Studio | 56323 | CLI managed |
 | Local mail viewer | 56324 | CLI managed |
 | Shadow DB / disabled pooler | 56320 / 56329 | Reserved, not app endpoints |
-| Historical standalone / old DB | 4300 / 54329 | Retained recovery path only |
+| Retired standalone / old DB | 4300 / 54329 | Archived (branch archive/legacy-2026-10 and the encrypted 2026-10 archive) |
 
 All published development ports stay on loopback. `SUPABASE_INTERNAL_URL` is an explicit development-only HTTP transport override; signed browser URLs always use public `SUPABASE_URL`. Do not use Docker-internal names in browser links. Use `CRM_PORT` plus matching `CRM_ORIGIN`; the helper sets both consistently. Supabase ports are defined in `supabase/config.toml` and validated by the local configuration script.
 
@@ -33,7 +33,7 @@ All published development ports stay on loopback. `SUPABASE_INTERNAL_URL` is an 
 
 The multi-stage image builds all six React apps using locked npm dependencies and a digest-pinned Node image. The Python runtime uses pinned requirements and runs as UID 10001. Compose enables a read-only filesystem, temporary `/tmp`, dropped capabilities, no-new-privileges, bounded logs, restart policy and a database-aware health check. One worker preserves current in-process integration behavior.
 
-For a future container host, set `CRM_ENV_FILE` to a private runtime env file based on `deploy/container.env.example`. Use HTTPS, hosted PostgreSQL with TLS, and hosted Supabase Storage; omit the local network override and `SUPABASE_INTERNAL_URL`. Never publish the template placeholder credentials. Vercel uses `vercel.json` and the existing `docs/VERCEL_SUPABASE.md` runbook instead of Docker Compose.
+For a future container host, set `CRM_ENV_FILE` to a private runtime env file based on `deploy/container.env.example`. Use HTTPS, hosted PostgreSQL with TLS, and hosted Supabase Storage; omit the local network override and `SUPABASE_INTERNAL_URL`. Never publish the template placeholder credentials. Vercel uses `vercel.json` and `docs/DEPLOYMENT.md` instead of Docker Compose.
 
 ## Release, backups and rollback
 

@@ -1,39 +1,41 @@
-Current target: **Vercel + Supabase**, local development only until explicitly authorized. Double-click **Start CRM.cmd** to start Docker, local Supabase and CRM and open the browser. See [local setup and architecture](docs/VERCEL_SUPABASE.md). Use `npm run build` for all six frontends; the CRM runs on port 4301.
-
 # MAGPPIE CRM
 
-Department-oriented CRM: Measurement, Accounts, Sales, Design and Management (Tavneet) use React + TypeScript. Sales and Design workflow forms and dashboards are native React; the existing shared calculation and PDF services are retained. Management reports and drill-downs are native React and remain read-only. Both the local Python server and the authenticated FastAPI backend serve the compiled assets. Node 24 builds these frontends. Existing client data and external credentials stay outside Git.
+A department-oriented CRM with five modules: Sales, Design, Measurement, Accounts and Management. Each module is a React + TypeScript app, served with login by a FastAPI backend on local Supabase (PostgreSQL + private Storage). Hosting target: Vercel + Supabase. It is local only until deployment is explicitly approved.
 
-Before first run or after Measurement source changes: `npm ci --prefix measurement/react` then `npm run build --prefix measurement/react`. See [Measurement migration and rollback](docs/MEASUREMENT_REACT.md).
+## Start
 
-For Accounts: `npm ci --prefix accounts/react` then `npm run build --prefix accounts/react`. Run `npm test --prefix accounts/react` and `npm run format:check --prefix accounts/react`. See [Accounts migration, verification and rollback](docs/ACCOUNTS_REACT.md).
+Double-click **Start CRM.cmd**. It starts Docker, local Supabase and the CRM, then opens http://127.0.0.1:4301/.
 
-For Sales: `npm ci --prefix sales/react` then `npm run build --prefix sales/react`. Run `npm test --prefix sales/react` and `npm run format:check --prefix sales/react`. See [Sales migration boundaries, verification and rollback](docs/SALES_REACT.md).
+The old 4300 standalone server (`run.cmd`, `run.sh`, `measurement/server.py`) is **retired**; its code is on branch `archive/legacy-2026-10`.
 
-For Design: `npm ci --prefix design/react` then `npm run build --prefix design/react`. Run `npm test --prefix design/react` and `npm run format:check --prefix design/react`. See [Design migration, verification and rollback](docs/DESIGN_REACT.md).
+## Build and check
 
-For Management: `npm ci --prefix management/react` then `npm run build --prefix management/react`. Run `npm test --prefix management/react` and `npm run format:check --prefix management/react`. See [Management reports, verification and rollback](docs/MANAGEMENT_REACT.md).
+```powershell
+npm run build
+.venv\Scripts\python.exe -B scripts\check.py
+.venv\Scripts\python.exe -m pytest backend\tests -q
+```
 
-For login/session UI: `npm ci --prefix backend/react` then `npm run build --prefix backend/react`. See [whole-CRM migration audit](docs/MIGRATION_AUDIT.md) for all verification results, remaining service dependencies and rollback.
+`npm run build` builds all six frontends (Node 24). The backend tests need `TEST_DATABASE_URL` pointing at a local `crm_crud_test_*` database for the PostgreSQL suite.
 
-## Historical standalone server (not the current deployment path)
+Per-module test and format commands are in [SETUP](docs/SETUP.md#frontends).
 
-Windows: `run.cmd`. macOS/Linux: `bash run.sh`. Both run `python -B measurement/server.py` and include live Measurement. Open http://127.0.0.1:4300/measurement/ or /sales/.
+## Documentation
 
-Export configuration in the launching shell; `.env.example` is documentation, not an automatically loaded file. A fresh checkout opens with an empty client list. Never copy production data into fixtures. For Zoho, set `MEASUREMENT_ENV_FILE` to a private external file; see [Measurement](measurement/README.md).
+| Doc | What it covers |
+|---|---|
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | Folders, boundaries, how to add features |
+| [SETUP](docs/SETUP.md) | Local machine setup, ports, checks |
+| [DEPLOYMENT](docs/DEPLOYMENT.md) | Vercel + Supabase plan (not yet authorized) |
+| [OPERATIONS](docs/OPERATIONS.md) | Backup, one-command restore, rotation, incidents |
+| [SECURITY](docs/SECURITY.md) | Roles, sessions, realms, MFA, recovery |
+| [PRODUCTION_SECRETS](docs/PRODUCTION_SECRETS.md) | Every secret and setting, by name |
+| [FINAL_DEPLOYMENT_CHECKLIST](docs/FINAL_DEPLOYMENT_CHECKLIST.md) | Current readiness |
+| [CHANGELOG](CHANGELOG.md) | Releases |
+| [docs/history](docs/history/README.md) | Dated reports and module migration notes |
 
-Optional local authentication: set `CRM_ADMIN_PASSWORD` and optionally `CRM_READER_PASSWORD` in the process environment before launch. Browser sign-in uses username `admin` or `reader`. Both can read the entire workspace; only admin can mutate. Without these variables the app is explicitly a single-user local application. Never expose this HTTP server publicly.
+Business rules and folder conventions for editors are in [CLAUDE.md](CLAUDE.md).
 
-Checks: `python -B scripts/check.py` (Python/JS syntax, API/security/concurrency and Measurement tests). Build: `python -B scripts/build.py` creates a deterministic source ZIP without client data or credentials. This is a source release, not a hosted production build. Browser fixtures: `/measurement/tests/ui.html` and `/test/rules-tests.html`.
+## Data and secrets
 
-## Structure and operations
-
-- [Architecture and future feature rules](docs/ARCHITECTURE.md)
-- [Configuration, release, backups and recovery](docs/OPERATIONS.md)
-- [Verification and remaining work](docs/VERIFICATION.md)
-
-Existing department URLs, JavaScript globals and store API remain compatible. Uncommitted Measurement work is retained. No customer data has been migrated, reset or overwritten by this foundation work.
-
-## Current backend
-
-FastAPI serves all departments and login on port 4301, using local Supabase PostgreSQL and private Storage. Use `Start CRM.cmd`. Port 4300 is the retained historical standalone server, not the current application. See [container runbook](deploy/README.md), [pre-deployment audit](docs/PREDEPLOYMENT_AUDIT.md), and [backend permissions](backend/README.md).
+Client data, attachments and credentials never go into Git. They are kept in local Supabase and in the ignored files `.env.local` and `.local/`. Never copy production data into fixtures. Factory email is disabled (403), signatures are off and there are no Zoho writes.

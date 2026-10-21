@@ -1,8 +1,8 @@
 # FastAPI backend
 
-Current setup: `Start CRM.cmd` runs the authenticated app on `CRM_ORIGIN` (default 4301), with local Supabase PostgreSQL (56322) and private Storage (56321). `.env.local` overrides the older `.local/backend-local.json` fallback. See `docs/VERCEL_SUPABASE.md` and `deploy/README.md`. The phase-1 instructions below describe the retained historical migration path; do not initialize or import another database for normal startup.
+Current setup: `Start CRM.cmd` runs the authenticated app on `CRM_ORIGIN` (default 4301), with local Supabase PostgreSQL (56322) and private Storage (56321). `.env.local` overrides the older `.local/backend-local.json` fallback. See `docs/SETUP.md`, `docs/SECURITY.md` and `deploy/README.md`. The phase-1 instructions below describe the historical migration path; do not initialize or import another database for normal startup.
 
-The existing `run.cmd` / port 4300 app remains unchanged. This backend runs separately on port 4301 and never reads or writes live JSON automatically. PostgreSQL is the runtime database; SQLite is only a portable test fallback. Python dependencies are pinned in `requirements-backend.txt`.
+The old `run.cmd` / port 4300 app is retired (branch `archive/legacy-2026-10`). This backend runs on port 4301 and never reads or writes JSON stores automatically. PostgreSQL is the runtime database; SQLite is only a portable test fallback. Python dependencies are pinned in `requirements-backend.txt`.
 
 Login and sign-out are native React + TypeScript. Before starting from a clean checkout, run `npm ci --prefix backend/react` and `npm run build --prefix backend/react` (Node 24). Build the five department frontends as documented in the root README. `/auth-assets/` exposes only compiled JS/CSS; application APIs and department pages retain their existing access checks.
 
@@ -15,7 +15,7 @@ python -m venv .venv
 
 Export variables from `backend.env.example` in the launching shell. For local development only, `scripts/setup_backend_local.py` can initialize a new, isolated PostgreSQL 18 cluster under ignored `.local/postgres`, on loopback port 54329. It refuses to overwrite an existing cluster. `backend.local.load()` reads its ignored `.local/backend-local.json`; exported variables override these local defaults. Never use this local cluster or its owner account as a hosted production configuration.
 
-To restart that existing local cluster on Windows, run PostgreSQL's `postgres.exe -D <workspace>/.local/postgres` in a separate terminal and keep it open. Then run `run-backend.cmd`. Do not start two PostgreSQL processes on the same cluster. `run.cmd` still starts the original app.
+That original `.local/postgres` cluster was retired on 21 Oct 2026 and is kept only in the encrypted archive (docs/OPERATIONS.md). Current startup uses local Supabase.
 
 ## Schema and import
 
@@ -57,7 +57,7 @@ Run `python -m pytest backend/tests -q`. With TEST_DATABASE_URL set to a dedicat
 
 ## Current verification / release gate
 
-Local PostgreSQL migration 0001 applied; all 28 clients reconciled exactly and 15 attachments matched hashes. No live JSON writes or cloud changes. Hosted database, cross-worker load, external sends and hosted security are not verified. Existing 4300 remains the active CRM; 4301 is a migration preview using the local admin login.
+Local PostgreSQL migration 0001 applied; all 28 clients reconciled exactly and 15 attachments matched hashes. No live JSON writes or cloud changes. Hosted database, cross-worker load, external sends and hosted security are not verified. (19 Oct status, historical: 4301 has since become the active CRM.)
 
 Before cutover: configure staging Auth, provision memberships, validate full workflows/financial outputs and uploads with real authorized test users, review department/field permissions, set backups/TLS/secret management and shared rate limits, take a write freeze, re-import into a fresh database, reconcile, then switch traffic. Do not dual-write JSON and PostgreSQL. If post-cutover writes exist, export/reconcile them before rolling back; never simply revert to an old JSON copy.
 

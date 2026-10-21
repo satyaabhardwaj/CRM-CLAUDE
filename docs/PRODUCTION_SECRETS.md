@@ -2,11 +2,22 @@
 
 Prepared 2026-10-21 from the current checkout. Preparation only: no cloud resources, accounts, data, or provider settings were changed. Keep this document value-free; record secret values in a private password manager, not here, Git, tickets, screenshots, logs, or frontend build variables.
 
-## Current status (21 October 2026)
+## Current status (22 October 2026)
 
-Hosted identity isolation, password recovery and authenticator MFA are implemented; see [AUTH_REALMS.md](AUTH_REALMS.md), [ACCOUNT_RECOVERY.md](ACCOUNT_RECOVERY.md) and [MFA.md](MFA.md). Local activation applied migrations through 0006 and configured a persistent MFA encryption key. Enrollment is opt-in; recovery delivery is still disabled. Hosted provisioning requires explicit destination configuration and `--confirm-target "HOST/DATABASE"`. No cloud setup is authorized.
+Implemented and active locally:
+- hosted identity isolation, password recovery and authenticator MFA (see [SECURITY](SECURITY.md));
+- migrations through 0006;
+- a persistent local MFA encryption key.
 
-Latest local regression and restore/Storage verification are summarized in [FINAL_DEPLOYMENT_CHECKLIST.md](FINAL_DEPLOYMENT_CHECKLIST.md). The original secret scan below is historical evidence, not a fresh production-asset scan.
+Still pending:
+- MFA enrolment is opt-in (the mandatory policy is a Phase 5 decision);
+- recovery delivery is disabled;
+- hosted provisioning requires explicit destination configuration and `--confirm-target "HOST/DATABASE"`;
+- no cloud setup is authorized.
+
+Local development secrets are in the ignored files `.env.local` and `.local/container.env`, plus the Zoho key file named in `measurement/backend/env-path.txt`. These folders are synced by OneDrive, so treat every local value as **development only**. Generate fresh values for preview and production; never copy local ones. Save the local values in the password manager by name (see OPERATIONS).
+
+Readiness and verification status is in [FINAL_DEPLOYMENT_CHECKLIST](FINAL_DEPLOYMENT_CHECKLIST.md). The secret scan at the end of this file is historical; a fresh scan of the production build is a Phase 6 gate.
 
 ## Inventory
 
@@ -34,6 +45,8 @@ Required means required for the indicated capability, not permission to enable i
 | ZOHO_SIGN_CLIENT_SECRET | Signature OAuth authentication | Server secret | Optional integration; leave absent |
 | ZOHO_SIGN_REFRESH_TOKEN | Signature access-token renewal | Server secret | Optional integration; leave absent |
 
+Operator-only, not a CRM runtime variable: the passphrase for the encrypted archive of old backups (`C:\Users\am600\Magppie-Keys\crm-archive-2026-10-passphrase.txt`). Move it into the password manager, then delete that file.
+
 OAuth access tokens are generated in memory, not deployment variables. Password salts/hashes and session digests are sensitive database contents, not environment settings. No configurable JWT/session-signing secret, Supabase anon key, or browser service-role key is required by this implementation. Hosting/CLI account tokens are operator credentials, not CRM runtime dependencies; do not inject them into the app.
 
 Related configuration (not secret values):
@@ -56,6 +69,8 @@ Related configuration (not secret values):
 | ZOHO_DC | Server signature provider region, default in | Signature only |
 | SIGN_TEST_EMAIL | Server signature recipient override | Signature only; does not disable sending |
 | SIGN_MAGPPIE_NAME / SIGN_MAGPPIE_EMAIL | Server optional second signer | Signature only |
+
+Restores: `scripts/restore_postgres.py` restores tables, including credential and session hashes, into a NEW database only, and re-applies RLS and revokes. A restored copy must never become a hosted identity store without the destination-only revocation plan below.
 
 Sources: `.env.production.example`, `backend/config.py`, `backend/auth.py`, `backend/provision_user.py`, `ai/agents/transcriber.py`, `mail/send.py`, `sign/zoho_sign.py`, `measurement/backend/connection.py`.
 

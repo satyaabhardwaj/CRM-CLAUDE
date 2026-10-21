@@ -287,4 +287,4 @@ CRM-CLAUDE/
 | online/, vercel/ | Legacy encrypted-snapshot tooling |
 | docs/ | Architecture, operations, verification and this tree |
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for naming and dependency rules, and [OPERATIONS.md](OPERATIONS.md) for configuration, backups and rollback.
+See [ARCHITECTURE.md](../ARCHITECTURE.md) for naming and dependency rules, and [OPERATIONS.md](../OPERATIONS.md) for configuration, backups and rollback.

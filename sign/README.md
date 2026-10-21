@@ -1,7 +1,7 @@
 # Signatures (Zoho Sign)
 
 Sends a document from the CRM to Zoho Sign, so the client signs it on their phone or laptop.
-The screens never talk to Zoho. They ask the engine (`core/server.py`), and the engine asks `zoho_sign.py`.
+The screens never talk to Zoho. They ask the FastAPI backend (`backend/integrations.py`), and the backend asks `zoho_sign.py`.
 
 ## What it does
 1. Sales presses **Send for signature** on the OCF.

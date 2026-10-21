@@ -1,10 +1,10 @@
-Current architecture and development setup are documented in `docs/VERCEL_SUPABASE.md` and `docs/ARCHITECTURE.md`. The inventory below describes the original implementation; preserve its business rules, but use native React entries and the FastAPI backend for current work. No cloud deployment is authorized.
+Current architecture and setup: `docs/ARCHITECTURE.md`, `docs/SETUP.md`, `docs/DEPLOYMENT.md`, `docs/OPERATIONS.md`, `docs/SECURITY.md`; changes in `CHANGELOG.md`. The folder inventory below describes the original implementation; preserve its business rules, but use the native React entries (`<department>/react/src`) and the FastAPI backend for current work. No cloud deployment is authorized without the owner's explicit approval.
 
 # Magppie CRM (Claude): rules for anyone who edits this folder
 
 Started 10 Oct 2026. Separate from `Documents/crm` (the Codex build). Nothing here reads or changes that folder.
 
-Start: `bash run.sh`, then open http://127.0.0.1:4300/
+Start: double-click `Start CRM.cmd`, then open http://127.0.0.1:4301/ (FastAPI + local Supabase). The old 4300 server (`run.cmd`, `run.sh`, `measurement/server.py`) is retired; its code is on branch `archive/legacy-2026-10`.
 
 ## The one rule
 
@@ -14,17 +14,17 @@ Work only inside the folder you were given. If a change needs a file outside it,
 
 | Folder | What it holds |
 |---|---|
-| `core/` | The engine. Serves the screens and saves the data. Names no stage, field or dashboard. |
-| `shared/` | The look (`look.css`), the building blocks (`kit.js`), the order rules (`rules.js`: money maths, payment plans, timeline dates, clocks, project and customer numbers), the rules for what counts as a problem (`signals.js`) and the people (`people.js`). Every department reads these. |
-| `data/` | `seed.json` is the sample data. `store.json` is what has been saved. `uploads/` holds uploaded files. |
+| `core/` | Small shared library the backend imports (safe file names, public-file rules, store validation). It used to be the 4300 engine. Names no stage, field or dashboard. |
+| `shared/` | The look (`look.css`), the old building blocks (`kit.js`, now kept only for a parity test), the order rules (`rules.js`: money maths, payment plans, timeline dates, clocks, project and customer numbers), the rules for what counts as a problem (`signals.js`) and the people (`people.js`). Every department reads these. |
+| `data/` | Retired. The old 4300 `store.json` and uploads are in the encrypted archive (see `docs/OPERATIONS.md`). Live data is in local Supabase PostgreSQL and the private `crm-uploads` bucket. |
 | `sales/` | Everything for Sales. |
 | `design/` | The Design team's screen, at `/design/`. Two portals on slim tabs: Pre-design (until the booking share is in; Sales is the point of contact) and Post-design (after it; Design is the point of contact). Each has its own strip of pages on the left. |
 | `measurement/` | The Measurement screen, at `/measurement/`. Same screens and words as the Measurement Dashboard project (Overview, Requests, Map and areas, Reports), fed from this CRM's clients. |
 | `accounts/` | The Accounts screen, at `/accounts/`. Split into folders like Sales (19 Oct 2026); see the Accounts table below. |
 | `ai/` | Everything that uses an AI model: `agents/` (one job when asked, for example the voice note transcriber) and `automations/` (run by themselves; empty for now). Keys sit in `ai/keys.env` on this laptop only and are never served to a browser. Read `ai/README.md`. |
-| `online/` | The password-locked online copy. `python3 online/build.py` rebuilds it from the same files. |
+| `online/` | Retired; on branch `archive/legacy-2026-10`. |
 | `management/` | The management view, opened from the Management link in the top bar (`/management/`). It only reads, never saves. |
-| `pre-sales/`, `post-sales/` | Empty for now. |
+| `pre-sales/`, `post-sales/` | Removed (they were empty); on branch `archive/legacy-2026-10`. |
 
 Inside `sales/`:
 

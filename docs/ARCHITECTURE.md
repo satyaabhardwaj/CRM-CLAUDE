@@ -1,10 +1,10 @@
-Hosting/data foundation: [Vercel + local Supabase](VERCEL_SUPABASE.md) is the current architecture. Earlier container staging notes are historical preparation, not a deployment instruction.
-
 # CRM architecture and feature boundaries
+
+Current target: FastAPI + React on Vercel, Supabase PostgreSQL and private Storage. Today it runs locally only ([SETUP](SETUP.md)); hosting is described in [DEPLOYMENT](DEPLOYMENT.md).
 
 ## Current application
 
-Sales, Design, Measurement, Accounts and Management are native React 19 + TypeScript 5 frontends, built independently with Vite 8 / Node 24. Their existing URLs and shared visual tokens remain stable. Login and the sign-out control are also React, built from backend/react. See [migration audit](MIGRATION_AUDIT.md) for the active dependency inventory and verification.
+Sales, Design, Measurement, Accounts and Management are native React 19 + TypeScript 5 frontends. Each is built independently with Vite 8 and Node 24. Login and account security are also React, built from `backend/react`. FastAPI (port 4301) serves all of them plus the API.
 
 | Location | Responsibility |
 |---|---|
@@ -13,31 +13,46 @@ Sales, Design, Measurement, Accounts and Management are native React 19 + TypeSc
 | department/react/tests | Synthetic model, persistence and component regression tests |
 | department/assets | Generated frontend assets; ignored locally, included in releases |
 | shared/runtime.js | Data cache, money/date formatting, notification records and PDF service; no UI renderer or save loop |
-| shared/look.css | Existing shared design tokens and layout primitives |
-| shared/rules.js, signals.js, people.js, pin.js | Shared financial/workflow rules, signals, staff data and PIN lookup services |
-| backend/react, backend/web | Native login/session source, login shell and compiled public auth assets |
-| backend/app.py, auth.py, repository.py, models.py | FastAPI routes, local admin sessions, authorization, PostgreSQL data access and schema |
-| backend/migrations | Versioned Alembic schema changes |
+| shared/look.css | Shared design tokens and layout primitives |
+| shared/rules.js, signals.js, people.js, pin.js | Shared financial/workflow rules, signals, staff data and PIN lookup |
+| shared/kit.js | Old UI kit, kept only as the reference for the runtime parity test (`tests/runtime.test.cjs`) |
+| backend/app.py, auth.py, mfa.py, recovery.py | FastAPI routes, sessions, realms, MFA, password recovery |
+| backend/repository.py, models.py, storage.py | PostgreSQL data access, resource authorization, private Storage |
+| backend/migrations | Versioned Alembic schema changes (0001–0006) |
+| backend/react, backend/web | Login/session UI source and compiled public auth assets |
+| core | Small shared library used by the backend: file-name safety (`server.safe_name`), public-file rules (`security.public_file`), store validation (`storage.validate`). The 4300 server that once used it is archived. |
 | measurement/backend | Read-only Zoho pagination, normalization, timeout handling and cache |
-| ai, sign, mail | Server-side provider integrations; not separate browser screens |
-| core | Separate local single-user JSON server on 4300 |
-| scripts, tests, .github/workflows | Validation, packaging, backups, fixtures and CI |
-| docs | Architecture, module migration notes, operations and verification |
+| ai, sign, mail | Server-side provider integrations; not browser screens |
+| supabase | Local service config and private bucket migration |
+| scripts, tests, .github/workflows | Launcher, build, backup/restore, checks and CI |
+| docs | Current docs; dated reports in docs/history |
 
-There is no implemented Pre-sales or Post-sales department UI to migrate. Design's Pre-design/Post-design flows are part of Design. Existing legacy.html entries and old dashboard files remain rollback references, not active navigation targets. shared/kit.js is now rollback/test-only. Do not delete unrelated historical work.
+There is no Pre-sales or Post-sales department. Design's Pre-design and Post-design flows are part of Design. The old `legacy.html` entries, the 4300 standalone server, the old snapshot publishers and the Windows helper source are on branch `archive/legacy-2026-10`. Some old dashboard JavaScript files remain in the department folders; no active entry loads them.
 
 ## Adding features
 
-Add a typed component to the relevant department/react/src and its business selector/command to that department's model or commands module. Reuse existing CSS tokens and semantic form labels. A department must not import another department's screens. Shared financial rules belong in shared; external providers stay server-side. Do not reintroduce Kit.h, Kit.app, DOM-rendering adapters, legacy store.save/watch, or script injection into React screens. The legacy-runtime guard is run by scripts/check.py.
+1. Add a typed component to the relevant `department/react/src`, and its business selector or command to that department's model or commands module.
+2. Reuse the existing CSS tokens and semantic form labels.
+3. Respect these boundaries:
+   - A department must not import another department's screens.
+   - Shared financial rules belong in `shared`.
+   - External providers stay server-side.
+   - Every database change gets a new Alembic revision.
+4. Do not reintroduce Kit.h, Kit.app, DOM-rendering adapters, the legacy store.save/watch, or script injection into React screens. `scripts/check.py` runs the legacy-runtime guard.
 
-The remaining JavaScript services are data/math/PDF integrations, not UI adapters. Measurement's source-model maps the existing Zoho response; Accounts' master-columns maps fields; Sales reports.js renders PDFs. Keeping these stable avoids changing existing financial contracts. Third-party Leaflet owns map geometry; popup contents are React portals with cleanup.
+The remaining JavaScript services are data, math and PDF integrations, not UI adapters:
+- Measurement's source model maps the Zoho response.
+- Accounts' master columns map fields.
+- Sales `reports.js` renders PDFs.
+
+Keeping them stable avoids changing financial contracts. Leaflet owns the map geometry; popup contents are React portals.
 
 ## Data and permissions
 
-Port 4301 uses FastAPI, PostgreSQL and local administrator authentication. PostgreSQL retains lossless client JSON documents, optimistic row versions, workspace revision and metadata; this is not a fully normalized order/payment schema. Database migrations and the explicit import/verification tool are described in backend/README.md. UI migration does not import, reset or rewrite data.
+PostgreSQL keeps lossless client JSON documents with optimistic row versions, a workspace revision and metadata. This is not a fully normalized order/payment schema.
 
-Server permissions remain admin, reader and assigned-client grants. Full departmental dashboards require workspace access; assigned users use the resource-scoped API. Staff viewing filters are business filters, not security boundaries. Management and the Zoho Measurement feed remain read-only. Mutating React modules own explicit saves, bounded stale-write retries and failure states; shared/runtime.js exposes no persistence API. Same-client concurrent edits still need careful review; no new field-level collaborative merge is claimed.
+Server permissions are admin, reader and assigned-client grants ([SECURITY](SECURITY.md)). Full departmental dashboards need workspace access; assigned users use the resource-scoped API. Management and the Zoho Measurement feed are read-only.
 
-Port 4300 remains the separate local JSON engine with atomic revision commits and its own optional workspace authentication. Do not expose that development HTTP server publicly. The old online/vercel encrypted snapshot tooling is not a supported live multi-user deployment. Production hosting, TLS, backup recovery and resource-policy sign-off remain separate release work.
+The mutating React modules own their explicit saves, bounded stale-write retries and failure states. Same-client concurrent edits still need care; there is no field-level collaborative merge.
 
-Factory email automation stays disabled in active Design; provider tests are mocked. No migration test should send live emails, create real signatures, approve payments or write Zoho data.
+Factory email automation stays disabled; provider tests are mocked. No test may send live email, create real signatures, approve payments or write Zoho data.

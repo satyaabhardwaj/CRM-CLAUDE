@@ -4,23 +4,17 @@ The Measurement section now reads real Orders from Zoho using the adapter mappin
 
 ## React frontend
 
-The active `/measurement/` route uses React + TypeScript from `measurement/react/src`. Build it with `npm ci --prefix measurement/react` and `npm run build --prefix measurement/react` before starting the server. No separate frontend dev server or new credentials are needed. The authenticated FastAPI app serves the same UI at `http://127.0.0.1:4301/measurement/` (`run-backend.cmd`). The existing local server remains available below.
+The active `/measurement/` route uses React + TypeScript from `measurement/react/src`. Build it with `npm ci --prefix measurement/react` and `npm run build --prefix measurement/react` before starting the server. No separate frontend dev server or new credentials are needed. The authenticated FastAPI app serves it at `http://127.0.0.1:4301/measurement/` and provides `/api/measurement/requests` from `measurement/backend`.
 
-See [migration, tests, structure and rollback](../docs/MEASUREMENT_REACT.md). Legacy UI is retained at `/measurement/legacy.html` for rollback.
+Migration notes: [history/MEASUREMENT_REACT.md](../docs/history/MEASUREMENT_REACT.md). The old `legacy.html` UI and the 4300 `measurement/server.py` are on branch `archive/legacy-2026-10`.
 
 ## Start
 
-From the CRM project root:
-
-```
-python -B measurement/server.py
-```
-
-Open http://127.0.0.1:4300/measurement/ . This server extends the existing CRM server with `/api/measurement/requests`; all other department routes retain their existing handlers. The old `run.sh` starts the base server without this endpoint. Use the command above or `measurement/start.cmd` for live Measurement.
+Double-click `Start CRM.cmd` in the project root and open http://127.0.0.1:4301/measurement/ .
 
 ## Credentials
 
-The connection reads the supplied private `.env` from outside the web root. Its absolute location is saved in Git-ignored `measurement/backend/env-path.txt`. Alternatively set `MEASUREMENT_ENV_FILE` to its path. The source `.env` is unchanged; no credentials are copied into browser assets or returned by the API. Backend files and `.env` paths are blocked by the Measurement server. Credentials are not printed in logs.
+The connection reads the supplied private `.env` from outside the web root. Its absolute location is saved in Git-ignored `measurement/backend/env-path.txt`. Alternatively set `MEASUREMENT_ENV_FILE` to its path. The source `.env` is unchanged; no credentials are copied into browser assets or returned by the API. Backend files and `.env` paths are blocked by the backend. Credentials are not printed in logs.
 
 Required keys: `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET`, `ZOHO_REFRESH_TOKEN`. Optional data-centre keys: `ZOHO_ACCOUNTS_URL`, `ZOHO_API_DOMAIN` (India defaults). No extra Python packages are needed.
 

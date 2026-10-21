@@ -1,18 +1,24 @@
-# Operations and release
+# Operations
 
-## Environments and configuration
+Day-to-day running, backup/restore, secret rotation and incidents for the 4301 CRM. Setup is in [SETUP](SETUP.md), hosting in [DEPLOYMENT](DEPLOYMENT.md), and identities in [SECURITY](SECURITY.md).
 
-`CRM_ENV=development` is the only supported local-server environment. The integrated launcher refuses other values. Loopback binding is fixed. `PORT` defaults to 4300; `HOME_PAGE` defaults /sales/; `READ_ONLY=1` blocks mutation endpoints. `.env.example` lists placeholders. Load real credentials through process environment or ignored service-specific files; do not paste them in logs or bundle them. Measurement supports an external environment file and its existing ignored local path pointer.
+## Running
 
-Health: GET `/api/health` returns 200 with schema version when stored JSON is valid, 503 otherwise; no data or credentials. With authentication enabled, health checks also need an authorized account. Request contents/query strings are not logged. Provider status failures return errors; external side effects must never be automatically retried after an ambiguous response. Zoho reads have bounded pagination, timeouts and one token refresh retry; no CRM writes.
+- **Start** with `Start CRM.cmd`, which opens http://127.0.0.1:4301. **Stop** the database with `npm run db:stop`; data is kept.
+- **Health:** `GET /api/health` returns `{"status":"ok"}` only after a real database query. A login page that answers is not a database check.
+- **Logging:** request bodies and query strings are not logged.
+  - Provider failures return errors.
+  - An external side effect is never retried automatically after an ambiguous response.
+  - Zoho reads have bounded pagination, timeouts and one token-refresh retry.
 
-## Build / CI / preview
+## Build and CI
 
-Run `python -B scripts/check.py`, then `python -B scripts/build.py`. Extract the source archive into a NEW directory, configure secrets separately and launch on a separate PORT with synthetic data for a preview. CI runs checks on Ubuntu and Windows, with Python 3.11 and Node 24, without provider credentials. Before packaging, run npm ci and npm run build in each of sales/react, design/react, accounts/react, measurement/react, management/react and backend/react. CI verifies formatting, tests and strict TypeScript/Vite builds for these six frontends. The source archive is deterministic for identical source bytes; compare its SHA256 before rollout.
+GitHub Actions (`.github/workflows/check.yml`) runs on Ubuntu and Windows with Python 3.12 and Node 24, without provider credentials:
+- `scripts/check.py`;
+- format, test and build for all six frontends;
+- the backend tests on PostgreSQL 18 (`crm_crud_test_ci`).
 
-Existing Vercel tooling publishes an encrypted offline snapshot, NOT the Python APIs, durable storage or live Measurement. Its default target is now preview, and uploads require explicit `CRM_ALLOW_SNAPSHOT_DEPLOY=1`. Do not publish a current-data snapshot merely to test the foundation. Its legacy encrypted export and embedded data require a separate security/functional review. No preview or production cloud deployment was performed during this work.
-
-Python's own documentation warns that http.server is not a production server: https://docs.python.org/3.11/library/http.server.html . Keep the current local runtime local. A real hosted release must select a supported application runtime behind TLS, persistent storage, identity/session controls, resource-level permissions and monitoring. The existing Vercel static host cannot supply these simply by copying the repository. This is a release blocker, not a functioning placeholder integration.
+Locally, `python -B scripts/build.py` makes a deterministic source ZIP without data or credentials; compare its SHA-256 before a rollout.
 
 ## Backup and restore (current 4301 CRM: PostgreSQL + private Storage)
 
@@ -59,7 +65,45 @@ Restored development identities and sessions must not become hosted production i
 - All 15 tables and 28 clients matched both the manifest and the live database. All 15 attachments matched byte-for-byte, with 0 public grants and RLS on every table.
 - Repeating the command and targeting `postgres` were both refused. All rehearsal databases and the bucket were then dropped; the live fingerprint was unchanged.
 
-## Historical 4300 standalone backups (archived on branch archive/legacy-2026-10)
+## Secret rotation
+
+Follow the rotation steps in [PRODUCTION_SECRETS](PRODUCTION_SECRETS.md#rotation-procedure-for-the-future-operator). Rotate one integration at a time and verify each before revoking the old value.
+
+- **Database credentials:** create a new credential with the same grants, update the secret, redeploy, verify, then revoke the old one.
+- **Storage service key:** rotate at the provider, update the server secret, then verify a private upload/download and public denial.
+- **Zoho / AI keys:** issue the new key with minimal scopes, restart to drop cached tokens, then revoke the old key.
+- **`CRM_MFA_ENCRYPTION_KEY`:** cannot simply be replaced. It needs a reviewed re-encryption, or every enrolled user re-enrolls. Never regenerate it on restart.
+- **Archive passphrase** (`C:\Users\am600\Magppie-Keys\`): keep it in the password manager; whoever holds it can read the 2026-10 archive.
+
+## Incidents
+
+1. **Contain.**
+   - For suspected account compromise: reset that user's password (this revokes their sessions), or have an operator delete their `crm_sessions` rows.
+   - For a leaked secret: rotate it as above.
+   - For bad data: pause writes.
+2. **Preserve.** Take a new backup before changing anything (`backup_postgres.py`). Never restore over the live database.
+3. **Recover.**
+   - Restore into a new database with `restore_postgres.py`.
+   - Compare it with the live copy, and reconcile any newer legitimate writes.
+   - Switch only with approval.
+   - Never resurrect revoked accounts or sessions from an old backup.
+4. **Record** what happened, when, what was rotated or restored, and the checks run. Record no secret values.
+
+## Archive of old backups and data
+
+`C:\Users\am600\Magppie-Archive\crm-archive-2026-10-21.tar.gpg` (AES-256, with a `.sha256` file next to it) holds:
+- 18 older backups;
+- the old 4300 `data/` folder;
+- the pre-Supabase PostgreSQL cluster (`.local/postgres`);
+- `.local/migration-uploads`.
+
+It was verified on 21 Oct: all 3,923 files matched byte-for-byte. To read it, decrypt into a new folder outside OneDrive:
+
+`gpg -d crm-archive-2026-10-21.tar.gpg | tar -xf -`
+
+## Historical 4300 standalone server (archived on branch archive/legacy-2026-10)
+
+The 4300 JSON server, its `data/` folder and `scripts/backup.py` flow are retired. Its last data is in the archive above. The steps below are kept for reference only.
 
 1. Stop the sole CRM server and verify port 4300 is no longer listening. Prevent user edits.
 2. Run `python -B scripts/backup.py --server-stopped --destination <private-backup-directory>`. Store encrypted off-device copies with access control and retention; backups contain personal data. The tool creates a new archive and never overwrites/restores files.
@@ -67,7 +111,3 @@ Restored development identities and sessions must not become hosted production i
 4. To restore: stop server, keep the current data directory as a dated recovery copy, extract a trusted backup into a separate directory, validate its store using `core.storage.validate`, compare client counts and attachments, then switch directories manually. Never overwrite the only copy.
 5. For a bad latest write, inspect `data/store.previous.json` offline and compare with the full backup. Do not auto-restore: another legitimate edit may be newer.
 6. For code rollback, extract the prior known-good source release separately and use a copied compatible data directory. Version 1 is additive; older code ignores its schemaVersion. Start on a test port, run health/navigation checks, then restart the primary instance. Avoid git reset/clean against the user's dirty checkout.
-
-## Remaining hosted release gates
-
-Identity and per-client authorization; durable transactional database and migration rehearsal; TLS/session expiry/logout/CSRF design; audited uploads/quotas/malware policy; provider idempotency for signature/email sends; central sanitized event/error logging, alerting and on-call ownership; backup retention and restore drills; licensed dependency inventory/vulnerability review; authenticated staging with synthetic accounts; complete department-level responsive/accessibility and E2E checks. Local admin/reader Basic authentication is not a substitute for these hosted controls.

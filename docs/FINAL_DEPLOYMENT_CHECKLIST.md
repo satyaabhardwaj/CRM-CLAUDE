@@ -1,41 +1,39 @@
-# Deployment readiness — 21 October 2026
+# Deployment readiness (updated 22 October 2026)
 
-Local verification only. No cloud deployment is authorized. Target: Vercel React assets + FastAPI, Supabase PostgreSQL + private Storage. Vercel builds source; the Docker image is local verification evidence, not its deployment artifact.
+Local verification only; no cloud deployment is authorized. The target is Vercel (React assets + FastAPI) with Supabase (PostgreSQL + private Storage). Vercel builds from source; the Docker image is local verification evidence, not its deployment artifact. The plan is in [DEPLOYMENT](DEPLOYMENT.md).
 
-## Current verified baseline
+## Current state
 
-Code: `0a2f907`; image `magppie-crm:quiet-graphite-0a2f907`, digest `sha256:6f0075a9d0e3f9ebbf3604572e6c5b62aa8b81ce40faa542c742f0eb16371dde`. This supersedes image/test totals in earlier UI reports. Docker CRM uses loopback 4302; native 4301 is separate.
+| Item | State |
+|---|---|
+| Release candidate | `v1.0-rc2` (7469f56). Phases 2â€“4 of the master task follow it on `main`; `v1.0-rc3` comes after the Phase 6 regression. |
+| Live data | Local DB `postgres` and bucket `crm-uploads`: 28 clients, 15 public tables, 15 attachments. The fingerprint has been unchanged since the 21 Oct baseline (`crm_audit` and `crm_sessions` change by design). |
+| Backups | `.local/backups/phase0-20261021-2322` and `.local/backups/phase3-20261021-2347` (restore verified), plus `.local/final-docker-regression-20261021/backup`. Older backups are in the encrypted archive (see [OPERATIONS](OPERATIONS.md)). |
+| Restore | One command, `scripts/restore_postgres.py`, into a new database only. The 21 Oct duplicate-schema failure is fixed. Rehearsed on 21 Oct: tables, clients and all 15 attachment bytes matched, with RLS on and no public grants. The rehearsal databases and bucket were dropped. |
+| QA leftovers | All QA and restore databases, the 85 stray `test_*` schemas in the live database and the QA bucket were removed (Gate A). `test_api.py` now refuses non-test databases. |
+| Legacy code | Archived on branch `archive/legacy-2026-10` and removed from `main`. |
+| Backend tests | 110 passed and 1 optional Storage test skipped, on isolated PostgreSQL (21 Oct, Phase 3). |
 
-| Check | Latest result | Evidence |
-|---|---|---|
-| Six frontend test suites | 209 passed | `.local/final-docker-regression-20261021/*-react-tests.log` |
-| Backend on isolated PostgreSQL | 102 passed, 1 optional Storage test skipped | `backend-tests.log` in that directory |
-| Same-image Docker security smoke | 90 passed | `container-security.json` |
-| Five modules, 320/390/768/1440px | 20 views; no document horizontal overflow | `screenshots/viewport-matrix.json` |
-| Login/MFA/recovery/logout | QA regression passed; recovery mail mocked | regression `REPORT.md` |
-| Restore rehearsal | 15 public tables and 28 clients match backup fingerprints | readiness evidence below |
-| Restored attachments | All 15 byte hashes match backup | readiness evidence below |
-| Private Storage | 5 MiB signed upload/download, authenticated read, public/unsigned/tampered URL denial passed | readiness evidence below |
-| Live preservation | All public-table fingerprints and all 15 attachment hashes unchanged during rehearsal | readiness evidence below |
+### Last full regression (21 Oct, code 0a2f907; to be repeated in Phase 6)
 
-Latest regression: `.local/final-docker-regression-20261021/REPORT.md`.
-Backup used: `.local/final-docker-regression-20261021/backup/` (dump, manifest, attachment bytes). Its original manifest records `restore_verified: false` because restoration was not performed when the backup was taken. The subsequent rehearsal evidence is separate; the original backup was not rewritten.
+Image: `magppie-crm:quiet-graphite-0a2f907`.
 
-Restore/Storage evidence: `.local/readiness-restore-storage-20261021/results-crm_restore_qa_7905c529d6744903b96d10916bae2035.json`.
+| Check | Result |
+|---|---|
+| Six frontend test suites | 209 passed |
+| Backend on isolated PostgreSQL | 102 passed, 1 optional Storage test skipped |
+| Same-image Docker security smoke | 90 passed |
+| Five modules at 320/390/768/1440 px | 20 views; no document horizontal overflow |
+| Login, MFA, recovery, logout | Passed, with recovery mail mocked |
+| Private Storage | 5 MiB signed upload/download passed; public, unsigned and tampered URLs denied |
 
-Restored database: `crm_restore_qa_7905c529d6744903b96d10916bae2035`.
-Private QA bucket: `crm-qa-d1e1e3cae22c4ed08c91f67d8c7396bf`.
-These are isolated database/bucket namespaces on the existing loopback-only local services, not a second Supabase installation. No app was pointed at restored identities/sessions. Restored private data remains sensitive and is retained locally; cleanup requires approval.
-
-The first rehearsal attempt failed at duplicate default public-schema creation. The successful retry used another fresh database and a restore list excluding only that schema creation; all table/data/index/constraint entries were restored without dropping existing schemas. The failed QA database is retained too. No application or backup-script fix was applied.
-
-The original optional pytest Storage test remains recorded as skipped. This follow-up used the real Storage API and application Attachments implementation against a new private QA bucket without its deletion cleanup. It does not retroactively change the earlier suite counts.
+The evidence is in `.local/final-docker-regression-20261021/` and `.local/master-20261021/`, both private.
 
 ## Current auth and integration status
 
 - Local migrations through 0006 and persistent MFA encryption key were activated in the earlier authorized task. No user enrollment/password/role changes occurred in this readiness task.
 - Hosted auth requires a unique environment realm and account/session bindings; copied development credentials/cookies are not valid hosted identities.
-- Recovery and MFA are implemented. Recovery delivery remains disabled until separate SMTP setup and mailbox ownership enrollment are authorized. MFA enrollment is opt-in; mandatory policy and lost-factor operator procedure remain decisions.
+- Recovery and MFA are implemented. Recovery delivery remains disabled until separate SMTP setup and mailbox ownership enrollment are authorized. MFA enrollment is opt-in; mandatory policy and lost-factor operator procedure are Phase 5 decisions.
 - Factory email remains blocked (403 in latest regression); signatures remain off. No outbound email, signature or Zoho writes in these checks.
 - Latest regression mocked Zoho reads; earlier real local Measurement sync evidence is historical, not proof of hosted cold-start/runtime behavior.
 
@@ -65,6 +63,6 @@ The original optional pytest Storage test remains recorded as skipped. This foll
 
 Keep a compatible previous app release and additive database schema. Never roll back to a backend that bypasses hosted identity/MFA. Restore databases into a separate target, verify hashes and reconcile new writes before an explicitly approved connection switch; never overwrite live data automatically.
 
-Never run `supabase db reset`, `stop --no-backup`, `docker compose down --volumes` or `docker volume prune` on the data-bearing environment. No files, buckets, objects or databases were deleted in this follow-up. No cloud settings or live application configuration changed.
+Never run `supabase db reset`, `stop --no-backup`, `docker compose down --volumes` or `docker volume prune` on the data-bearing environment. Approved cleanup (Gate A, 21 Oct) removed only QA databases, QA schemas, a QA bucket and archived local files; no live table, object or configuration changed.
 
-See [Vercel/Supabase runbook](VERCEL_SUPABASE.md), [production secrets](PRODUCTION_SECRETS.md), [auth realms](AUTH_REALMS.md), [recovery](ACCOUNT_RECOVERY.md), [MFA](MFA.md), and [container runbook](../deploy/README.md).
+See [SETUP](SETUP.md), [DEPLOYMENT](DEPLOYMENT.md), [OPERATIONS](OPERATIONS.md), [SECURITY](SECURITY.md), [production secrets](PRODUCTION_SECRETS.md) and the [container runbook](../deploy/README.md).

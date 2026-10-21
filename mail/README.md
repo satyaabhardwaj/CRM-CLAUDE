@@ -1,6 +1,6 @@
 # Emails the CRM sends by itself
 
-The screens never send email. They ask the engine (`core/server.py`), and the engine asks `send.py`.
+The screens never send email. They ask the FastAPI backend (`backend/integrations.py`), and the backend asks `send.py`.
 
 | When | Who gets it |
 |---|---|
