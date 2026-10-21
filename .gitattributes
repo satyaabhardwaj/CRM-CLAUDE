@@ -1,0 +1,5 @@
+# Keep text checkouts identical for format checks on Windows and Linux.
+* text=auto eol=lf
+# Native Windows launchers retain their conventional line endings.
+*.cmd text eol=crlf
+*.bat text eol=crlf

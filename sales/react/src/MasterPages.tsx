@@ -102,7 +102,11 @@ export function ArchitectPage({ ctx }: { ctx: Context }) {
       )}
       <Grid
         title="Architects"
-        empty={search.trim() ? "No architects match your search." : "No architects yet. Use Add architect to get started."}
+        empty={
+          search.trim()
+            ? "No architects match your search."
+            : "No architects yet. Use Add architect to get started."
+        }
         heads={[
           "Architect",
           "Firm",

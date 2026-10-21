@@ -51,17 +51,17 @@ jobs:
         env:
           POSTGRES_USER: crm_test
           POSTGRES_PASSWORD: synthetic_ci_only
-          POSTGRES_DB: crm_test
+          POSTGRES_DB: crm_crud_test_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U crm_test"
+          --health-cmd "pg_isready -U crm_test -d crm_crud_test_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql+psycopg://crm_test:synthetic_ci_only@127.0.0.1:5432/crm_test
-      TEST_DATABASE_URL: postgresql+psycopg://crm_test:synthetic_ci_only@127.0.0.1:5432/crm_test
+      DATABASE_URL: postgresql+psycopg://crm_test:synthetic_ci_only@127.0.0.1:5432/crm_crud_test_ci
+      TEST_DATABASE_URL: postgresql+psycopg://crm_test:synthetic_ci_only@127.0.0.1:5432/crm_crud_test_ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
