@@ -45,3 +45,6 @@ design/assets/
 management/assets/
 
 backend/web/assets/
+
+# Local Claude Code settings
+.claude/

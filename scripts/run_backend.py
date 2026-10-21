@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from pathlib import Path
@@ -5,7 +6,16 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from backend.local import load
 load()
+
+
+class QuietClientReset(logging.Filter):
+    # Windows' proactor loop logs a traceback whenever a browser drops a keep-alive socket (WinError 10054).
+    def filter(self, record):
+        return not (record.exc_info and isinstance(record.exc_info[1], ConnectionResetError))
+
+
 if __name__=='__main__':
+    logging.getLogger('asyncio').addFilter(QuietClientReset())
     from backend.local_startup import ensure_database
     try:
         ensure_database()

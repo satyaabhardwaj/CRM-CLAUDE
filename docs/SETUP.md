@@ -12,11 +12,26 @@ Double-click **Start CRM.cmd** in the project root. It:
 4. checks the database;
 5. starts CRM in the background and opens the browser.
 
-Healthy services are reused, and concurrent clicks are locked. Closing the window after success does not stop CRM. Failures stay visible and never kill processes, reset data, migrate schemas, change credentials or deploy.
+Healthy services are reused, and concurrent clicks are locked. A second double-click while CRM is running takes about 10 seconds and opens the browser on the same server. Closing the window after success does not stop CRM. Failures stay visible and never kill processes, reset data, migrate schemas, change credentials or deploy.
 
-Private logs are in `.local/launcher.log` and `.local/crm-launcher.{out,err}.log`.
+After a reboot, the same double-click is enough: it starts Docker Desktop if it is closed (allow up to 2 minutes), then Supabase from its existing volumes, then CRM.
 
-To stop the database, run `npm run db:stop`. It keeps all data. **Never** run `supabase db reset`, `supabase stop --no-backup`, `docker compose down --volumes` or `docker volume prune` here.
+Private logs are in `.local/launcher.log` (Supabase keys and database passwords are redacted) and `.local/crm-launcher.{out,err}.log`.
+
+## Daily stop
+
+Double-click **Stop CRM.cmd**. It:
+
+1. stops the CRM server on 4301, but only if that server was started from this folder's `.venv` (anything else on the port is left alone and reported);
+2. stops local Supabase with plain `supabase stop`, which keeps all data in the Docker volumes.
+
+Docker Desktop is left running; quit it from the tray if you want. To stop only the database, run `npm run db:stop`.
+
+## Do not
+
+- **Do not update the Supabase CLI.** It is pinned to 2.75.0 in `package.json` on purpose; 2.121.0 stalled on Windows here. The launcher log shows "A new version of Supabase CLI is available" on every start: ignore it.
+- **Never** run `supabase db reset`, `supabase stop --no-backup`, `docker compose down --volumes` or `docker volume prune` here.
+- Do not run the CRM from another copy of this folder. Only one server can own port 4301, and the launcher reuses whichever healthy server it finds.
 
 ## Ports
 

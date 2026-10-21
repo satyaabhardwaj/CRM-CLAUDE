@@ -4,6 +4,14 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ## Unreleased
 
+### UI polish, Phase 1: move and local start (22 Oct)
+- The project now runs from `C:\Users\am600\Projects\CRM-CLAUDE` (moved out of OneDrive). No tracked file points at the old path.
+- New **Stop CRM.cmd** (`scripts/stop_local.py`): stops only this folder's CRM server, then `supabase stop` with data kept.
+- The launcher redacts Supabase keys and database passwords before writing `.local/launcher.log`.
+- The backend runner no longer logs a traceback when a browser drops a connection on Windows (WinError 10054).
+- `Start CRM.cmd` points at `docs/SETUP.md`; SETUP has the daily start/stop steps and "do not update the Supabase CLI".
+- `.claude/` is ignored. `@playwright/test` 1.64.0 added for the UI audit.
+
 ### Phase 7: preview preparation (22 Oct)
 - New operator command `backend.runtime_role`: a least-privilege runtime role (`crm_app`), with read/write on the CRM tables and a role-scoped RLS policy only. It has no DDL, no BYPASSRLS and no Supabase API roles, and it is idempotent. The password is sent to the server only as a SCRAM verifier. The command verifies itself and is tested against a real PostgreSQL role.
 

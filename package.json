@@ -10,6 +10,7 @@
     "db:seed": "python -m backend.seed_local"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.0",
     "supabase": "2.75.0"
   },
   "overrides": {

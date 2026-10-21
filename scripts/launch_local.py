@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import socket
 import subprocess
 import sys
@@ -20,11 +21,18 @@ def run(args, timeout=60):
                           timeout=timeout, creationflags=subprocess.CREATE_NO_WINDOW)
 
 
+def redact(text):
+    # `supabase start` prints its keys and database URL in a table; keep the labels, drop the values.
+    text = re.sub(r'://[^/@\s]+@', '://<redacted>@', text)
+    return re.sub(r'(│[^│\n]*(?:key|secret|jwt|token|password|publishable)[^│\n]*│)[^│\n]*(│)',
+                  r'\1 <redacted> \2', text, flags=re.IGNORECASE)
+
+
 def checked(args, label, timeout=60):
     result = run(args, timeout)
-    # Startup tools may print local keys, so keep their output private.
+    # Startup tools may print local keys, so keep their output private and redacted.
     with LOG.open('a', encoding='utf-8') as log:
-        log.write('\n' + label + '\n' + result.stdout + result.stderr)
+        log.write('\n' + label + '\n' + redact(result.stdout + result.stderr))
     if result.returncode:
         raise RuntimeError(label + ' failed. See .local/launcher.log.')
     return result
