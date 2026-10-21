@@ -1,4 +1,0 @@
-{$CRM_HOST} {
-    reverse_proxy crm:8000
-    header Strict-Transport-Security "max-age=31536000"
-}

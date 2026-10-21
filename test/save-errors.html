@@ -1,7 +1,0 @@
-<!doctype html><meta charset="utf-8"><title>Save failure fixture</title><link rel="stylesheet" href="/shared/look.css"><main style="padding:24px"><h1>Save failure fixture</h1><p>Only synthetic in-memory data. No API writes.</p><button id="attempt">Attempt save</button><button id="recover">Enable recovery</button><p id="result" role="status">Ready</p></main><script src="/shared/kit.js"></script><script>
-let recover = false;
-window.fetch = function () { return Promise.resolve({ok:recover, status:recover ? 200 : 503, json:function () { return Promise.resolve(recover ? {rev:1} : {error:'Unavailable'}); }}); };
-Kit.store.data = {rev:0,clients:[]};
-document.getElementById('attempt').onclick = function () { Kit.store.save(); };
-document.getElementById('recover').onclick = function () { recover = true; document.getElementById('result').textContent = 'Recovery enabled'; };
-</script>
