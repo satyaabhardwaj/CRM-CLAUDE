@@ -8,3 +8,14 @@ sessions = Table('crm_sessions', metadata, Column('hash', String(64), primary_ke
 audit = Table('crm_audit', metadata, Column('id', String(36), primary_key=True), Column('user_id', String(100), nullable=False), Column('action', String(80), nullable=False), Column('resource', String(200)), Column('created', BigInteger, nullable=False))
 
 credentials = Table('crm_credentials', metadata, Column('user_id', String(100), ForeignKey('crm_users.id'), primary_key=True), Column('email', String(320), nullable=False, unique=True), Column('password_hash', String(300), nullable=False))
+
+# Separate binding tables keep the unmigrated local login schema compatible.
+auth_accounts = Table('crm_auth_accounts', metadata, Column('user_id', String(100), ForeignKey('crm_users.id'), primary_key=True), Column('realm', String(36), nullable=False))
+auth_sessions = Table('crm_auth_sessions', metadata, Column('hash', String(64), ForeignKey('crm_sessions.hash', ondelete='CASCADE'), primary_key=True), Column('realm', String(36), nullable=False))
+
+recovery_emails = Table('crm_recovery_emails', metadata, Column('user_id', String(100), ForeignKey('crm_users.id'), primary_key=True), Column('email', String(320), nullable=False))
+password_resets = Table('crm_password_resets', metadata, Column('hash', String(64), primary_key=True), Column('user_id', String(100), ForeignKey('crm_users.id'), nullable=False, index=True), Column('realm', String(36), nullable=False), Column('expires', BigInteger, nullable=False), Column('password_fingerprint', String(64), nullable=False))
+
+mfa_factors = Table('crm_mfa', metadata, Column('user_id', String(100), ForeignKey('crm_users.id'), primary_key=True), Column('secret', String(500), nullable=False), Column('enabled', Integer, nullable=False), Column('expires', BigInteger, nullable=False), Column('last_counter', BigInteger, nullable=False))
+mfa_codes = Table('crm_mfa_codes', metadata, Column('hash', String(64), primary_key=True), Column('user_id', String(100), ForeignKey('crm_users.id'), nullable=False, index=True))
+mfa_challenges = Table('crm_mfa_challenges', metadata, Column('hash', String(64), primary_key=True), Column('user_id', String(100), ForeignKey('crm_users.id'), nullable=False, index=True), Column('realm', String(36), nullable=False), Column('password_fingerprint', String(64), nullable=False), Column('factor_fingerprint', String(64), nullable=False), Column('expires', BigInteger, nullable=False), Column('attempts', Integer, nullable=False))

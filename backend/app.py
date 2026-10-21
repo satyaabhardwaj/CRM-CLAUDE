@@ -10,7 +10,7 @@ from sqlalchemy import create_engine, select, update, delete, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import NullPool
 from .config import Settings, ROOT
-from .models import clients, state, grants, sessions
+from .models import clients, state, grants, sessions, credentials
 from . import auth, repository
 from core.security import public_file
 
@@ -24,13 +24,14 @@ class ClientChange(BaseModel):
     version: int = Field(ge=0,strict=True)
     payload: dict
 
-def create_app(settings=None, engine=None, authenticator=None):
+def create_app(settings=None, engine=None, authenticator=None, recovery_sender=None):
     settings = settings or Settings.load()
     engine = engine or create_engine(settings.database_url, pool_pre_ping=True, poolclass=NullPool,
                                     connect_args={'prepare_threshold':None,'connect_timeout':10})
     app = FastAPI(title='MAGPPIE CRM', version='0.1.0', docs_url=None, redoc_url=None, openapi_url=None)
     app.state.engine = engine
-    provider = authenticator or (lambda email,password: auth.authenticate(engine,email,password))
+    realm = settings.auth_realm if settings.environment != 'development' else ''
+    provider = authenticator or (lambda email,password: auth.authenticate(engine,email,password,realm))
 
     @app.exception_handler(HTTPException)
     async def http_error(request,error):
@@ -63,11 +64,15 @@ def create_app(settings=None, engine=None, authenticator=None):
         response.headers['Cache-Control']='no-store'
         response.headers['X-Content-Type-Options']='nosniff'
         response.headers['X-Frame-Options']='DENY'
-        response.headers['Referrer-Policy']='same-origin'
+        response.headers['Referrer-Policy']='no-referrer' if request.url.path in ('/reset-password', '/forgot-password') else 'same-origin'
         return response
 
     def who(db, request):
-        return auth.identity(db,request.cookies.get('crm_session'))
+        return auth.identity(db,request.cookies.get('crm_session'),realm)
+
+    from .mfa import MFA
+    mfa = MFA(engine, settings)
+    mfa.register(app, who)
 
     @app.get('/api/health')
     def health():
@@ -80,9 +85,15 @@ def create_app(settings=None, engine=None, authenticator=None):
         from .rate_limit import allow_login
         if not allow_login(engine,body.email):
             raise HTTPException(429,'Too many login attempts. Try again in a minute.')
-        user_id,lifetime=provider(body.email,body.password)
         with engine.begin() as db:
-            token=auth.issue(db,user_id,lifetime)
+            user_id,lifetime = (provider(body.email,body.password) if authenticator else
+                               auth.authenticate(engine,body.email,body.password,realm,db))
+            challenge=mfa.challenge(db,user_id)
+            if challenge:
+                response=mfa.cookie(JSONResponse({'mfa_required':True},status_code=202),'crm_mfa_challenge',challenge,300)
+                response.delete_cookie('crm_session',path='/')
+                return response
+            token=auth.issue(db,user_id,lifetime,realm)
             repository.event(db,user_id,'session.login')
         response=JSONResponse({'ok':True})
         response.set_cookie('crm_session',token,httponly=True,secure=settings.origin.startswith('https:'),samesite='strict',max_age=lifetime,path='/')
@@ -91,12 +102,16 @@ def create_app(settings=None, engine=None, authenticator=None):
     @app.post('/api/auth/logout')
     def logout(request:Request):
         with engine.begin() as db:
+            mfa.revoke_challenge(db,request.cookies.get('crm_mfa_challenge',''))
             db.execute(delete(sessions).where(sessions.c.hash==auth.digest(request.cookies.get('crm_session',''))))
-        response=JSONResponse({'ok':True});response.delete_cookie('crm_session',path='/');return response
+        response=JSONResponse({'ok':True});response.delete_cookie('crm_session',path='/');response.delete_cookie('crm_mfa_challenge',path='/');return response
 
     @app.get('/api/auth/me')
     def me(request:Request):
-        with engine.connect() as db: return who(db,request)
+        with engine.connect() as db:
+            user = who(db,request)
+            email = db.execute(select(credentials.c.email).where(credentials.c.user_id==user['id'])).scalar_one_or_none()
+            return {**user, 'email': email}
 
     @app.get('/api/store')
     def store(request:Request):
@@ -151,9 +166,15 @@ def create_app(settings=None, engine=None, authenticator=None):
         try: return connection.requests(refresh=refresh==1)
         except ZohoError as error: raise HTTPException(503,str(error)) from None
 
+    from .recovery import register_recovery
+    register_recovery(app, engine, settings, recovery_sender)
+
     from .integrations import register
     register(app,engine,settings,who)
 
+    @app.get('/security')
+    @app.get('/forgot-password')
+    @app.get('/reset-password')
     @app.get('/login')
     def login_page(): return FileResponse(ROOT/'backend/web/login.html')
 
