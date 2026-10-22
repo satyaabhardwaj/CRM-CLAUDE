@@ -1,3 +1,4 @@
+import { canEdit, currentUser } from "../../../shared/session";
 import { Sidebar } from "../../../backend/react/src/Sidebar";
 import {
   AppHeader,
@@ -49,7 +50,17 @@ function App() {
     ),
     [filterOpen, setFilterOpen] = useState(false),
     [detail, setDetail] = useState<Request | null>(null),
-    [focusId, setFocusId] = useState("");
+    [focusId, setFocusId] = useState(""),
+    [role, setRole] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void currentUser().then((me) => {
+      if (live) setRole(me?.role ?? "");
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
   const live = useRequests(filterOpen || !!detail);
   useEffect(() => {
     const change = () => {
@@ -93,8 +104,9 @@ function App() {
     <>
       <AppHeader
         current="measurement"
+        viewOnly={role !== null && !canEdit(role, "measurement")}
         navigation="Measurement navigation"
-        actions={<Notifications />}
+        actions={<Notifications writable={canEdit(role, "measurement")} />}
       />
       <nav className="stagebar" aria-label="Measurement stages">
         {["all", ...STAGES.map(slug)].map((id, i) => (

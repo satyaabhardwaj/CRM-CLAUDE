@@ -199,3 +199,18 @@ export function replay<T extends { id: string }>(
   }
   return { records, applied, conflicts };
 }
+
+// Roles (owner decision, 22 Oct 2026). The server enforces them; screens only reflect them.
+export const ROLE_LABEL: Record<string, string> = {
+  admin: "Administrator",
+  sales: "Sales",
+  design: "Design",
+  measurement: "Measurement",
+  accounts: "Accounts",
+  reader: "View only",
+  assigned: "Assigned clients",
+};
+export type Module = "sales" | "design" | "measurement" | "accounts";
+export function canEdit(role: string | null | undefined, module: Module) {
+  return role === "admin" || role === module;
+}

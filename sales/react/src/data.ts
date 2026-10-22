@@ -8,6 +8,7 @@ import {
   changedRecords,
   replay,
   type Draft,
+  canEdit,
 } from "../../../shared/session";
 const MODULE = "sales";
 export function copy<T>(v: T): T {
@@ -199,7 +200,7 @@ export class SalesStore {
       const writable =
         r.status === 404 || r.status === 405
           ? true
-          : !!me && me.role === "admin";
+          : !!me && canEdit(me.role, MODULE);
       this.install(d);
       this.notify({ ready: true, writable, error: "", dirty: false });
       if (writable) this.restoreDrafts(d);
@@ -241,7 +242,7 @@ export class SalesStore {
     }
     if (!this.state.writable) {
       this.notify({
-        error: "Finish saving the current change before making another.",
+        error: "View only: your role cannot change Sales.",
       });
       return;
     }
@@ -265,7 +266,7 @@ export class SalesStore {
   };
   save = () => {
     if (!this.state.writable) {
-      this.notify({ error: "Read-only access. Changes cannot be saved." });
+      this.notify({ error: "View only: your role cannot change Sales." });
       return;
     }
     if (this.state.saving || this.pending) return;

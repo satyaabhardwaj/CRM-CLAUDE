@@ -10,7 +10,8 @@ interface Store {
   clients: { name: string; stage: string; news?: News[] }[];
   seen?: Record<string, { at: string }>;
 }
-export function Notifications() {
+// writable: only Measurement and admins mark the bell as read (the server refuses others).
+export function Notifications({ writable = true }: { writable?: boolean }) {
   const [store, setStore] = useState<Store | null>(null),
     [opened, setOpened] = useState(false),
     [error, setError] = useState("");
@@ -62,7 +63,7 @@ export function Notifications() {
   ).length;
   async function show() {
     setOpened(true);
-    if (!unread) return;
+    if (!unread || !writable) return;
     try {
       // Re-read before the existing optimistic store contract; never replace a stale snapshot.
       for (let attempt = 0; attempt < 2; attempt++) {

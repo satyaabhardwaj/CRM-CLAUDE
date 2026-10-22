@@ -7,6 +7,7 @@ import {
   readDrafts,
   clearDrafts,
   replay,
+  canEdit,
   type Draft,
 } from "../../../shared/session";
 const MODULE = "accounts";
@@ -122,6 +123,7 @@ export function useStore(paused: boolean) {
     [error, setError] = useState(""),
     [saving, setSaving] = useState(false),
     [writable, setWritable] = useState(false),
+    [roleKnown, setRoleKnown] = useState(false),
     [notice, setNotice] = useState("");
   const busy = useRef(false),
     pause = useRef(paused),
@@ -157,9 +159,10 @@ export function useStore(paused: boolean) {
         const me = r.ok ? await r.json() : null;
         user.current = typeof me?.id === "string" ? me.id : "";
         const can =
-          r.status === 404 || r.status === 405 || me?.role === "admin";
+          r.status === 404 || r.status === 405 || canEdit(me?.role, MODULE);
         if (stopped) return;
         setWritable(can);
+        setRoleKnown(true);
         if (can && user.current) void restore(user.current);
       })
       .catch(() => {});
@@ -252,7 +255,7 @@ export function useStore(paused: boolean) {
       setSaving(false);
     }
   };
-  return { data, error, saving, writable, notice, refresh, save };
+  return { data, error, saving, writable, roleKnown, notice, refresh, save };
 }
 export type Save = (
   id: string,

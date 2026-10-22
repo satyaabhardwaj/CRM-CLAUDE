@@ -190,11 +190,9 @@ export function App() {
             ? "Saving changes…"
             : !status.ready
               ? "Loading Design…"
-              : !status.writable
-                ? "Read-only access. Changes require an administrator."
-                : status.saved
-                  ? "Changes saved."
-                  : "")}
+              : status.saved
+                ? "Changes saved."
+                : "")}
         {status.error && (
           <Button
             disabled={status.saving}
@@ -230,6 +228,7 @@ export function App() {
       >
         <AppHeader
           current="design"
+          viewOnly={status.ready && !status.writable}
           navigation="Design navigation"
           search={
             <input

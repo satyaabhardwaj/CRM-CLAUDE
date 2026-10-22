@@ -291,6 +291,7 @@ export function App() {
       >
         <AppHeader
           current="sales"
+          viewOnly={status.ready && !status.writable}
           navigation="Sales navigation"
           search={
             <input
@@ -397,11 +398,9 @@ export function App() {
                 ? "Saving changes…"
                 : !status.ready
                   ? "Loading Sales…"
-                  : !status.writable
-                    ? "Read-only access. Changes require an administrator."
-                    : status.saved
-                      ? "Changes saved."
-                      : "")}
+                  : status.saved
+                    ? "Changes saved."
+                    : "")}
             {status.error && (
               <Button
                 tone="small"

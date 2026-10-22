@@ -42,3 +42,11 @@ Production-ready sign-in, sessions, department roles and user management for the
 - The check runs after the compare-and-swap on `rev`, inside the same transaction, so a refusal rolls back and the revision is not used up; the existing stale (409) merge flow is unchanged.
 - `repository.allowed` lets departments read every client and attach files to any (the record change is checked on save). External actions: OCF signing, voice notes and scratch uploads for `sales` and `admin` (Sales' order forms use them); factory mail (still always refused) for `accounts`, `design`, `admin`.
 - `PUT /api/clients/{id}` applies the same per-field rules for departments; `assigned` keeps its grants unchanged.
+
+### Phase 4: the screens reflect the role
+- One helper, `canEdit(role, module)` in `shared/session.ts` (admin or the module's own department), and `ROLE_LABEL` for display. Sales, Design and Accounts decide "can save" from it instead of "admin only"; Measurement uses it for its bell.
+- A view-only module uses the existing read-only presentation (disabled fieldsets and buttons) and shows a quiet grey "View only" pill in the header (`AppHeader viewOnly`); the header's main action (for example New opportunity) is hidden. The old full-width "Read-only access. Changes require an administrator." line is replaced by the pill. A blocked change says "View only: your role cannot change Sales." (or Design).
+- Accounts: payment, decision and the four approval buttons follow `writable`, which is true only for accounts and admin. The pill waits until the role is known, so it does not flash.
+- Measurement marks its bell as read only for measurement and admin; other roles see the bell without saving.
+- Management is view-only for everyone already and shows no pill.
+- The account menu shows the role by name (Administrator, Sales, …, View only, Assigned clients).

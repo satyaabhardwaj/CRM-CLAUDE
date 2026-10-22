@@ -148,9 +148,17 @@ it("expired sessions redirect but 403 does not", async () => {
   restore();
 });
 
-it.each(["admin", "reader", "assigned"])(
-  "shows authenticated email and %s role independently of staff context",
-  async (role) => {
+it.each([
+  ["admin", "Administrator"],
+  ["sales", "Sales"],
+  ["design", "Design"],
+  ["measurement", "Measurement"],
+  ["accounts", "Accounts"],
+  ["reader", "View only"],
+  ["assigned", "Assigned clients"],
+])(
+  "shows authenticated email and the %s role by name, independently of staff context",
+  async (role, label) => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -167,7 +175,7 @@ it.each(["admin", "reader", "assigned"])(
     await render(<HeaderSession />);
     expect(host.querySelector(".user-avatar")?.textContent).toBe("QP");
     expect(host.textContent).toContain("qa.person@example.test");
-    expect(host.textContent).toContain(role);
+    expect(host.textContent).toContain(label);
     expect(host.textContent).not.toContain("Workspace view");
     expect(host.textContent).toContain("Sign out");
   },

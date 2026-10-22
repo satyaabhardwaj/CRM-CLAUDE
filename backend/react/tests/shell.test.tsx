@@ -138,3 +138,37 @@ it("opens and closes the search from its icon", async () => {
     false,
   );
 });
+
+it("shows a quiet View only chip and hides the main action for a view-only role", async () => {
+  const { AppHeader } = await import("../src/Shell");
+  const { createRoot } = await import("react-dom/client");
+  const { act } = await import("react");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(new Response("{}", { status: 401 })),
+  );
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  await act(async () =>
+    root.render(
+      <AppHeader
+        current="sales"
+        viewOnly
+        primary={<button>New opportunity</button>}
+      />,
+    ),
+  );
+  expect(host.querySelector(".view-only")?.textContent).toBe("View only");
+  expect(host.textContent).not.toContain("New opportunity");
+  await act(async () =>
+    root.render(
+      <AppHeader current="sales" primary={<button>New opportunity</button>} />,
+    ),
+  );
+  expect(host.querySelector(".view-only")).toBeNull();
+  expect(host.textContent).toContain("New opportunity");
+  await act(async () => root.unmount());
+  host.remove();
+  vi.unstubAllGlobals();
+});
