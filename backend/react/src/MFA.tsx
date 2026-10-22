@@ -555,7 +555,7 @@ export function ChangePassword({ needsCode }: { needsCode: boolean }) {
     }
   }
   return (
-    <section className="auth-password" aria-labelledby="password-heading">
+    <section className="auth-change-password" aria-labelledby="password-heading">
       <h2 id="password-heading">Change password</h2>
       <form onSubmit={(e) => void submit(e)} aria-busy={busy}>
         <label htmlFor="password-current">Current password</label>

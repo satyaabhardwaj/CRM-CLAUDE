@@ -113,7 +113,7 @@ it("does not expose setup controls when service is unavailable", async () => {
   // Only the password change form remains; no authenticator setup controls.
   expect(host.querySelectorAll("form")).toHaveLength(1);
   expect(host.querySelector("#security-password")).toBeNull();
-  expect(host.querySelector(".auth-password form")).not.toBeNull();
+  expect(host.querySelector(".auth-change-password form")).not.toBeNull();
 });
 it("shows setup key only after authenticated setup, then one-time backup codes", async () => {
   const fetcher = vi

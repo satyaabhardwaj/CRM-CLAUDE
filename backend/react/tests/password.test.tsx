@@ -35,7 +35,7 @@ function type(id: string, value: string) {
 async function submit() {
   await act(async () =>
     host
-      .querySelector(".auth-password form")!
+      .querySelector(".auth-change-password form")!
       .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
   );
 }
@@ -118,7 +118,7 @@ it("appears only once the account may change its password", async () => {
   for (const [body, shown, code] of cases) {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(status(body)));
     await render(<Security />);
-    expect(!!host.querySelector(".auth-password")).toBe(shown);
+    expect(!!host.querySelector(".auth-change-password")).toBe(shown);
     expect(!!host.querySelector("#password-code")).toBe(code);
     await act(async () => root.unmount());
     host.remove();
