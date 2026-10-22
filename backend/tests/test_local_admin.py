@@ -64,3 +64,65 @@ def test_refuses_anything_but_a_local_development_database(monkeypatch):
     monkeypatch.setenv('VERCEL', '1')
     with pytest.raises(SystemExit):
         refuse_unless_local(local('postgresql+psycopg://postgres:x@127.0.0.1:56322/postgres'))
+
+
+from backend import local_admin
+from backend.local_admin import DEFAULT_EMAIL, DEFAULT_PASSWORD, ensure_default_admin, local_only
+
+LOCAL_DB = 'postgresql+psycopg://postgres:x@127.0.0.1:56322/postgres'
+
+
+def test_only_a_laptop_development_setup_counts_as_local(monkeypatch):
+    monkeypatch.delenv('VERCEL', raising=False)
+    assert local_only(local(LOCAL_DB))
+    assert not local_only(local('postgresql+psycopg://postgres:x@db.example.supabase.co:5432/postgres'))
+    assert not local_only(Settings(LOCAL_DB, 'https://crm.example.test', environment='production', auth_realm='00000000-0000-4000-8000-000000000000'))
+    assert not local_only(Settings(LOCAL_DB, 'https://crm.example.test'))
+    assert not local_only(Settings('sqlite:///x.db', 'http://127.0.0.1:4301'))
+    monkeypatch.setenv('VERCEL', '1')
+    assert not local_only(local(LOCAL_DB))
+
+
+def test_fresh_clone_gets_the_default_admin_once(api, tmp_path, monkeypatch):
+    _, engine, _ = api
+    monkeypatch.setattr(local_admin, 'local_only', lambda settings: True)
+    monkeypatch.delenv('CRM_LOCAL_ADMIN_PASSWORD', raising=False)
+    monkeypatch.delenv('CRM_LOCAL_ADMIN', raising=False)
+    settings = Settings(str(engine.url), 'https://crm.example.test', uploads=tmp_path)
+    uid = ensure_default_admin(engine, settings)
+    assert uid
+    client, status = signed_in(engine, tmp_path, DEFAULT_EMAIL, DEFAULT_PASSWORD)
+    assert status == 200 and client.get('/api/auth/me').json()['role'] == 'admin'
+    # A password the owner changed later is never reset on the next start.
+    set_local_admin(engine, DEFAULT_EMAIL, 'Changed-Later-1')
+    assert ensure_default_admin(engine, settings) is None
+    assert signed_in(engine, tmp_path, DEFAULT_EMAIL, 'Changed-Later-1')[1] == 200
+    client.close()
+
+
+def test_default_admin_can_be_turned_off_or_given_another_password(api, tmp_path, monkeypatch):
+    _, engine, _ = api
+    monkeypatch.setattr(local_admin, 'local_only', lambda settings: True)
+    settings = Settings(str(engine.url), 'https://crm.example.test', uploads=tmp_path)
+    monkeypatch.setenv('CRM_LOCAL_ADMIN', '0')
+    assert ensure_default_admin(engine, settings) is None
+    monkeypatch.setenv('CRM_LOCAL_ADMIN', '1')
+    monkeypatch.setenv('CRM_LOCAL_ADMIN_PASSWORD', 'Another-Local-1')
+    assert ensure_default_admin(engine, settings)
+    assert signed_in(engine, tmp_path, DEFAULT_EMAIL, DEFAULT_PASSWORD)[1] == 401
+    assert signed_in(engine, tmp_path, DEFAULT_EMAIL, 'Another-Local-1')[1] == 200
+
+
+def test_hosted_start_never_creates_the_default_admin(api, tmp_path):
+    _, engine, _ = api
+    signed_in(engine, tmp_path, DEFAULT_EMAIL, DEFAULT_PASSWORD)
+    with engine.connect() as db:
+        assert db.scalar(select(credentials.c.user_id).where(credentials.c.email == DEFAULT_EMAIL)) is None
+
+
+def test_existing_workspace_is_never_replaced(api, tmp_path, monkeypatch):
+    client, engine, fixture = api
+    monkeypatch.setattr(local_admin, 'local_only', lambda settings: True)
+    before = client.get('/api/store').json()
+    ensure_default_admin(engine, Settings(str(engine.url), 'https://crm.example.test', uploads=tmp_path))
+    assert client.get('/api/store').json() == before

@@ -5,9 +5,9 @@ All notable changes to the Magppie CRM. Dates are 2026.
 ## Unreleased
 
 ### Local admin for a fresh clone (22 Oct)
-- `python -m backend.local_admin` creates or resets an admin on a laptop's own development database (default `admin@magppie.local`), with a password of at least 8 characters typed at a hidden prompt.
-- It refuses preview, production, Vercel and any database that is not on localhost. No password is stored in the repository.
-- Tests: `backend/tests/test_local_admin.py` (5). See [SETUP](docs/SETUP.md).
+- On a laptop (development database on localhost, localhost address), the CRM now starts a fresh clone by itself: an empty workspace if there is none, and the admin `admin@magppie.local` with the starting password `Admin@1234` if that email is missing. Existing workspaces and accounts are never changed. `CRM_LOCAL_ADMIN_PASSWORD` overrides the password; `CRM_LOCAL_ADMIN=0` turns it off. It never runs on preview, production or Vercel.
+- `python -m backend.local_admin` resets that admin (or creates another) with a password of at least 8 characters typed at a hidden prompt.
+- Tests: `backend/tests/test_local_admin.py` (10), plus a fresh-clone run on a throwaway database (migrate, start, sign in, Sales opens). See [SETUP](docs/SETUP.md).
 
 ## v1.0-rc6 (22 Oct, 6e42372)
 Change password, the sign-in Show button fix and the cloud readiness pack, merged to `main` from PR #1. Local image `magppie-crm:rc6-6e42372`; see [FINAL_DEPLOYMENT_CHECKLIST](docs/FINAL_DEPLOYMENT_CHECKLIST.md).

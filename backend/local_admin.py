@@ -8,14 +8,50 @@ import argparse
 import getpass
 import os
 import uuid
+from urllib.parse import urlsplit
 from sqlalchemy import create_engine, delete, insert, select, update
 from sqlalchemy.engine import make_url
 from .auth import password_hash
 from .config import Settings
 from .local import load
-from .models import credentials, users, sessions, mfa_challenges, password_resets
+from .models import credentials, users, sessions, mfa_challenges, password_resets, state
+from .repository import import_snapshot
 
 LOOPBACK = ('localhost', '127.0.0.1', '::1')
+DEFAULT_EMAIL = 'admin@magppie.local'
+# Laptop-only starting password (owner's request, 22 Oct 2026). Never used outside a development database on
+# localhost served on a localhost origin. Override with CRM_LOCAL_ADMIN_PASSWORD; turn off with CRM_LOCAL_ADMIN=0.
+DEFAULT_PASSWORD = 'Admin@1234'
+
+
+def local_only(settings):
+    url = make_url(settings.database_url)
+    return (not os.environ.get('VERCEL') and settings.environment == 'development' and not settings.auth_realm
+            and url.drivername.startswith('postgresql') and url.host in LOOPBACK
+            and urlsplit(settings.origin).hostname in LOOPBACK)
+
+
+def ensure_default_admin(engine, settings):
+    """On a fresh laptop clone, start an empty workspace and add admin@magppie.local if missing.
+    Never changes an existing workspace or account."""
+    if os.environ.get('CRM_LOCAL_ADMIN', '1') == '0' or not local_only(settings):
+        return None
+    try:
+        # A fresh clone has migrated tables but no workspace yet: start it empty, as `npm run db:seed` would.
+        with engine.begin() as db:
+            if db.execute(select(state.c.id)).first() is None:
+                import_snapshot(db, {'rev': 0, 'clients': [], 'settings': {}})
+    except Exception:
+        pass
+    try:
+        with engine.connect() as db:
+            if db.scalar(select(credentials.c.user_id).where(credentials.c.email == DEFAULT_EMAIL)) is not None:
+                return None
+        uid, _ = set_local_admin(engine, DEFAULT_EMAIL, os.environ.get('CRM_LOCAL_ADMIN_PASSWORD') or DEFAULT_PASSWORD)
+        return uid
+    except Exception:
+        # Missing tables, a second process winning the race, or a read-only role: start normally.
+        return None
 
 
 def refuse_unless_local(settings):
