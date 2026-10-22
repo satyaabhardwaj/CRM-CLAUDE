@@ -104,7 +104,8 @@ it("redirects expired authentication and rejects malformed data", async () => {
       .mockResolvedValueOnce(new Response("{}", { status: 401 }))
       .mockResolvedValueOnce(new Response("{}")),
   );
-  await expect(readStore()).rejects.toThrow("sign in");
-  expect(assign).toHaveBeenCalledWith("/login");
+  // The caller keeps any unsaved draft, then goes to sign-in (shared/session).
+  await expect(readStore()).rejects.toThrow("Session ended — sign in again.");
+  expect(assign).not.toHaveBeenCalled();
   await expect(readStore()).rejects.toThrow("invalid format");
 });

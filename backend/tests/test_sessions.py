@@ -50,7 +50,7 @@ def test_real_activity_renews_at_most_once_a_minute(api, clock):
     assert row(engine)[0] == start + IDLE  # too soon: not renewed
     clock[0] += 60
     times = client.post('/api/auth/activity').json()
-    assert times == {'idle_expires_at': clock[0] + IDLE, 'expires_at': start + MAX}
+    assert times == {'idle_expires_at': clock[0] + IDLE, 'expires_at': start + MAX, 'now': times['now']}
     clock[0] += 120
     client.get('/sales/')  # opening a page is activity
     assert row(engine)[0] == clock[0] + IDLE

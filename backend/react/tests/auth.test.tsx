@@ -140,8 +140,11 @@ it("expired sessions redirect but 403 does not", async () => {
     restore = installSessionRedirect(target, navigate);
   await target.fetch("/api/store");
   await target.fetch("/api/store");
+  // The redirect waits a moment so the module can keep its unsaved draft first.
+  expect(navigate).not.toHaveBeenCalled();
+  await new Promise((resolve) => setTimeout(resolve, 200));
   expect(navigate).toHaveBeenCalledTimes(1);
-  expect(navigate).toHaveBeenCalledWith("/login");
+  expect(navigate).toHaveBeenCalledWith("/login?reason=ended");
   restore();
 });
 

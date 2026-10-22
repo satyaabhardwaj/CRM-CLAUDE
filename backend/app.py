@@ -146,7 +146,7 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
             email = db.execute(select(credentials.c.email).where(credentials.c.user_id==user['id'])).scalar_one_or_none()
             idle, absolute = auth.session_times(db, request.cookies.get('crm_session'), settings.session_max)
             return {**user, 'email': email, 'mfa_enrollment_required': mfa.enrollment_required(db,user),
-                    'idle_expires_at': idle, 'expires_at': absolute}
+                    'idle_expires_at': idle, 'expires_at': absolute, 'now': int(time.time())}
 
     @app.post('/api/auth/activity')
     def still_here(request:Request):
@@ -154,7 +154,7 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
         with engine.connect() as db:
             signed_in(db,request)
             idle, absolute = auth.session_times(db, request.cookies.get('crm_session'), settings.session_max)
-        return {'idle_expires_at': idle, 'expires_at': absolute}
+        return {'idle_expires_at': idle, 'expires_at': absolute, 'now': int(time.time())}
 
     @app.get('/api/store')
     def store(request:Request):

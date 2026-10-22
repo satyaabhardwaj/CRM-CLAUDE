@@ -1,3 +1,4 @@
+import { safeNext } from "../../../shared/session";
 import {
   useEffect,
   useRef,
@@ -154,7 +155,9 @@ export function MFAChallenge({
     try {
       await mfaRequest("/verify", { code });
       setCode("");
-      navigate("/");
+      navigate(
+        safeNext(new URLSearchParams(location.search).get("next")) || "/",
+      );
     } catch (error) {
       setMessage(
         error instanceof Error

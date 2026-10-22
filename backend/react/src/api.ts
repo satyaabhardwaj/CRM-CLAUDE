@@ -1,3 +1,4 @@
+import { clearDrafts, loginUrl } from "../../../shared/session";
 export async function signIn(email: string, password: string) {
   const response = await fetch("/api/auth/login", {
     method: "POST",
@@ -30,15 +31,23 @@ export async function signOut() {
     signal: AbortSignal.timeout(20000),
   });
   if (!response.ok) throw new Error("Sign out failed — retry");
+  clearDrafts();
 }
 export function installSessionRedirect(
   target: Pick<Window, "fetch">,
   navigate: (url: string) => void,
 ) {
   const original = target.fetch.bind(target);
+  let leaving = false;
   target.fetch = async (...args: Parameters<typeof fetch>) => {
     const response = await original(...args);
-    if (response.status === 401) navigate("/login");
+    // Let the module keep its unsaved draft first; then go to sign-in and come back here after.
+    if (response.status === 401) {
+      if (!leaving) {
+        leaving = true;
+        setTimeout(() => navigate(loginUrl("ended")), 150);
+      }
+    }
     // Admin MFA policy: an unenrolled admin is sent to account security.
     else if (response.status === 403) {
       const data: unknown = await response

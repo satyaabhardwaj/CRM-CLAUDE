@@ -18,7 +18,7 @@ def test_me_reads_only_current_email_without_changing_account_or_session(api, ui
             return [list(db.execute(select(table)).mappings()) for table in (users,credentials,sessions)]
     before=rows()
     me=client.get('/api/auth/me').json()
-    assert isinstance(me.pop('idle_expires_at'),int) and isinstance(me.pop('expires_at'),int)
+    assert all(isinstance(me.pop(k),int) for k in ('idle_expires_at','expires_at','now'))
     assert me=={'id':uid,'role':role,'active':1,'email':uid+'@qa.invalid','mfa_enrollment_required':False}
     assert rows()==before  # reading /api/auth/me never renews the session
 
@@ -27,5 +27,5 @@ def test_me_missing_email_does_not_change_authentication(api):
     client, _, _ = api
     sign_in(client)
     me=client.get('/api/auth/me').json()
-    me.pop('idle_expires_at');me.pop('expires_at')
+    me.pop('idle_expires_at');me.pop('expires_at');me.pop('now')
     assert me=={'id':'a','role':'admin','active':1,'email':None,'mfa_enrollment_required':False}
