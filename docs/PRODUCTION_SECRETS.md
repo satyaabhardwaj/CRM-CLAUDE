@@ -16,7 +16,7 @@ Still pending:
 - hosted provisioning requires explicit destination configuration and `--confirm-target "HOST/DATABASE"`;
 - no cloud setup is authorized.
 
-Local development secrets are in the ignored files `.env.local` and `.local/container.env`, plus the Zoho key file named in `measurement/backend/env-path.txt`. These files were synced by OneDrive until the project moved to `C:SERSM600PROJECTSCRM-CLAUDE` ON 22 OCT 2026, SO TREAT EVERY LOCAL VALUE AS **DEVELOPMENT ONLY**. Generate fresh values for preview and production; never copy local ones. Save the local values in the password manager by name (see OPERATIONS).
+Local development secrets are in the ignored files `.env.local` and `.local/container.env`, plus the Zoho key file named in `measurement/backend/env-path.txt`. These files were synced by OneDrive until the project moved to `C:\Users\am600\Projects\CRM-CLAUDE` on 22 Oct 2026, so treat every local value as **development only**. Generate fresh values for preview and production; never copy local ones. Save the local values in the password manager by name (see OPERATIONS).
 
 Readiness and verification status is in [FINAL_DEPLOYMENT_CHECKLIST](FINAL_DEPLOYMENT_CHECKLIST.md). The secret scan at the end of this file is historical; a fresh scan of the production build is a Phase 6 gate.
 

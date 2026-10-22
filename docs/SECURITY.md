@@ -63,6 +63,17 @@ Every login and every request must match both an account binding and a session b
   - **Development:** on a laptop without `CRM_MFA_ENCRYPTION_KEY`, the policy cannot be met, so it is not enforced there.
 - **The key:** losing `CRM_MFA_ENCRYPTION_KEY` blocks every enrolled user. Back it up separately from database dumps and never regenerate it on restart.
 
+## Changing your password
+
+- **Where:** Account security (`/security`), section "Change password". Endpoint `POST /api/auth/password` in `backend/mfa.py`.
+- **Needs:** the current password, plus an authenticator or recovery code when an authenticator is enabled. An admin who has not enrolled yet must enrol first (403). Reader and assigned users without an authenticator use the password alone.
+- **New password:** 16–1024 characters (the provisioning and reset rule) and different from the current one.
+- **Effect:**
+  - every other session of that user ends; the session that made the change stays signed in;
+  - open reset links and pending sign-in challenges for that user are cancelled;
+  - MFA is unchanged, and the audit log records `auth.password_changed`.
+- **Limits:** ten attempts per user per hour, 100 globally per hour. A wrong code or password counts as an attempt; a used code cannot be replayed.
+
 ## Password recovery
 
 - Recovery is **off** unless `CRM_RECOVERY_ENABLED=1` and the separate `RECOVERY_SMTP_*` and `RECOVERY_MAIL_FROM` values are set. It never uses the factory mail settings.

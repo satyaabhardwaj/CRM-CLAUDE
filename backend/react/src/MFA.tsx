@@ -483,9 +483,142 @@ export function Security() {
       <p className="auth-feedback" role="status" aria-live="polite">
         {message}
       </p>
+      {status &&
+        codes === null &&
+        !secret &&
+        (status.enabled || !status.required) && (
+          <ChangePassword needsCode={status.enabled} />
+        )}
       <p>
         <a href="/">Back to workspace</a> · <a href="/login">Sign in</a>
       </p>
     </AuthLayout>
+  );
+}
+
+// Same length rule as provisioning and reset (16–1024 characters).
+const MIN_PASSWORD = 16;
+
+export function ChangePassword({ needsCode }: { needsCode: boolean }) {
+  const [password, setPassword] = useState("");
+  const [next, setNext] = useState("");
+  const [again, setAgain] = useState("");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const pending = useRef(false);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (pending.current) return;
+    if (next.length < MIN_PASSWORD)
+      return setMessage(
+        `Use at least ${MIN_PASSWORD} characters for the new password.`,
+      );
+    if (next !== again) return setMessage("The new passwords do not match.");
+    pending.current = true;
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/auth/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          needsCode
+            ? { password, new_password: next, code }
+            : { password, new_password: next },
+        ),
+        signal: AbortSignal.timeout(20000),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok)
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : "Password change unavailable. Try again.",
+        );
+      setPassword("");
+      setNext("");
+      setAgain("");
+      setCode("");
+      setMessage(
+        "Password changed. You stay signed in here; every other session has ended.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Connection unavailable. Try again.",
+      );
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  }
+  return (
+    <section
+      className="auth-change-password"
+      aria-labelledby="password-heading"
+    >
+      <h2 id="password-heading">Change password</h2>
+      <form onSubmit={(e) => void submit(e)} aria-busy={busy}>
+        <label htmlFor="password-current">Current password</label>
+        <input
+          id="password-current"
+          type="password"
+          required
+          maxLength={1024}
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <label htmlFor="password-new">New password</label>
+        <input
+          id="password-new"
+          type="password"
+          required
+          minLength={MIN_PASSWORD}
+          maxLength={1024}
+          autoComplete="new-password"
+          aria-describedby="password-rule"
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+        />
+        <p id="password-rule" className="auth-hint">
+          At least {MIN_PASSWORD} characters, different from the current one.
+        </p>
+        <label htmlFor="password-again">Repeat new password</label>
+        <input
+          id="password-again"
+          type="password"
+          required
+          maxLength={1024}
+          autoComplete="new-password"
+          value={again}
+          onChange={(e) => setAgain(e.target.value)}
+        />
+        {needsCode && (
+          <>
+            <label htmlFor="password-code">
+              Authenticator or recovery code
+            </label>
+            <input
+              id="password-code"
+              required
+              maxLength={50}
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+          </>
+        )}
+        <button disabled={busy}>
+          {busy && <Spinner />}
+          {busy ? "Please wait…" : "Change password"}
+        </button>
+      </form>
+      <p className="auth-feedback" role="status" aria-live="polite">
+        {message}
+      </p>
+    </section>
   );
 }
