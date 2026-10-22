@@ -3,6 +3,7 @@ import {
   AppHeader,
   BellPlaceholder,
   Rail as RailPanel,
+  SaveStateContext,
   Skeleton,
 } from "../../../backend/react/src/Shell";
 import {
@@ -83,6 +84,7 @@ class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
 }
 export function App() {
   const status = useSyncExternalStore(store.subscribe, store.snapshot),
+    [lastField, setLastField] = useState(""),
     [route, setRoute] = useState(location.hash.slice(1)),
     [open, setOpen] = useState<{ kind: WindowKind; id: string } | null>(null),
     [designer, setDesigner] = useState(""),
@@ -174,7 +176,15 @@ export function App() {
       status.dirty ||
       !status.writable ||
       status.saved) && (
-      <div className="design-status" role={status.error ? "alert" : "status"}>
+      <div
+        className={
+          "design-status" +
+          (status.saved && !status.saving && !status.error && status.writable
+            ? " is-saved"
+            : "")
+        }
+        role={status.error ? "alert" : "status"}
+      >
         {status.error ||
           (status.saving
             ? "Saving changes…"
@@ -209,193 +219,203 @@ export function App() {
     );
   return (
     <Boundary>
-      <AppHeader
-        current="design"
-        navigation="Design navigation"
-        search={
-          <input
-            aria-label="Find a client"
-            type="search"
-            placeholder="Find a client"
-            value={find}
-            onChange={(e) => setFind(e.target.value)}
-          />
-        }
-        actions={
-          status.ready ? (
-            <Notifications all={all} ctx={ctx} />
-          ) : (
-            <BellPlaceholder />
-          )
-        }
-      />
-      <div className="crm-page-toolbar" aria-label="Design filters">
-        <Select
-          label="Viewing (staff filter)"
-          value={designer}
-          options={[
-            ["", "Everyone · head " + window.People.designHead],
-            ...window.People.designers.map(
-              (d) => [d, "Designer · " + d] as const,
-            ),
-          ]}
-          placeholder={false}
-          onChange={setDesigner}
-        />
-        <Select
-          label="Dates"
-          value={range}
-          options={[
-            ["all", "All time"],
-            ["today", "Today"],
-            ["week", "This week"],
-            ["month", "This month"],
-          ]}
-          placeholder={false}
-          onChange={setRange}
-        />
-      </div>
-      {statusUI()}
-      {!status.ready && !status.error && (
-        <>
-          <div className="stagebar" aria-hidden="true" />
-          <Skeleton sidebar label="Loading Design" />
-        </>
-      )}
-      {status.ready && (
-        <>
-          <div className="stagebar" role="tablist" aria-label="Design stages">
-            {[
-              ["today", "My tasks today", tasks(filtered).length],
-              [
-                "pre",
-                "Pre-design",
-                filtered.filter(
-                  (c) =>
-                    ["design", "token", "booked"].includes(c.stage) &&
-                    !rules().handed(c),
-                ).length,
-              ],
-              ["post", "Post-design", filtered.filter(rules().handed).length],
-            ].map(([id, label, count]) => (
-              <button
-                type="button"
-                role="tab"
-                key={id}
-                className={id === tab ? "on" : ""}
-                aria-selected={id === tab}
-                onClick={() => go(String(id))}
-              >
-                <span>{label}</span>
-                <b>{count}</b>
-              </button>
-            ))}
-          </div>
-          <div className="body">
-            {/* The sidebar stays on every tab so the content never jumps sideways; on
-                My tasks it lists both portals' pages. */}
-            <Sidebar
-              id="design"
-              label="Design navigation"
-              active={tab === "today" ? "" : page}
-              items={(tab === "today" ? ["pre", "post"] : [tab]).flatMap(
-                (portal) =>
-                  pages(portal, filtered).map((p) => ({
-                    id: p.id,
-                    label: p.title,
-                    description: p.summary,
-                    count: p.count,
-                    group: portal === "pre" ? "Pre-design" : "Post-design",
-                  })),
-              )}
-              onNavigate={(id) =>
-                go(
-                  tab !== "today"
-                    ? tab
-                    : pages("pre", filtered).some((p) => p.id === id)
-                      ? "pre"
-                      : "post",
-                  id,
-                )
-              }
+      <SaveStateContext.Provider
+        value={{
+          saving: status.saving,
+          saved: status.saved,
+          error: status.error,
+          last: lastField,
+          mark: setLastField,
+        }}
+      >
+        <AppHeader
+          current="design"
+          navigation="Design navigation"
+          search={
+            <input
+              aria-label="Find a client"
+              type="search"
+              placeholder="Find a client"
+              value={find}
+              onChange={(e) => setFind(e.target.value)}
             />
-            <main className="main">
-              <Summary all={filtered} ctx={ctx} />
-              {tab !== "today" && (
+          }
+          actions={
+            status.ready ? (
+              <Notifications all={all} ctx={ctx} />
+            ) : (
+              <BellPlaceholder />
+            )
+          }
+        />
+        <div className="crm-page-toolbar" aria-label="Design filters">
+          <Select
+            label="Viewing (staff filter)"
+            value={designer}
+            options={[
+              ["", "Everyone · head " + window.People.designHead],
+              ...window.People.designers.map(
+                (d) => [d, "Designer · " + d] as const,
+              ),
+            ]}
+            placeholder={false}
+            onChange={setDesigner}
+          />
+          <Select
+            label="Dates"
+            value={range}
+            options={[
+              ["all", "All time"],
+              ["today", "Today"],
+              ["week", "This week"],
+              ["month", "This month"],
+            ]}
+            placeholder={false}
+            onChange={setRange}
+          />
+        </div>
+        {statusUI()}
+        {!status.ready && !status.error && (
+          <>
+            <div className="stagebar" aria-hidden="true" />
+            <Skeleton sidebar label="Loading Design" />
+          </>
+        )}
+        {status.ready && (
+          <>
+            <div className="stagebar" role="tablist" aria-label="Design stages">
+              {[
+                ["today", "My tasks today", tasks(filtered).length],
+                [
+                  "pre",
+                  "Pre-design",
+                  filtered.filter(
+                    (c) =>
+                      ["design", "token", "booked"].includes(c.stage) &&
+                      !rules().handed(c),
+                  ).length,
+                ],
+                ["post", "Post-design", filtered.filter(rules().handed).length],
+              ].map(([id, label, count]) => (
                 <button
-                  className="btn design-rail-toggle"
-                  aria-expanded={rail}
-                  onClick={() => setRail(!rail)}
+                  type="button"
+                  role="tab"
+                  key={id}
+                  className={id === tab ? "on" : ""}
+                  aria-selected={id === tab}
+                  onClick={() => go(String(id))}
                 >
-                  {rail ? "Hide today" : "Also today"}
+                  <span>{label}</span>
+                  <b>{count}</b>
                 </button>
-              )}
-              {tab === "today" ? (
-                <Today all={filtered} ctx={ctx} />
-              ) : tab === "pre" ? (
-                <Pre all={filtered} ctx={ctx} />
-              ) : (
-                <Post all={filtered} ctx={ctx} />
-              )}
-            </main>
-            {tab !== "today" && (
-              <RailPanel open={rail} onClose={() => setRail(false)}>
-                <Rail all={filtered} ctx={ctx} />
-              </RailPanel>
-            )}
-          </div>
-        </>
-      )}
-      {c && open && (
-        <Modal key={c.id} title={c.name} close={close}>
-          <div className="sheet-h">
-            <div>
-              <div className="flexrow">
-                <h2>{c.name}</h2>
-                <Pill tone="blue">
-                  {open.kind === "client"
-                    ? rules().handed(c)
-                      ? rules().postStage(c)
-                      : STEP[c.design.step || "drf"] || c.stage
-                    : (
-                        {
-                          proposal: c.design.proposals.length
-                            ? "Revision · V" + (c.design.proposals.length + 1)
-                            : "First proposal",
-                          timeline: "Timeline",
-                          measure:
-                            "First site measurement · " +
-                            rules().measureState(c).step,
-                          ept: "EPT",
-                          appliances: "Appliances",
-                          designflow: "Design",
-                          pdi: rules().flow(c).pdi.approvedAt
-                            ? "PDI approved"
-                            : "PDI waiting",
-                        } as Record<string, string>
-                      )[open.kind]}
-                </Pill>
-              </div>
-              <p className="sub">
-                {c.pid} · {c.cid} · {c.city} · {c.product}
-              </p>
+              ))}
             </div>
-            <Button tone="small" onClick={close}>
-              Close
-            </Button>
-          </div>
-          {status.error && statusUI(true)}
-          <div className="sheet-b">
-            <TopFacts c={c} />
-            <fieldset
-              className="design-form"
-              disabled={disabled && open.kind !== "client"}
-            >
-              <Form key={c.id + "-" + open.kind} c={c} ctx={ctx} />
-            </fieldset>
-          </div>
-        </Modal>
-      )}
+            <div className="body">
+              {/* The sidebar stays on every tab so the content never jumps sideways; on
+                My tasks it lists both portals' pages. */}
+              <Sidebar
+                id="design"
+                label="Design navigation"
+                active={tab === "today" ? "" : page}
+                items={(tab === "today" ? ["pre", "post"] : [tab]).flatMap(
+                  (portal) =>
+                    pages(portal, filtered).map((p) => ({
+                      id: p.id,
+                      label: p.title,
+                      description: p.summary,
+                      count: p.count,
+                      group: portal === "pre" ? "Pre-design" : "Post-design",
+                    })),
+                )}
+                onNavigate={(id) =>
+                  go(
+                    tab !== "today"
+                      ? tab
+                      : pages("pre", filtered).some((p) => p.id === id)
+                        ? "pre"
+                        : "post",
+                    id,
+                  )
+                }
+              />
+              <main className="main">
+                <Summary all={filtered} ctx={ctx} />
+                {tab !== "today" && (
+                  <button
+                    className="btn design-rail-toggle"
+                    aria-expanded={rail}
+                    onClick={() => setRail(!rail)}
+                  >
+                    {rail ? "Hide today" : "Also today"}
+                  </button>
+                )}
+                {tab === "today" ? (
+                  <Today all={filtered} ctx={ctx} />
+                ) : tab === "pre" ? (
+                  <Pre all={filtered} ctx={ctx} />
+                ) : (
+                  <Post all={filtered} ctx={ctx} />
+                )}
+              </main>
+              {tab !== "today" && (
+                <RailPanel open={rail} onClose={() => setRail(false)}>
+                  <Rail all={filtered} ctx={ctx} />
+                </RailPanel>
+              )}
+            </div>
+          </>
+        )}
+        {c && open && (
+          <Modal key={c.id} title={c.name} close={close}>
+            <div className="sheet-h">
+              <div>
+                <div className="flexrow">
+                  <h2>{c.name}</h2>
+                  <Pill tone="blue">
+                    {open.kind === "client"
+                      ? rules().handed(c)
+                        ? rules().postStage(c)
+                        : STEP[c.design.step || "drf"] || c.stage
+                      : (
+                          {
+                            proposal: c.design.proposals.length
+                              ? "Revision · V" + (c.design.proposals.length + 1)
+                              : "First proposal",
+                            timeline: "Timeline",
+                            measure:
+                              "First site measurement · " +
+                              rules().measureState(c).step,
+                            ept: "EPT",
+                            appliances: "Appliances",
+                            designflow: "Design",
+                            pdi: rules().flow(c).pdi.approvedAt
+                              ? "PDI approved"
+                              : "PDI waiting",
+                          } as Record<string, string>
+                        )[open.kind]}
+                  </Pill>
+                </div>
+                <p className="sub">
+                  {c.pid} · {c.cid} · {c.city} · {c.product}
+                </p>
+              </div>
+              <Button tone="small" onClick={close}>
+                Close
+              </Button>
+            </div>
+            {status.error && statusUI(true)}
+            <div className="sheet-b">
+              <TopFacts c={c} />
+              <fieldset
+                className="design-form"
+                disabled={disabled && open.kind !== "client"}
+              >
+                <Form key={c.id + "-" + open.kind} c={c} ctx={ctx} />
+              </fieldset>
+            </div>
+          </Modal>
+        )}
+      </SaveStateContext.Provider>
     </Boundary>
   );
 }

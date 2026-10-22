@@ -44,6 +44,38 @@ dialog::backdrop {
     font-size: var(--text-16);
   }
 }
+/* Micro-interactions (150–200 ms). None of them run when the person prefers reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  :is(.btn, .app-icon-button) {
+    transition:
+      background-color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease,
+      color var(--motion-fast) ease,
+      transform var(--motion-fast) ease;
+  }
+  :is(.btn, .app-icon-button):active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  /* Content fades in where the loading skeleton was. */
+  #app > .body:not([aria-busy]) {
+    animation: content-in var(--motion-base) var(--ease);
+  }
+  dialog[open] {
+    animation: dialog-in var(--motion-base) var(--ease);
+  }
+}
+@keyframes content-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -304,8 +304,17 @@ function Approvals({ ctx }: { ctx: Context }) {
           .sort(
             (a, b) => Date.parse(a.sentAt || "") - Date.parse(b.sentAt || ""),
           )
-          .map((r, i) => ({
-            id: r.c.id + i,
+          .map((r, i, list) => {
+            // A stable key per approval: client, what was sent and when (position-free).
+            const name = (x: typeof r) =>
+              x.c.id + "·" + x.what + "·" + (x.sentAt || "");
+            const repeat = list
+              .slice(0, i)
+              .filter((x) => name(x) === name(r)).length;
+            return { r, id: name(r) + (repeat ? "·" + repeat : "") };
+          })
+          .map(({ r, id }) => ({
+            id,
             onClick: () => ctx.open(r.c),
             cells: [
               <b>

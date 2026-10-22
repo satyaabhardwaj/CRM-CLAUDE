@@ -23,7 +23,10 @@ export function Notifications() {
           return r.json();
         })
         .then((data: Store) => {
-          setStore(data);
+          // Keep the same object when nothing changed, so the bell does not redraw.
+          setStore((old) =>
+            old && data.rev !== undefined && old.rev === data.rev ? old : data,
+          );
           setError("");
         })
         .catch(() => {
@@ -31,7 +34,9 @@ export function Notifications() {
             setError("Notifications could not be loaded.");
         });
     void load();
-    const timer = setInterval(load, 4000);
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 4000);
     return () => {
       abort.abort();
       clearInterval(timer);

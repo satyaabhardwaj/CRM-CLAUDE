@@ -7,7 +7,7 @@ const file = process.argv[2];
 const dir = path.dirname(file);
 const { results, browser } = JSON.parse(fs.readFileSync(file, 'utf8'));
 const MOBILE = new Set(['320', '360', '390', '414', '390-landscape']);
-const WEIGHT = { 'squeezed-scroll-area': 95, blocked: 95, 'page-overflow': 100, obscured: 80, 'off-screen': 70, 'focus-lost': 70, 'scroll-lost': 70, overlap: 60,
+const WEIGHT = { 'shift-after-input': 15, 'squeezed-scroll-area': 95, blocked: 95, 'page-overflow': 100, obscured: 80, 'off-screen': 70, 'focus-lost': 70, 'scroll-lost': 70, overlap: 60,
   'clipped-text': 50, 'cls': 60, 'tab-shift': 55, 'shell-shift': 55, error: 90, unreachable: 30, 'touch-target': 25,
   'truncated-no-tooltip': 10, 'console-error': 40 };
 
@@ -33,15 +33,17 @@ for (const r of results) {
   if (!r.result) continue;
   for (const [kind, list] of Object.entries(r.result.findings))
     for (const f of list) add(kind, r.module, f.selector, r, f.detail, f.text);
-  for (const [k, v] of [['load', r.loadCls], ['setup', r.setupCls]])
-    if (v > 0.05) add('cls', r.module, 'CLS on ' + k, r, { value: +v.toFixed(3) });
+  if (r.loadCls > 0.05) add('cls', r.module, 'CLS on load', r, { value: +r.loadCls.toFixed(3) });
+  // A state's setup is a person's action (a filter, a tab). Real CLS ignores shifts within 0.5 s of
+  // input, but scripted events do not count as input, so these are listed apart from CLS.
+  if (r.setupCls > 0.05) add('shift-after-input', r.module, 'shift right after a user action', r, { value: +r.setupCls.toFixed(3) });
   if (r.dynamic) {
     if (r.dynamic.refreshCls > 0.05) add('cls', r.module, 'CLS on background refresh', r, { value: +r.dynamic.refreshCls.toFixed(3), shifts: r.dynamic.refreshShifts });
     if (r.dynamic.focusLost) add('focus-lost', r.module, 'focus lost after background refresh', r, r.dynamic.after);
     if (r.dynamic.scrollLost) add('scroll-lost', r.module, 'scroll lost after background refresh', r, { before: r.dynamic.before.scrollTop, after: r.dynamic.after.scrollTop });
   }
   if (r.tab && r.tab.found) {
-    if (r.tab.tabCls > 0.05) add('cls', r.module, 'CLS on tab switch', r, { value: +r.tab.tabCls.toFixed(3), shifts: r.tab.tabShifts });
+    if (r.tab.tabCls > 0.05) add('shift-after-input', r.module, 'shift right after a tab switch', r, { value: +r.tab.tabCls.toFixed(3), shifts: r.tab.tabShifts });
     if (r.tab.siblingsMovedPx.length) add('tab-shift', r.module, 'tabs move when the active tab changes', r, { movedPx: r.tab.siblingsMovedPx });
   }
 }
@@ -76,8 +78,9 @@ const totals = {};
 for (const i of list) totals[i.kind] = (totals[i.kind] || 0) + 1;
 const states = results.length;
 const pageOverflow = results.filter((r) => r.result && r.result.pageOverflow > 1).length;
-const clsWorst = results.reduce((m, r) => Math.max(m, r.loadCls || 0, r.setupCls || 0, r.dynamic ? r.dynamic.refreshCls : 0, r.tab && r.tab.found ? r.tab.tabCls : 0), 0);
-const lines = [`# Layout audit summary (${browser})`, '', `States: ${states}. Page horizontal overflow in ${pageOverflow} states. Worst CLS: ${clsWorst.toFixed(3)}.`, '',
+const clsWorst = results.reduce((m, r) => Math.max(m, r.loadCls || 0, r.dynamic ? r.dynamic.refreshCls : 0), 0);
+const inputWorst = results.reduce((m, r) => Math.max(m, r.setupCls || 0, r.tab && r.tab.found ? r.tab.tabCls : 0), 0);
+const lines = [`# Layout audit summary (${browser})`, '', `States: ${states}. Page horizontal overflow in ${pageOverflow} states. Worst CLS (load, background refresh): ${clsWorst.toFixed(3)}. Largest shift right after a user action (not CLS): ${inputWorst.toFixed(3)}.`, '',
   '| Kind | Distinct issues |', '|---|---:|', ...Object.entries(totals).sort((a, b) => b[1] - a[1]).map(([k, n]) => `| ${k} | ${n} |`), '',
   '## Ranked issues', '', '| # | Score | Kind | Module | Where | Widths | Screens | Example |', '|---:|---:|---|---|---|---|---|---|'];
 list.slice(0, 150).forEach((i, n) => {

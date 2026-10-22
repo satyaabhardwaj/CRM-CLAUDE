@@ -62,7 +62,21 @@ export function List({
           rows.map((r, i) => (
             <button
               type="button"
-              key={r.c.id + "-" + i}
+              key={
+                r.c.id +
+                "-" +
+                (r.kind || "client") +
+                // Only a true repeat of client and kind needs a position to stay unique.
+                (rows
+                  .slice(0, i)
+                  .some(
+                    (x) =>
+                      x.c.id === r.c.id &&
+                      (x.kind || "client") === (r.kind || "client"),
+                  )
+                  ? "-" + i
+                  : "")
+              }
               className={
                 task ? "board-row design-task-grid" : "item design-list-row"
               }

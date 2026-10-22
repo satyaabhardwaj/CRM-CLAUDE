@@ -211,7 +211,11 @@ input[type=file] { min-height: var(--tap); max-width: 100%; padding: var(--space
 .tap-check { display: inline-grid; flex: none; place-items: center; min-width: var(--tap); min-height: var(--tap); cursor: pointer; }
 input.right { text-align: right; }
 .field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
-.field > span { color: var(--color-ink-2); font-size: var(--text-12); }
+.field > span { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); color: var(--color-ink-2); font-size: var(--text-12); }
+/* Saving state of the field just changed, on its label line (takes no extra room). */
+.field-state { flex: none; color: var(--color-ink-3); font-size: 11px; font-style: normal; font-weight: var(--weight-semibold); }
+.field-state.saved { color: var(--color-success); }
+.field-state.error { color: var(--color-danger); }
 .checks { display: flex; flex-wrap: wrap; gap: 6px var(--space-3); }
 .checks label { display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); }
 .g2, .g3, .g4 { display: grid; gap: var(--space-2); }
@@ -280,6 +284,9 @@ html:has(dialog[open]:modal) { overflow: hidden; }
 .sales-status, .design-status, .management-status, .a-notice { position: fixed; right: var(--space-3); bottom: calc(var(--space-4) + env(safe-area-inset-bottom)); left: var(--space-3); z-index: var(--z-toast); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); min-height: var(--tap); padding: var(--space-2) var(--space-4); border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-2); font-size: var(--text-13); overflow-wrap: anywhere; }
 .sales-status[role="alert"], .design-status[role="alert"], .management-status[role="alert"] { border-color: #f2c6bf; background: #fdf5f4; color: var(--color-danger); }
 .a-notice { color: var(--color-success); }
+/* A plain "saved" notice fades after a moment; errors and read-only notices stay. */
+.is-saved, .a-notice { animation: toast-out var(--motion-base) ease 3s forwards; }
+@keyframes toast-out { to { opacity: 0; visibility: hidden; } }
 /* On phones the toast sits above the floating New opportunity button. */
 #app:has(.app-primary) .sales-status { bottom: calc(var(--space-4) + 52px + var(--space-3) + env(safe-area-inset-bottom)); }
 @media (min-width: 768px) {

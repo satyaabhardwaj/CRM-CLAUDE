@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { upload } from "./data";
-import { StableLabel } from "../../../backend/react/src/Shell";
+import {
+  FieldState,
+  StableLabel,
+  useFieldSave,
+} from "../../../backend/react/src/Shell";
 export const now = () => new Date().toISOString();
 export const money = (v: unknown) =>
   "₹" + (Number(v) || 0).toLocaleString("en-IN");
@@ -80,6 +84,7 @@ export function Field({
   immediate?: boolean;
 }) {
   const saved = String(value ?? "");
+  const save = useFieldSave();
   const [draft, setDraft] = useState(saved);
   const last = useRef(saved);
   useEffect(() => {
@@ -91,11 +96,15 @@ export function Field({
       last.current = value;
       setDraft(value);
       onCommit(value);
+      save.mark();
     }
   };
   return (
     <label className="field">
-      <span>{label}</span>
+      <span>
+        {label}
+        <FieldState state={save.state} />
+      </span>
       <input
         aria-label={label}
         type={type}
@@ -106,6 +115,7 @@ export function Field({
           if (immediate && last.current !== e.target.value) {
             last.current = e.target.value;
             onCommit(e.target.value);
+            save.mark();
           }
         }}
         onInput={(e) => {
@@ -113,6 +123,7 @@ export function Field({
           if (immediate && last.current !== e.currentTarget.value) {
             last.current = e.currentTarget.value;
             onCommit(e.currentTarget.value);
+            save.mark();
           }
         }}
         onBlur={(e) => commit(e.currentTarget.value)}
@@ -140,13 +151,20 @@ export function Select({
   onChange: (v: string) => void;
   placeholder?: string | false;
 }) {
+  const save = useFieldSave();
   return (
     <label className="field">
-      <span>{label}</span>
+      <span>
+        {label}
+        <FieldState state={save.state} />
+      </span>
       <select
         aria-label={label}
         value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          save.mark();
+        }}
       >
         {placeholder !== false && <option value="">{placeholder}</option>}
         {options.map((o) => {

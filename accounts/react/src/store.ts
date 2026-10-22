@@ -88,14 +88,19 @@ export function useStore(paused: boolean) {
     [notice, setNotice] = useState("");
   const busy = useRef(false),
     pause = useRef(paused),
-    generation = useRef(0);
+    generation = useRef(0),
+    shown = useRef<number | null>(null);
   pause.current = paused;
   const refresh = useCallback(async () => {
     const version = generation.current;
     try {
       const value = await readStore();
       if (!busy.current && version === generation.current) {
-        setData(normalize(value));
+        // Same revision as on screen: nothing changed, so nothing re-renders.
+        if (shown.current !== value.rev) {
+          shown.current = value.rev;
+          setData(normalize(value));
+        }
         setError("");
       }
     } catch (e) {
@@ -139,6 +144,7 @@ export function useStore(paused: boolean) {
     setNotice("");
     try {
       const result = await transact(id, operationId, mutate);
+      shown.current = result.rev;
       setData(normalize(result));
       setNotice("Saved successfully.");
       return result.clients.find((c) => c.id === id)!;

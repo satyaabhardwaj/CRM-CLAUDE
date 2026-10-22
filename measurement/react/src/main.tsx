@@ -1,5 +1,9 @@
 import { Sidebar } from "../../../backend/react/src/Sidebar";
-import { AppHeader, StableLabel } from "../../../backend/react/src/Shell";
+import {
+  AppHeader,
+  Skeleton,
+  StableLabel,
+} from "../../../backend/react/src/Shell";
 import {
   Component,
   lazy,
@@ -25,10 +29,13 @@ import {
 import { useRequests } from "./api";
 import { Details, Stats } from "./components";
 import { FilterDialog } from "./Filters";
-import { Overview, Requests, Reports } from "./pages";
+import { Overview, Requests } from "./pages";
 import { Notifications } from "./Notifications";
 import "./style.css";
 const Areas = lazy(() => import("./Areas"));
+const Reports = lazy(() =>
+  import("./Reports").then((m) => ({ default: m.Reports })),
+);
 const PAGES: [Page, string][] = [
   ["overview", "Home"],
   ["requests", "Requests"],
@@ -217,14 +224,22 @@ function App() {
                 <Requests records={records} onOpen={open} />
               )}
               {place.page === "reports" && (
-                <Reports
-                  records={records}
-                  summary={summary}
-                  onStage={(s) => go(s, "requests")}
-                />
+                <Suspense
+                  fallback={<Skeleton inline label="Loading reports" />}
+                >
+                  <Reports
+                    records={records}
+                    summary={summary}
+                    onStage={(s) => go(s, "requests")}
+                  />
+                </Suspense>
               )}
               {place.page === "areas" && (
-                <Suspense fallback={<p role="status">Loading site map…</p>}>
+                <Suspense
+                  fallback={
+                    <Skeleton inline cards={1} label="Loading site map" />
+                  }
+                >
                   <Areas records={records} onOpen={open} focusId={focusId} />
                 </Suspense>
               )}

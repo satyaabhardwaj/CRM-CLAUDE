@@ -78,3 +78,31 @@ it("deduplicates concurrent reads and stops notifying removed subscribers", asyn
   await first;
   expect(listener).toHaveBeenCalledTimes(calls);
 });
+it("a background poll with the same revision does not redraw or show loading", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response('{"rev":4,"clients":[]}')),
+  );
+  const store = new ManagementStore();
+  await store.load();
+  const data = store.state.data,
+    listener = vi.fn();
+  store.subscribe(listener);
+  await store.poll();
+  expect(listener).not.toHaveBeenCalled();
+  expect(store.state.data).toBe(data);
+  expect(store.state.loading).toBe(false);
+});
+it("a background poll with a new revision updates the screen", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValueOnce(new Response('{"rev":4,"clients":[]}'))
+      .mockResolvedValueOnce(new Response('{"rev":5,"clients":[]}')),
+  );
+  const store = new ManagementStore();
+  await store.load();
+  await store.poll();
+  expect(store.state.data?.rev).toBe(5);
+});

@@ -4,6 +4,21 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ## Unreleased
 
+### UI polish, Phase 5: smooth and fast (22 Oct)
+- **Background refresh changes nothing on screen when nothing changed.**
+  - Accounts, Management and the Measurement bell now skip the update when the saved revision is the same, as Sales and Design already did.
+  - Management's poll no longer flips a loading state, and the Measurement bell stops polling while the tab is hidden.
+  - The existing "busy" pause while typing or with a menu open is unchanged.
+- **Stable row keys:** Sales approvals and Design lists use client + kind instead of list position.
+- **Inline saving feedback:** the field just changed shows Saving… / Saved / Not saved on its label line (Sales and Design). It reads the stores' existing status, and the save logic is unchanged. A plain "Changes saved" toast fades after 3 s.
+- **Micro-interactions (150–200 ms):** button press, content fade after the skeleton, window rise, drawer and panel slide, tab indicator. None run under `prefers-reduced-motion`.
+- **Long lists (500+ rows), measured instead of virtualised:**
+  - A background refresh causes no style or layout work, because unchanged rows produce no DOM changes.
+  - On desktop the longest task is 163 ms (Architects, 520 editable rows).
+  - CSS virtualisation (`content-visibility`) was tried and reverted, because estimated row heights made the page jump on refresh.
+  - JS windowing for the Architects editor stays an option if real phones feel slow.
+- **Lazy loading:** Measurement Reports is its own chunk (3 KB), like the map. Every module's initial bundle is within +2.2% of the pre-polish size.
+
 ### UI polish, Phase 4: components on every screen (22 Oct)
 - **Shared component CSS:** `shared/look.css` is one tokenised component layer, with the old "calmer colours" overrides folded in.
 - **Touch sizes** (`--tap`): buttons, fields, list rows, steps and map controls are 44 px on touch screens and below 1024. With a mouse they are 40 px (32 px for small).

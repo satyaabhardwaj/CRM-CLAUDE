@@ -1,5 +1,8 @@
 import {
+  createContext,
+  useContext,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -376,4 +379,42 @@ export function useCardLabels(box: RefObject<HTMLElement | null>) {
         head.children[i]?.classList.add("num");
     });
   });
+}
+
+// Saving feedback next to the field that was just changed. The module provides its store's own
+// status (no new save logic); a field marks itself when it commits and shows that status inline.
+export type SaveState = {
+  saving: boolean;
+  saved: boolean;
+  error: string;
+  last: string;
+  mark: (id: string) => void;
+};
+export const SaveStateContext = createContext<SaveState | null>(null);
+export function useFieldSave() {
+  const save = useContext(SaveStateContext),
+    id = useId();
+  const state: "" | "saving" | "saved" | "error" =
+    save && save.last === id
+      ? save.error
+        ? "error"
+        : save.saving
+          ? "saving"
+          : save.saved
+            ? "saved"
+            : ""
+      : "";
+  return { state, mark: () => save?.mark(id) };
+}
+export function FieldState({ state }: { state: string }) {
+  if (!state) return null;
+  return (
+    <em className={"field-state " + state} role="status">
+      {state === "saving"
+        ? "Saving…"
+        : state === "saved"
+          ? "Saved"
+          : "Not saved"}
+    </em>
+  );
 }

@@ -57,12 +57,16 @@ export class ManagementStore {
     this.state = { ...this.state, ...p, serial: this.state.serial + 1 };
     this.listeners.forEach((fn) => fn());
   }
-  load = async () => {
+  // A background poll stays invisible: no loading state, and no redraw when the saved data
+  // has the same revision as what is on screen.
+  load = async (background = false) => {
     if (this.busy) return;
     this.busy = true;
-    this.notify({ loading: true });
+    if (!background) this.notify({ loading: true });
     try {
       const data = await readStore();
+      if (background && !this.state.error && this.state.data?.rev === data.rev)
+        return;
       window.Kit.store.data = data;
       this.notify({ data, error: "" });
     } catch (e) {
@@ -71,11 +75,11 @@ export class ManagementStore {
       });
     } finally {
       this.busy = false;
-      this.notify({ loading: false });
+      if (!background) this.notify({ loading: false });
     }
   };
   poll = async () => {
-    if (!this.busy) await this.load();
+    if (!this.busy) await this.load(true);
   };
   redraw = () => this.notify();
 }

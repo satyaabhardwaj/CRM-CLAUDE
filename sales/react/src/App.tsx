@@ -3,6 +3,7 @@ import {
   AppHeader,
   BellPlaceholder,
   Rail,
+  SaveStateContext,
   ShellIcon,
   Skeleton,
 } from "../../../backend/react/src/Shell";
@@ -124,6 +125,7 @@ class Boundary extends Component<{ children: ReactNode }, { error: boolean }> {
 }
 export function App() {
   const status = useSyncExternalStore(store.subscribe, store.snapshot),
+    [lastField, setLastField] = useState(""),
     [route, setRoute] = useState(() => location.hash.slice(1)),
     [picked, setPicked] = useState<string | null>(null),
     [creating, setCreating] = useState(false),
@@ -278,201 +280,222 @@ export function App() {
   const disabled = !status.writable || status.dirty;
   return (
     <Boundary>
-      <AppHeader
-        current="sales"
-        navigation="Sales navigation"
-        search={
-          <input
-            type="search"
-            aria-label="Find a client"
-            placeholder="Find a client"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        }
-        actions={
-          <>
-            <button
-              type="button"
-              className="btn round"
-              aria-label="Download the weekly sales report"
-              disabled={!status.ready}
-              onClick={() => weeklyReport(ctx)}
-            >
-              <ShellIcon name="download" />
-            </button>
-            {status.ready ? (
-              <Notifications ctx={ctx} writable={!disabled} />
-            ) : (
-              <BellPlaceholder />
-            )}
-          </>
-        }
-        primary={
-          <Button
-            tone="dark"
-            disabled={!status.ready || disabled}
-            onClick={() => {
-              setCreating(true);
-              setPicked(null);
-            }}
-          >
-            New opportunity
-          </Button>
-        }
-      />
-      <div className="crm-page-toolbar" aria-label="Sales filters">
-        <Select
-          label="Viewing (staff filter)"
-          value={who}
-          placeholder={false}
-          options={[
-            ["me", "Me · " + me.name + " (" + me.role + ")"],
-            ...below.map((p) => [p.id, p.role + " · " + p.name] as const),
-            ...(below.length ? [["team", "My whole team"] as const] : []),
-          ]}
-          onChange={setWho}
-        />
-        <Select
-          label="Dates"
-          value={range}
-          options={[
-            ["all", "All time"],
-            ["today", "Today"],
-            ["week", "This week"],
-            ["month", "This month"],
-            ["lastMonth", "Last month"],
-            ["custom", "Custom dates"],
-          ]}
-          placeholder={false}
-          onChange={setRange}
-        />
-        {range === "custom" && (
-          <>
-            <Field label="From" type="date" value={from} onCommit={setFrom} />
-            <Field label="To" type="date" value={to} onCommit={setTo} />
-          </>
-        )}
-        {status.ready && !dash.page && (
-          <button
-            type="button"
-            className="btn sales-rail-toggle toolbar-end"
-            aria-expanded={rail}
-            onClick={() => setRail(!rail)}
-          >
-            {rail ? "Hide today" : "Also today"}
-          </button>
-        )}
-      </div>
-      {(!status.ready ||
-        status.error ||
-        status.saving ||
-        status.saved ||
-        !status.writable) && (
-        <div className="sales-status" role={status.error ? "alert" : "status"}>
-          {status.error ||
-            (status.saving
-              ? "Saving changes…"
-              : !status.ready
-                ? "Loading Sales…"
-                : !status.writable
-                  ? "Read-only access. Changes require an administrator."
-                  : status.saved
-                    ? "Changes saved."
-                    : "")}
-          {status.error && (
+      <SaveStateContext.Provider
+        value={{
+          saving: status.saving,
+          saved: status.saved,
+          error: status.error,
+          last: lastField,
+          mark: setLastField,
+        }}
+      >
+        <AppHeader
+          current="sales"
+          navigation="Sales navigation"
+          search={
+            <input
+              type="search"
+              aria-label="Find a client"
+              placeholder="Find a client"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          }
+          actions={
+            <>
+              <button
+                type="button"
+                className="btn round"
+                aria-label="Download the weekly sales report"
+                disabled={!status.ready}
+                onClick={() => weeklyReport(ctx)}
+              >
+                <ShellIcon name="download" />
+              </button>
+              {status.ready ? (
+                <Notifications ctx={ctx} writable={!disabled} />
+              ) : (
+                <BellPlaceholder />
+              )}
+            </>
+          }
+          primary={
             <Button
-              tone="small"
-              disabled={status.saving}
-              onClick={status.dirty ? store.retry : () => void store.load()}
-            >
-              {status.dirty ? "Retry saving" : "Retry loading"}
-            </Button>
-          )}
-          {status.dirty && !status.saving && (
-            <Button
-              tone="small"
+              tone="dark"
+              disabled={!status.ready || disabled}
               onClick={() => {
-                if (
-                  confirm(
-                    "Discard the unsaved local change and reload saved data?",
-                  )
-                ) {
-                  close();
-                  void store.discard();
-                }
+                setCreating(true);
+                setPicked(null);
               }}
             >
-              Discard unsaved change
+              New opportunity
             </Button>
-          )}
-        </div>
-      )}
-      {!status.ready && !status.error && (
-        <Skeleton sidebar tiles={6} label="Loading Sales" />
-      )}
-      {status.ready && (
-        <div className="body">
-          <Sidebar
-            id="sales"
-            label="Sales navigation"
-            active={dash.id}
-            onNavigate={navigate}
-            items={dashboards.map((d) => ({
-              id: d.id,
-              label: d.title,
-              description: navSummary(d.id),
-              group: d.small
-                ? "Settings"
-                : !d.page || d.flow
-                  ? "Pipeline"
-                  : "Management",
-              count: d.small
-                ? d.id === "architects"
-                  ? ((window.Kit.store.data.architects || []) as unknown[])
-                      .length
-                  : all.filter(
-                      (c) => c.binned || (c.binnedCall && c.stage !== "bin"),
-                    ).length
-                : !d.page || d.flow
-                  ? count(d.id)
-                  : undefined,
-            }))}
+          }
+        />
+        <div className="crm-page-toolbar" aria-label="Sales filters">
+          <Select
+            label="Viewing (staff filter)"
+            value={who}
+            placeholder={false}
+            options={[
+              ["me", "Me · " + me.name + " (" + me.role + ")"],
+              ...below.map((p) => [p.id, p.role + " · " + p.name] as const),
+              ...(below.length ? [["team", "My whole team"] as const] : []),
+            ]}
+            onChange={setWho}
           />
-          <main className="main">
-            <div className="sales-main">
-              {!dash.page && <Summary ctx={ctx} />}
-              {["architects", "team", "bin"].includes(dash.id) ? (
-                <fieldset
-                  className="sales-form sales-page-form"
-                  disabled={disabled}
-                >
-                  <dash.Component key={dash.id} ctx={ctx} />
-                </fieldset>
-              ) : (
-                <dash.Component key={dash.id} ctx={ctx} />
-              )}
-            </div>
-          </main>
-          {!dash.page && (
-            <Rail open={rail} onClose={() => setRail(false)}>
-              <SidePanel ctx={ctx} />
-            </Rail>
+          <Select
+            label="Dates"
+            value={range}
+            options={[
+              ["all", "All time"],
+              ["today", "Today"],
+              ["week", "This week"],
+              ["month", "This month"],
+              ["lastMonth", "Last month"],
+              ["custom", "Custom dates"],
+            ]}
+            placeholder={false}
+            onChange={setRange}
+          />
+          {range === "custom" && (
+            <>
+              <Field label="From" type="date" value={from} onCommit={setFrom} />
+              <Field label="To" type="date" value={to} onCommit={setTo} />
+            </>
+          )}
+          {status.ready && !dash.page && (
+            <button
+              type="button"
+              className="btn sales-rail-toggle toolbar-end"
+              aria-expanded={rail}
+              onClick={() => setRail(!rail)}
+            >
+              {rail ? "Hide today" : "Also today"}
+            </button>
           )}
         </div>
-      )}
-      {status.ready && creating && (
-        <Modal title="New opportunity" close={close}>
-          <NewOpportunity ctx={ctx} disabled={disabled} />
-        </Modal>
-      )}
-      {status.ready && !creating && selected && (
-        <Modal key={selected.id} title={selected.name} close={close}>
-          <fieldset className="sales-form" disabled={disabled}>
-            <ClientForm c={selected} ctx={ctx} />
-          </fieldset>
-        </Modal>
-      )}
+        {(!status.ready ||
+          status.error ||
+          status.saving ||
+          status.saved ||
+          !status.writable) && (
+          <div
+            className={
+              "sales-status" +
+              (status.saved &&
+              !status.saving &&
+              !status.error &&
+              status.writable
+                ? " is-saved"
+                : "")
+            }
+            role={status.error ? "alert" : "status"}
+          >
+            {status.error ||
+              (status.saving
+                ? "Saving changes…"
+                : !status.ready
+                  ? "Loading Sales…"
+                  : !status.writable
+                    ? "Read-only access. Changes require an administrator."
+                    : status.saved
+                      ? "Changes saved."
+                      : "")}
+            {status.error && (
+              <Button
+                tone="small"
+                disabled={status.saving}
+                onClick={status.dirty ? store.retry : () => void store.load()}
+              >
+                {status.dirty ? "Retry saving" : "Retry loading"}
+              </Button>
+            )}
+            {status.dirty && !status.saving && (
+              <Button
+                tone="small"
+                onClick={() => {
+                  if (
+                    confirm(
+                      "Discard the unsaved local change and reload saved data?",
+                    )
+                  ) {
+                    close();
+                    void store.discard();
+                  }
+                }}
+              >
+                Discard unsaved change
+              </Button>
+            )}
+          </div>
+        )}
+        {!status.ready && !status.error && (
+          <Skeleton sidebar tiles={6} label="Loading Sales" />
+        )}
+        {status.ready && (
+          <div className="body">
+            <Sidebar
+              id="sales"
+              label="Sales navigation"
+              active={dash.id}
+              onNavigate={navigate}
+              items={dashboards.map((d) => ({
+                id: d.id,
+                label: d.title,
+                description: navSummary(d.id),
+                group: d.small
+                  ? "Settings"
+                  : !d.page || d.flow
+                    ? "Pipeline"
+                    : "Management",
+                count: d.small
+                  ? d.id === "architects"
+                    ? ((window.Kit.store.data.architects || []) as unknown[])
+                        .length
+                    : all.filter(
+                        (c) => c.binned || (c.binnedCall && c.stage !== "bin"),
+                      ).length
+                  : !d.page || d.flow
+                    ? count(d.id)
+                    : undefined,
+              }))}
+            />
+            <main className="main">
+              <div className="sales-main">
+                {!dash.page && <Summary ctx={ctx} />}
+                {["architects", "team", "bin"].includes(dash.id) ? (
+                  <fieldset
+                    className="sales-form sales-page-form"
+                    disabled={disabled}
+                  >
+                    <dash.Component key={dash.id} ctx={ctx} />
+                  </fieldset>
+                ) : (
+                  <dash.Component key={dash.id} ctx={ctx} />
+                )}
+              </div>
+            </main>
+            {!dash.page && (
+              <Rail open={rail} onClose={() => setRail(false)}>
+                <SidePanel ctx={ctx} />
+              </Rail>
+            )}
+          </div>
+        )}
+        {status.ready && creating && (
+          <Modal title="New opportunity" close={close}>
+            <NewOpportunity ctx={ctx} disabled={disabled} />
+          </Modal>
+        )}
+        {status.ready && !creating && selected && (
+          <Modal key={selected.id} title={selected.name} close={close}>
+            <fieldset className="sales-form" disabled={disabled}>
+              <ClientForm c={selected} ctx={ctx} />
+            </fieldset>
+          </Modal>
+        )}
+      </SaveStateContext.Provider>
     </Boundary>
   );
 }
