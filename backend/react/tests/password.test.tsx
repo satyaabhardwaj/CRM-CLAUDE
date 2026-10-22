@@ -44,9 +44,7 @@ function status(body: object) {
 }
 
 it("sends the current password, new password and code, then clears every field", async () => {
-  const fetch = vi
-    .fn()
-    .mockResolvedValueOnce(new Response('{"ok":true}'));
+  const fetch = vi.fn().mockResolvedValueOnce(new Response('{"ok":true}'));
   vi.stubGlobal("fetch", fetch);
   await render(<ChangePassword needsCode />);
   type("password-current", "current-secret");
@@ -88,13 +86,11 @@ it("checks length and the repeat before calling the server", async () => {
 it("shows the server's reason and keeps the typed values for a retry", async () => {
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response('{"error":"Code is invalid, expired or already used."}', {
-          status: 400,
-        }),
-      ),
+    vi.fn().mockResolvedValueOnce(
+      new Response('{"error":"Code is invalid, expired or already used."}', {
+        status: 400,
+      }),
+    ),
   );
   await render(<ChangePassword needsCode />);
   type("password-current", "current-secret");
@@ -110,10 +106,26 @@ it("shows the server's reason and keeps the typed values for a retry", async () 
 
 it("appears only once the account may change its password", async () => {
   const cases: [object, boolean, boolean][] = [
-    [{ available: true, enabled: false, recovery_codes: 0, required: true }, false, false],
-    [{ available: true, enabled: true, recovery_codes: 9, required: true }, true, true],
-    [{ available: true, enabled: false, recovery_codes: 0, required: false }, true, false],
-    [{ available: false, enabled: false, recovery_codes: 0, required: false }, true, false],
+    [
+      { available: true, enabled: false, recovery_codes: 0, required: true },
+      false,
+      false,
+    ],
+    [
+      { available: true, enabled: true, recovery_codes: 9, required: true },
+      true,
+      true,
+    ],
+    [
+      { available: true, enabled: false, recovery_codes: 0, required: false },
+      true,
+      false,
+    ],
+    [
+      { available: false, enabled: false, recovery_codes: 0, required: false },
+      true,
+      false,
+    ],
   ];
   for (const [body, shown, code] of cases) {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(status(body)));
