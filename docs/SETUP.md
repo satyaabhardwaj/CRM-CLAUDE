@@ -63,6 +63,7 @@ All ports listen on 127.0.0.1 only. Port 4300, the old standalone JSON server, i
    - run `npm run db:migrate`;
    - run `python -m backend.seed_local`. It refuses non-local URLs and an occupied database.
    - Create an admin with `python -m backend.provision_user --email EMAIL --role admin`. The password is entered at a hidden prompt.
+   - **Or, on a laptop only:** `python -m backend.local_admin` creates `admin@magppie.local` (or `--email EMAIL`) with a password of at least 8 characters, typed at a hidden prompt. If that email already exists, it gets the new password, the admin role and active status again, and its sessions end. It refuses anything but a development database on localhost. Each clone has its own database, so run it once on every laptop. If `CRM_MFA_ENCRYPTION_KEY` is set in `.env.local`, the admin must set up an authenticator after signing in; put `# ` before that line and restart the CRM for password-only sign-in on that laptop.
 8. Run `npm run build` to build all six frontends, then **Start CRM.cmd**.
 
 `.env.local` takes precedence over the older `.local/backend-local.json`. Exported process variables take precedence over both. The Vercel entrypoint loads no local env file.
