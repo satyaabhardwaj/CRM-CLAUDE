@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, insert, delete, update, inspect, func
 from . import auth
-from .models import credentials, users, sessions, mfa_factors, mfa_codes, mfa_challenges
+from .models import credentials, users, sessions, mfa_factors, mfa_codes, mfa_challenges, password_resets
 from .repository import event
 from .recovery import allow
 
@@ -41,6 +41,12 @@ class Password(BaseModel):
 
 class Manage(Password):
     code: str = Field(min_length=6, max_length=50)
+
+
+class NewPassword(Password):
+    # Same length rule as provisioning and reset; the code is required once a factor is enabled.
+    new_password: str = Field(min_length=16, max_length=1024)
+    code: str = Field(default='', max_length=50)
 
 
 class MFA:
@@ -217,3 +223,25 @@ class MFA:
 
         @app.post('/api/auth/mfa/disable')
         def disable(body:Manage,request:Request):return change(body,request,True)
+
+        @app.post('/api/auth/password')
+        def change_password(body:NewPassword,request:Request):
+            with self.engine.connect() as db:uid=who(db,request)['id']
+            if not allow(self.engine,uid,'password.change',10):raise HTTPException(429,'Too many attempts. Try again later.')
+            if body.new_password==body.password:raise HTTPException(400,'Choose a password different from the current one.')
+            new_hash=auth.password_hash(body.new_password)
+            current=auth.digest(request.cookies.get('crm_session',''))
+            with self.engine.begin() as db:
+                # owner() locks credentials first, the same order as verification and reset.
+                uid=owner(request,body.password,db);factor=self.factor(db,uid)
+                if factor and factor['enabled']:
+                    if not self.verify(db,factor,body.code):raise HTTPException(400,'Code is invalid, expired or already used.')
+                elif db.scalar(select(users.c.role).where(users.c.id==uid)) in REQUIRED_ROLES:
+                    raise HTTPException(403,'Set up your authenticator app before changing your password.')
+                db.execute(update(credentials).where(credentials.c.user_id==uid).values(password_hash=new_hash))
+                db.execute(delete(password_resets).where(password_resets.c.user_id==uid))
+                db.execute(delete(mfa_challenges).where(mfa_challenges.c.user_id==uid))
+                # Every other session ends; this one stays signed in.
+                db.execute(delete(sessions).where(sessions.c.user_id==uid,sessions.c.hash!=current))
+                event(db,uid,'auth.password_changed')
+            return {'ok':True}
