@@ -57,8 +57,10 @@ export function installSessionRedirect(
       if (
         data &&
         typeof data === "object" &&
-        "mfa_enrollment_required" in data &&
-        data.mfa_enrollment_required === true
+        (("mfa_enrollment_required" in data &&
+          data.mfa_enrollment_required === true) ||
+          ("password_change_required" in data &&
+            data.password_change_required === true))
       )
         navigate("/security");
     }

@@ -239,6 +239,7 @@ class MFA:
                 elif db.scalar(select(users.c.role).where(users.c.id==uid)) in REQUIRED_ROLES:
                     raise HTTPException(403,'Set up your authenticator app before changing your password.')
                 db.execute(update(credentials).where(credentials.c.user_id==uid).values(password_hash=new_hash))
+                db.execute(update(users).where(users.c.id==uid).values(must_change_password=0))
                 db.execute(delete(password_resets).where(password_resets.c.user_id==uid))
                 db.execute(delete(mfa_challenges).where(mfa_challenges.c.user_id==uid))
                 # Every other session ends; this one stays signed in.

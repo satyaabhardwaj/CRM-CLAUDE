@@ -105,7 +105,13 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
         user = signed_in(db, request)
         if mfa.enrollment_required(db, user):
             raise HTTPException(403, {'error':'Set up your authenticator app to continue.','mfa_enrollment_required':True})
+        if user.get('must_change_password'):
+            # After an administrator's reset: only Account security works until a new password is chosen.
+            raise HTTPException(403, {'error':'Choose a new password to continue.','password_change_required':True})
         return user
+
+    from .user_admin import register as register_users
+    register_users(app, engine, settings, who, mfa)
 
     @app.get('/api/health')
     def health():
@@ -146,6 +152,7 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
             email = db.execute(select(credentials.c.email).where(credentials.c.user_id==user['id'])).scalar_one_or_none()
             idle, absolute = auth.session_times(db, request.cookies.get('crm_session'), settings.session_max)
             return {**user, 'email': email, 'mfa_enrollment_required': mfa.enrollment_required(db,user),
+                    'must_change_password': bool(user.get('must_change_password')),
                     'idle_expires_at': idle, 'expires_at': absolute, 'now': int(time.time())}
 
     @app.post('/api/auth/activity')
@@ -244,7 +251,7 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
         with engine.connect() as db:
             try: user=signed_in(db,request)
             except HTTPException: return RedirectResponse('/login',status_code=303)
-            if mfa.enrollment_required(db,user): return RedirectResponse('/security',status_code=303)
+            if mfa.enrollment_required(db,user) or user.get('must_change_password'): return RedirectResponse('/security',status_code=303)
         if not path: return RedirectResponse('/sales/',status_code=303)
         if user['role']=='assigned': raise HTTPException(403,'Assigned users access /api/clients; legacy dashboards require workspace access.')
         target=(ROOT/path).resolve()

@@ -13,6 +13,8 @@ import { Overview, PeoplePage, ClientsPage } from "./Pages";
 import { Analysis } from "./Analysis";
 import { ClientDetail, PersonDetail } from "./Details";
 import { Select } from "./ui";
+import { UsersPage } from "./Users";
+import { currentUser } from "../../../shared/session";
 export const store = new ManagementStore();
 const tabs: readonly (readonly [Tab, string])[] = [
   ["overview", "Overview"],
@@ -20,9 +22,14 @@ const tabs: readonly (readonly [Tab, string])[] = [
   ["clients", "Client wise"],
   ["analysis", "Full analysis"],
 ];
+// Administrators also see Users (staff accounts); the server enforces it.
+const adminTabs: readonly (readonly [Tab, string])[] = [
+  ...tabs,
+  ["users", "Users"],
+];
 function route(): Tab {
   const hash = location.hash.slice(1);
-  return tabs.some(([id]) => id === hash) ? (hash as Tab) : "overview";
+  return adminTabs.some(([id]) => id === hash) ? (hash as Tab) : "overview";
 }
 class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -48,6 +55,7 @@ export function App() {
     [only, setOnly] = useState(""),
     [range, setRange] = useState<Range>("all"),
     [open, setOpen] = useState<Open | null>(null),
+    [admin, setAdmin] = useState(false),
     all = (state.data?.clients || []).filter((c) => c.stage !== "bin"),
     live = liveClients(all),
     shown = forPerson(live, who),
@@ -57,6 +65,15 @@ export function App() {
       open?.kind === "person"
         ? window.People.list.find((p) => p.id === open.id)
         : undefined;
+  useEffect(() => {
+    let live = true;
+    void currentUser().then((me) => {
+      if (live) setAdmin(me?.role === "admin");
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
   useEffect(() => {
     const onHash = () => {
       setTab(route());
@@ -96,7 +113,7 @@ export function App() {
       <AppHeader current="management" />
       <div className="crm-page-toolbar management-tools">
         <nav className="tabs" aria-label="Management views">
-          {tabs.map(([id, label]) => (
+          {(admin ? adminTabs : tabs).map(([id, label]) => (
             <button
               type="button"
               key={id}
@@ -108,18 +125,22 @@ export function App() {
             </button>
           ))}
         </nav>
-        <Select
-          label="Person"
-          value={who}
-          onChange={setWho}
-          options={[
-            ["", "Whole team"],
-            ...window.People.list.map(
-              (p) => [p.id, p.role + " · " + p.name] as [string, string],
-            ),
-          ]}
-        />
-        <span className="management-readonly">Read only</span>
+        {tab !== "users" && (
+          <>
+            <Select
+              label="Person"
+              value={who}
+              onChange={setWho}
+              options={[
+                ["", "Whole team"],
+                ...window.People.list.map(
+                  (p) => [p.id, p.role + " · " + p.name] as [string, string],
+                ),
+              ]}
+            />
+            <span className="management-readonly">Read only</span>
+          </>
+        )}
       </div>
       {(!state.data || state.error) && (
         <div
@@ -144,29 +165,35 @@ export function App() {
       {!state.data && !state.error && (
         <Skeleton tiles={4} label="Loading Management" />
       )}
-      {state.data && (
+      {tab === "users" && admin ? (
         <main className="body management-body">
-          {tab === "overview" ? (
-            <Overview shown={shown} live={live} who={who} show={setOpen} />
-          ) : tab === "people" ? (
-            <PeoplePage live={live} show={setOpen} />
-          ) : tab === "clients" ? (
-            <ClientsPage
-              shown={shown}
-              stage={stage}
-              only={only}
-              setStage={setStage}
-              setOnly={setOnly}
-              show={setOpen}
-            />
-          ) : (
-            <Analysis
-              all={forPerson(all, who)}
-              range={range}
-              setRange={setRange}
-            />
-          )}
+          <UsersPage />
         </main>
+      ) : (
+        state.data && (
+          <main className="body management-body">
+            {tab === "overview" || tab === "users" ? (
+              <Overview shown={shown} live={live} who={who} show={setOpen} />
+            ) : tab === "people" ? (
+              <PeoplePage live={live} show={setOpen} />
+            ) : tab === "clients" ? (
+              <ClientsPage
+                shown={shown}
+                stage={stage}
+                only={only}
+                setStage={setStage}
+                setOnly={setOnly}
+                show={setOpen}
+              />
+            ) : (
+              <Analysis
+                all={forPerson(all, who)}
+                range={range}
+                setRange={setRange}
+              />
+            )}
+          </main>
+        )
       )}
       {client && (
         <ClientDetail

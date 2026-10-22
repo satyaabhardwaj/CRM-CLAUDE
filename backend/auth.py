@@ -54,6 +54,7 @@ def issue(db, user_id, lifetime, realm="", absolute=None):
     token = secrets.token_urlsafe(32)
     db.execute(delete(sessions).where(sessions.c.expires<=int(time.time())))
     now = int(time.time())
+    db.execute(update(users).where(users.c.id==user_id).values(last_login=now))
     db.execute(insert(sessions).values(hash=digest(token),user_id=user_id,created=now,last_seen=now,
                                        expires=now+min(lifetime, absolute or lifetime)))
     if realm:

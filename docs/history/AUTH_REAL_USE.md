@@ -50,3 +50,9 @@ Production-ready sign-in, sessions, department roles and user management for the
 - Measurement marks its bell as read only for measurement and admin; other roles see the bell without saving.
 - Management is view-only for everyone already and shows no pill.
 - The account menu shows the role by name (Administrator, Sales, …, View only, Assigned clients).
+
+### Phase 5: Users page and CLI
+- `backend/users.py` holds the rules (shared by the API in `backend/user_admin.py` and the CLI `python -m backend.users`). Migration 0009 adds `must_change_password`, `last_login`, `created` to `crm_users`.
+- Users endpoints need an administrator with an enabled authenticator, except on a development laptop without an MFA key (same exception as the existing admin MFA rule).
+- Temporary passwords are 16 random URL-safe characters, shown once. `must_change_password` blocks every data API (403 `password_change_required`) and sends pages to `/security` until a new password is chosen.
+- Guards: no self-deactivation and no self-demotion (another administrator must do it); the last active administrator can never be deactivated or demoted; a role change ends that person's sessions; nothing is ever deleted. Every action is audited (`user.create`, `user.role`, `user.deactivate`, `user.reactivate`, `user.password_reset`).
