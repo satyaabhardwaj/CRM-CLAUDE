@@ -30,6 +30,8 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
                                     connect_args={'prepare_threshold':None,'connect_timeout':10})
     app = FastAPI(title='MAGPPIE CRM', version='0.1.0', docs_url=None, redoc_url=None, openapi_url=None)
     app.state.engine = engine
+    from .local_admin import ensure_default_admin
+    ensure_default_admin(engine, settings)
     realm = settings.auth_realm if settings.environment != 'development' else ''
     provider = authenticator or (lambda email,password: auth.authenticate(engine,email,password,realm))
 
