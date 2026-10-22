@@ -198,9 +198,9 @@ class MFA:
                     db.execute(update(mfa_challenges).where(mfa_challenges.c.hash==hashed).values(attempts=challenge['attempts']+1))
                     if self.verify(db,factor,body.code):
                         db.execute(delete(mfa_challenges).where(mfa_challenges.c.hash==hashed))
-                        token=auth.issue(db,row['user_id'],3600,self.realm);event(db,row['user_id'],'mfa.login')
+                        token=auth.issue(db,row['user_id'],self.settings.session_idle,self.realm,self.settings.session_max);event(db,row['user_id'],'mfa.login')
             if token is None:raise HTTPException(401,'Code is invalid, expired or already used.')
-            response=self.cookie(JSONResponse({'ok':True}),'crm_session',token,3600)
+            response=self.cookie(JSONResponse({'ok':True}),'crm_session',token,self.settings.session_max)
             response.delete_cookie('crm_mfa_challenge',path='/');return response
 
         def change(body,request,disable):

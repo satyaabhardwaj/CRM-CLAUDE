@@ -3,7 +3,7 @@ import secrets
 import time
 import hmac
 from fastapi import HTTPException
-from sqlalchemy import select, insert, delete
+from sqlalchemy import select, insert, delete, update, func
 from .models import sessions, users, credentials, auth_accounts, auth_sessions
 
 def digest(value):
@@ -44,7 +44,8 @@ def identity(db, token, realm=""):
             raise HTTPException(401, 'Session expired. Sign in again.')
     return dict(user)
 
-def issue(db, user_id, lifetime, realm=""):
+def issue(db, user_id, lifetime, realm="", absolute=None):
+    """New session. lifetime is the idle timeout; absolute (default: lifetime) caps it from sign-in."""
     user = db.execute(select(users).where(users.c.id==user_id,users.c.active==1)).first()
     if not user:
         raise HTTPException(403,'Your account has not been granted CRM access.')
@@ -52,7 +53,9 @@ def issue(db, user_id, lifetime, realm=""):
         require_realm(db, user_id, realm)
     token = secrets.token_urlsafe(32)
     db.execute(delete(sessions).where(sessions.c.expires<=int(time.time())))
-    db.execute(insert(sessions).values(hash=digest(token),user_id=user_id,expires=int(time.time())+lifetime))
+    now = int(time.time())
+    db.execute(insert(sessions).values(hash=digest(token),user_id=user_id,created=now,last_seen=now,
+                                       expires=now+min(lifetime, absolute or lifetime)))
     if realm:
         db.execute(insert(auth_sessions).values(hash=digest(token), realm=realm))
     return token
@@ -61,3 +64,24 @@ def issue(db, user_id, lifetime, realm=""):
 def require_realm(db, user_id, realm):
     if db.execute(select(auth_accounts.c.user_id).where(auth_accounts.c.user_id==user_id, auth_accounts.c.realm==realm)).first() is None:
         raise HTTPException(401, 'Email or password is incorrect.')
+
+
+RENEW_EVERY = 60
+
+
+def touch(db, token, idle, absolute):
+    """Slide the idle expiry after real activity, at most once a minute, never past sign-in + absolute."""
+    if not token:
+        return False
+    now = int(time.time())
+    result = db.execute(update(sessions).where(sessions.c.hash==digest(token), sessions.c.expires>now,
+                                               sessions.c.last_seen<=now-RENEW_EVERY)
+        .values(last_seen=now, expires=func.min(now+idle, sessions.c.created+absolute) if db.dialect.name=='sqlite'
+                else func.least(now+idle, sessions.c.created+absolute)))
+    return result.rowcount == 1
+
+
+def session_times(db, token, absolute):
+    """(idle expiry, absolute expiry) of a live session, for the sign-out warning."""
+    row = db.execute(select(sessions.c.expires, sessions.c.created).where(sessions.c.hash==digest(token or ''))).first()
+    return (row[0], row[1]+absolute) if row else (None, None)
