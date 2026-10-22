@@ -4,6 +4,19 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ## Unreleased
 
+### Phase 7: cloud readiness pack (22 Oct, documentation only)
+- `docs/DEPLOYMENT.md` rewritten as the readiness pack. It covers:
+  - environments, and the variables per environment (names only);
+  - the migration order and the runtime-role command;
+  - the Gate B and Gate C step lists;
+  - a cutover runbook with rollback;
+  - the backup schedule, monitoring and alerts;
+  - the decisions still open.
+- No cloud resource was created or changed.
+
+## v1.0-rc5 (22 Oct, df57e00)
+UI polish: design system, one shared app shell, components on every screen, smooth refresh, and full verification. See the Phase 1–6 entries below.
+
 ### UI polish, Phase 6: verification (22 Oct)
 - **New checks:**
   - `npm run ui:a11y`: accessible names, landmarks, a keyboard Tab walk, and Escape for the drawer, bell and user menu.
