@@ -72,11 +72,19 @@ export function inspect(opts) {
   // Popovers the state opened on purpose (bell, user menu, dialogs, drawer) may cover the page; only
   // collisions inside one layer, or with something not opened on purpose, count.
   // The floating New opportunity button and an opened Also today panel float above the page on purpose.
-  const OVERLAYS = '.bell-panel, .user-menu-panel, dialog[open], .crm-drawer, .app-primary, .rail.sales-rail-open, .rail.design-rail-open';
+  const OVERLAYS = '.bell-panel, .user-menu-panel, dialog[open], .crm-drawer, .app-primary, .rail.rail-open, .rail-backdrop';
   const layer = (el) => (el && el.closest ? el.closest(OVERLAYS) : null);
   const crossesOverlay = (a, b) => layer(a) !== layer(b) && (layer(a) || layer(b));
-  // Content scrolled under the sticky header is hidden by design, not by a layout fault.
-  const underHeader = (a, b) => !!a.closest('.app-header') !== !!b.closest('.app-header');
+  // Content scrolled under a pinned bar (sticky header, sticky table head, dialog header, toast,
+  // floating button) is hidden by design, not by a layout fault.
+  const pinned = (el) => {
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const pos = getComputedStyle(n).position;
+      if (pos === 'sticky' || pos === 'fixed') return n;
+    }
+    return null;
+  };
+  const underHeader = (a, b) => pinned(a) !== pinned(b);
 
   // 1. Horizontal page overflow and its widest causes.
   const docW = document.documentElement.scrollWidth;
@@ -199,7 +207,8 @@ export function inspect(opts) {
     if (/auto|scroll/.test(cs.overflowX) && clipsX && !clipsY) continue; // scrolls, not clipped
     const ellipsis = cs.textOverflow === 'ellipsis' || cs.webkitLineClamp !== 'none' && cs.webkitLineClamp;
     if (ellipsis) {
-      if (!el.title && !el.closest('[title]')) add('truncated-no-tooltip', el, {});
+      // Pages with the shell's hover handler (useAutoTitle) give every ellipsis a tooltip on hover.
+      if (!el.title && !el.closest('[title]') && !window.__crmAutoTitle) add('truncated-no-tooltip', el, {});
       continue;
     }
     add('clipped-text', el, { scrollW: el.scrollWidth, clientW: el.clientWidth, scrollH: el.scrollHeight, clientH: el.clientHeight });
@@ -227,7 +236,9 @@ export function inspect(opts) {
   if (touch) {
     for (const el of interactive) {
       if (el.tagName === 'A' && getComputedStyle(el).display === 'inline' && el.parentElement && /^(P|LI|SPAN)$/.test(el.parentElement.tagName)) continue;
-      const r = el.getBoundingClientRect();
+      // A checkbox or radio is tapped through its label, so the label is the target.
+      const target = el.matches('input[type=checkbox], input[type=radio]') && el.closest('label') ? el.closest('label') : el;
+      const r = target.getBoundingClientRect();
       if (r.width < 44 || r.height < 44) {
         if (r.bottom < 0 || r.top > vh * 3) continue;
         add('touch-target', el, { w: Math.round(r.width), h: Math.round(r.height) });

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { upload } from "./data";
+import { StableLabel } from "../../../backend/react/src/Shell";
 export const now = () => new Date().toISOString();
 export const money = (v: unknown) =>
   "₹" + (Number(v) || 0).toLocaleString("en-IN");
@@ -259,7 +260,7 @@ export function Attachment({
           {label} <FileLink owner={owner} name={name} />
         </span>
         <label className="btn small">
-          {busy ? "Uploading…" : "Upload"}
+          <StableLabel busy={busy} idle="Upload" working="Uploading…" />
           <input
             aria-label={label + " upload"}
             type="file"

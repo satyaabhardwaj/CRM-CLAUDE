@@ -1,5 +1,5 @@
 import { Sidebar } from "../../../backend/react/src/Sidebar";
-import { AppHeader } from "../../../backend/react/src/Shell";
+import { AppHeader, StableLabel } from "../../../backend/react/src/Shell";
 import {
   Component,
   lazy,
@@ -139,7 +139,11 @@ function App() {
               disabled={live.loading}
               onClick={() => void live.refresh(true)}
             >
-              {live.loading ? "Refreshing…" : "Refresh"}
+              <StableLabel
+                busy={live.loading}
+                idle="Refresh"
+                working="Refreshing…"
+              />
             </button>
           </div>
           {!ready ? (

@@ -1,4 +1,4 @@
-import { AppHeader } from "../../../backend/react/src/Shell";
+import { AppHeader, Skeleton } from "../../../backend/react/src/Shell";
 import {
   Component,
   useEffect,
@@ -140,6 +140,9 @@ export function App() {
             </>
           )}
         </div>
+      )}
+      {!state.data && !state.error && (
+        <Skeleton tiles={4} label="Loading Management" />
       )}
       {state.data && (
         <main className="body management-body">

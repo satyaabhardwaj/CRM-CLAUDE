@@ -1,4 +1,6 @@
 import type { Client, Show } from "./types";
+import { useRef } from "react";
+import { useCardLabels } from "../../../backend/react/src/Shell";
 import {
   K,
   S,
@@ -188,6 +190,8 @@ export function PeoplePage({ live, show }: { live: Client[]; show: Show }) {
       };
     })
     .sort((a, b) => b.v[2] - a.v[2]);
+  const table = useRef<HTMLDivElement>(null);
+  useCardLabels(table);
   type Row = (typeof rows)[number];
   const defs: [string, (r: Row) => number, boolean][] = [
     ["Clients", (r) => r.s.mine.length, false],
@@ -212,7 +216,7 @@ export function PeoplePage({ live, show }: { live: Client[]; show: Show }) {
         Watch = 10% or more. The highest number in each problem column is red.
       </div>
       <section className="card management-table">
-        <div className="management-scroll">
+        <div className="management-scroll cardify" ref={table}>
           <div className="row head management-people-row">
             {[
               "Sales person",
@@ -300,6 +304,8 @@ export function ClientsPage({
   show: Show;
 }) {
   const rows = clientRows(shown, stage, only);
+  const table = useRef<HTMLDivElement>(null);
+  useCardLabels(table);
   return (
     <div className="mg">
       <div className="mg-wait">
@@ -326,7 +332,7 @@ export function ClientsPage({
         </div>
       </div>
       <section className="card management-table">
-        <div className="management-scroll">
+        <div className="management-scroll cardify" ref={table}>
           <div className="row head management-client-row">
             {[
               "Client",

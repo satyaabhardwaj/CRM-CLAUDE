@@ -2,7 +2,9 @@ import { Sidebar } from "../../../backend/react/src/Sidebar";
 import {
   AppHeader,
   BellPlaceholder,
+  Rail,
   ShellIcon,
+  Skeleton,
 } from "../../../backend/react/src/Shell";
 import {
   Component,
@@ -406,6 +408,9 @@ export function App() {
           )}
         </div>
       )}
+      {!status.ready && !status.error && (
+        <Skeleton sidebar tiles={6} label="Loading Sales" />
+      )}
       {status.ready && (
         <div className="body">
           <Sidebar
@@ -450,12 +455,9 @@ export function App() {
             </div>
           </main>
           {!dash.page && (
-            <aside
-              className={"rail" + (rail ? " sales-rail-open" : "")}
-              aria-label="Also today"
-            >
+            <Rail open={rail} onClose={() => setRail(false)}>
               <SidePanel ctx={ctx} />
-            </aside>
+            </Rail>
           )}
         </div>
       )}

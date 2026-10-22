@@ -32,6 +32,11 @@ Options: `--out DIR`, `--only REGEX` (screen ids), `--widths 320,390,…`, `--br
   - **Background refresh:** a second API client saves a change, and the open page polls it in. The audit then checks focus, scroll position and CLS after two polls.
   - **Tab switch:** CLS, plus whether sibling tabs move.
   - **Data states:** 0 rows, 1 row, a loading state (API delayed 3 s), and an error state (API 503) on every landing page.
+- What does not count as a fault:
+  - covering by something the state opened on purpose: the bell or user-menu panel, a dialog, the drawer, an opened "Also today" panel, the floating New opportunity button;
+  - content scrolled under a pinned bar (any sticky or fixed element, such as the header, a sticky table head, a dialog header or the toast);
+  - an ellipsis on a page where the shell's hover tooltip (`useAutoTitle`) is installed;
+  - a checkbox measured by its label, which is what a person taps.
 - `report.mjs` groups the findings by component and ranks them by severity × number of screens × number of widths. It writes `issues.json` and `summary.md`.
 
 Screenshots and results go to `.local/ui-polish/` (ignored); nothing from a run is committed.

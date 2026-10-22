@@ -1,4 +1,8 @@
-import { AppHeader, BellPlaceholder } from "../../../backend/react/src/Shell";
+import {
+  AppHeader,
+  BellPlaceholder,
+  Skeleton,
+} from "../../../backend/react/src/Shell";
 import { Component, useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -125,11 +129,11 @@ function App() {
             </p>
           )}
           {!store.data ? (
-            <p role="status">
-              {store.error
-                ? "Accounts data is unavailable."
-                : "Loading saved Accounts data…"}
-            </p>
+            store.error ? (
+              <p role="status">Accounts data is unavailable.</p>
+            ) : (
+              <Skeleton inline tiles={4} label="Loading saved Accounts data" />
+            )
           ) : (
             <>
               {!store.writable && (

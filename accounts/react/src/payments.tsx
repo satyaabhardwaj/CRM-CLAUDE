@@ -29,6 +29,7 @@ import {
   type Receipt,
 } from "./model";
 import type { Save } from "./store";
+import { StableLabel } from "../../../backend/react/src/Shell";
 const blank = (): Receipt => ({
   amount: 0,
   date: K().today(),
@@ -217,13 +218,17 @@ export function PaymentForm({
           type="submit"
           disabled={saving || !writable}
         >
-          {saving
-            ? "Saving…"
-            : uncertain
-              ? "Retry payment"
-              : client
-                ? "Record payment"
-                : "Save payment"}
+          <StableLabel
+            busy={saving}
+            idle={
+              uncertain
+                ? "Retry payment"
+                : client
+                  ? "Record payment"
+                  : "Save payment"
+            }
+            working="Saving…"
+          />
         </button>
       </form>
     </Card>

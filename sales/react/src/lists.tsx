@@ -82,18 +82,20 @@ export function ClientList({
           rows.map(({ c, sub, pill, priority }) => (
             <div className="mini" key={c.id}>
               {selecting && (
-                <input
-                  type="checkbox"
-                  aria-label={"Select " + c.name}
-                  checked={selected.includes(c.id)}
-                  onChange={(e) =>
-                    setSelected(
-                      e.target.checked
-                        ? [...selected, c.id]
-                        : selected.filter((id) => id !== c.id),
-                    )
-                  }
-                />
+                <label className="tap-check">
+                  <input
+                    type="checkbox"
+                    aria-label={"Select " + c.name}
+                    checked={selected.includes(c.id)}
+                    onChange={(e) =>
+                      setSelected(
+                        e.target.checked
+                          ? [...selected, c.id]
+                          : selected.filter((id) => id !== c.id),
+                      )
+                    }
+                  />
+                </label>
               )}
               <button
                 type="button"
@@ -259,16 +261,36 @@ export function Grid({
 }) {
   // Columns travel as a CSS variable so narrow layouts can re-flow rows without !important.
   const grid = { "--row-cols": cols } as CSSProperties;
+  // A column whose filled cells are all numbers or amounts is right-aligned.
+  const numeric = heads.map(
+    (_, i) =>
+      rows.length > 0 &&
+      rows.every((r) => {
+        const v = r.cells[i];
+        return (
+          v == null ||
+          v === "" ||
+          typeof v === "number" ||
+          (typeof v === "string" &&
+            /^[-+₹\s\d.,]+(\s?(L|Cr|K|%))?(\s*\(\d+\))?$/.test(v))
+        );
+      }),
+  );
+  // On phones each row becomes a card, so every cell carries its column name.
+  const label = (i: number) =>
+    typeof heads[i] === "string" ? (heads[i] as string) : undefined;
   return (
     <section className="card list">
       <div className="list-h">
         <h1>{title}</h1>
         {tools}
       </div>
-      <div className="rows">
+      <div className="rows cardify">
         <div className="row head grid-cols" style={grid}>
           {heads.map((h, i) => (
-            <div key={i}>{h}</div>
+            <div key={i} className={numeric[i] ? "num" : undefined}>
+              {h}
+            </div>
           ))}
         </div>
         {rows.length ? (
@@ -282,13 +304,25 @@ export function Grid({
                 onClick={r.onClick}
               >
                 {r.cells.map((cell, i) => (
-                  <span key={i}>{cell}</span>
+                  <span
+                    key={i}
+                    data-label={label(i)}
+                    className={numeric[i] ? "num" : undefined}
+                  >
+                    {cell}
+                  </span>
                 ))}
               </button>
             ) : (
               <div key={r.id} className="row grid-cols" style={grid}>
                 {r.cells.map((cell, i) => (
-                  <span key={i}>{cell}</span>
+                  <span
+                    key={i}
+                    data-label={label(i)}
+                    className={numeric[i] ? "num" : undefined}
+                  >
+                    {cell}
+                  </span>
                 ))}
               </div>
             ),

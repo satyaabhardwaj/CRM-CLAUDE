@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import { useCardLabels } from "../../../backend/react/src/Shell";
 import type { Context, WindowKind } from "./types";
 import type { DesignClient as Client } from "./model";
 import { rules } from "./model";
@@ -363,9 +364,11 @@ export function Pre({ ctx, all }: { ctx: Context; all: Client[] }) {
 }
 export function Board({ all, ctx }: { all: Client[]; ctx: Context }) {
   const rows = all.filter(rules().handed).filter((c) => !c.factoryAt);
+  const table = useRef<HTMLDivElement>(null);
+  useCardLabels(table);
   return (
     <section className="card design-board">
-      <div className="design-table-scroll">
+      <div className="design-table-scroll cardify" ref={table}>
         <div className="board-row head design-board-grid">
           {[
             "Client (" + rows.length + ")",
@@ -414,9 +417,11 @@ export function Board({ all, ctx }: { all: Client[]; ctx: Context }) {
 export function Tracker({ all, ctx }: { all: Client[]; ctx: Context }) {
   const L = rules(),
     rows = all.filter(L.handed);
+  const table = useRef<HTMLDivElement>(null);
+  useCardLabels(table);
   return (
     <section className="card design-board">
-      <div className="design-table-scroll">
+      <div className="design-table-scroll cardify" ref={table}>
         <div className="board-row head design-tracker-grid">
           {[
             "Client (" + rows.length + ")",

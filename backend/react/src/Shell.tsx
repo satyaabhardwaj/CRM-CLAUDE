@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { HeaderSession } from "./Auth";
 
 // The one breakpoint set (keep in step with shared/tokens.css).
@@ -69,6 +76,7 @@ export function AppHeader({
   primary?: ReactNode;
 }) {
   const [searching, setSearching] = useState(false);
+  useAutoTitle();
   const searchBox = useRef<HTMLDivElement>(null),
     tabs = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -182,4 +190,190 @@ export function BellPlaceholder() {
       </button>
     </div>
   );
+}
+
+// A button whose label changes while busy keeps one width: both labels share a grid cell.
+export function StableLabel({
+  busy,
+  idle,
+  working,
+}: {
+  busy: boolean;
+  idle: ReactNode;
+  working: ReactNode;
+}) {
+  return (
+    <span className="btn-stack">
+      <span aria-hidden={busy}>{idle}</span>
+      <span aria-hidden={!busy}>{working}</span>
+    </span>
+  );
+}
+
+// Placeholder in the shape of a module's first screen, shown until its data arrives.
+export function Skeleton({
+  sidebar = false,
+  tiles = 5,
+  cards = 2,
+  label = "Loading",
+  inline = false,
+}: {
+  sidebar?: boolean;
+  tiles?: number;
+  cards?: number;
+  label?: string;
+  // Inside an existing main column: only the content placeholders.
+  inline?: boolean;
+}) {
+  const content = (
+    <div
+      className={inline ? "skeleton" : "main skeleton"}
+      role={inline ? "status" : undefined}
+      aria-label={inline ? label : undefined}
+      aria-hidden={inline ? undefined : true}
+    >
+      <div className="skeleton-tiles">
+        {Array.from({ length: tiles }, (_, i) => (
+          <div className="skeleton-tile" key={i}>
+            <span className="skeleton-bar" style={{ width: "60%" }} />
+            <span
+              className="skeleton-bar"
+              style={{ width: "80%", height: 18, marginTop: 12 }}
+            />
+          </div>
+        ))}
+      </div>
+      {Array.from({ length: cards }, (_, i) => (
+        <div className="skeleton-card" key={i}>
+          {[45, 90, 85, 92, 70].map((w, j) => (
+            <span key={j} className="skeleton-bar" style={{ width: w + "%" }} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+  if (inline) return content;
+  return (
+    <div className="body" aria-busy="true" aria-label={label}>
+      {sidebar && (
+        <div className="crm-sidebar skeleton-sidebar" aria-hidden="true">
+          {[60, 80, 70, 75, 65].map((w, i) => (
+            <span
+              key={i}
+              className="skeleton-bar"
+              style={{ width: w + "%", margin: "15px 12px" }}
+            />
+          ))}
+        </div>
+      )}
+      {content}
+    </div>
+  );
+}
+
+// Text cut off with an ellipsis shows its full text as a tooltip on hover. One listener for every
+// list, row and card, so no screen has to remember to add titles.
+export function useAutoTitle() {
+  useEffect(() => {
+    const show = (e: Event) => {
+      const el = e.target instanceof Element ? e.target : null;
+      if (!el || el.hasAttribute("title") || el.closest("[title]")) return;
+      const cs = getComputedStyle(el);
+      if (cs.textOverflow !== "ellipsis" || el.scrollWidth <= el.clientWidth)
+        return;
+      el.setAttribute("title", (el.textContent || "").trim());
+    };
+    document.addEventListener("pointerover", show);
+    (window as unknown as { __crmAutoTitle?: boolean }).__crmAutoTitle = true;
+    return () => document.removeEventListener("pointerover", show);
+  }, []);
+}
+
+// "Also today": a column beside the page from 1280; below that a side panel with a backdrop,
+// a close button, Escape to close, and focus moved into it.
+export function Rail({
+  open,
+  onClose,
+  children,
+  label = "Also today",
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+  label?: string;
+}) {
+  const panel = useRef<HTMLElement>(null),
+    closer = useRef(onClose);
+  closer.current = onClose;
+  // Runs only when the panel opens or closes, so background refreshes never move focus.
+  useEffect(() => {
+    if (!open) return;
+    const floating = matchMedia(
+      `(max-width: ${BREAKPOINTS.xl - 0.02}px)`,
+    ).matches;
+    const opener = document.activeElement as HTMLElement | null;
+    if (floating)
+      panel.current?.querySelector<HTMLElement>(".rail-head button")?.focus();
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closer.current();
+    };
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("keydown", key);
+      if (floating && opener?.isConnected) opener.focus();
+    };
+  }, [open]);
+  return (
+    <>
+      {open && (
+        <button
+          type="button"
+          className="rail-backdrop"
+          aria-label={"Close " + label}
+          tabIndex={-1}
+          onClick={onClose}
+        />
+      )}
+      <aside
+        ref={panel}
+        className={"rail" + (open ? " rail-open" : "")}
+        aria-label={label}
+      >
+        <div className="rail-head">
+          <b>{label}</b>
+          <button
+            type="button"
+            className="app-icon-button"
+            aria-label={"Close " + label}
+            onClick={onClose}
+          >
+            <ShellIcon name="close" />
+          </button>
+        </div>
+        {children}
+      </aside>
+    </>
+  );
+}
+
+// Grid tables whose head row is a sibling of the data rows: copy each heading onto its column's
+// cells (shown as card labels on phones) and right-align a heading when its column is numeric.
+// Attributes only; React keeps owning the content.
+export function useCardLabels(box: RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    const el = box.current;
+    const head = el?.querySelector<HTMLElement>(":scope > .head");
+    if (!el || !head) return;
+    // A heading may carry a count box; its label is the bold text when there is one.
+    const names = [...head.children].map((c) =>
+      ((c.querySelector("b") || c).textContent || "").trim(),
+    );
+    const rows = [...el.children].filter((r) => r !== head);
+    names.forEach((name, i) => {
+      const cells = rows.map((r) => r.children[i]).filter(Boolean);
+      for (const cell of cells) cell.setAttribute("data-label", name);
+      if (cells.length && cells.every((c) => c.classList.contains("num")))
+        head.children[i]?.classList.add("num");
+    });
+  });
 }

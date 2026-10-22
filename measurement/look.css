@@ -23,7 +23,7 @@
 .m-toolbar input {
   width: 240px;
   max-width: 100%;
-  min-height: 36px;
+  min-height: var(--tap);
   padding: 8px 12px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-sm);
@@ -117,6 +117,8 @@
   border-radius: var(--radius-md);
 }
 .m-dialog .m-check {
+  min-width: var(--tap);
+  min-height: var(--tap);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -146,6 +148,18 @@
   min-height: 280px;
   background: #e9eef0;
   border-radius: var(--radius-lg);
+}
+/* Map controls are touch-sized (Leaflet's own are 30 px). */
+.m-map.leaflet-touch .leaflet-bar a,
+.m-map .leaflet-bar a {
+  width: var(--tap);
+  height: var(--tap);
+  line-height: var(--tap);
+}
+.m-map .leaflet-control-attribution a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-sm);
 }
 .m-map .leaflet-interactive:focus {
   outline: 3px solid #111;

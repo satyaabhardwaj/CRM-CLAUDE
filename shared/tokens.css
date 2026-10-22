@@ -95,6 +95,12 @@
   --color-danger-soft: #fce9e7;
   --color-on-dark: #ffffff;
   --color-backdrop: #172b4d66;
+  --color-subtle: #f3f4f6;
+  --color-neutral-soft: #eef0f3;
+  --color-neutral-ink: #424245;
+  --color-strong: #1d1d1f;
+  --color-success-strong: #1e8e3e;
+  --color-warning-strong: #e0a800;
 
   /* Legacy names, kept as aliases while screens move over. */
   --page: var(--color-page);
@@ -111,6 +117,18 @@
   --ui-shadow: var(--shadow-1);
   --ui-focus: var(--color-focus);
   --ui-font: var(--font);
+}
+/* Control size actually used: mouse sizes on desktop, 44 px touch targets on touch screens and below 1024. */
+:root {
+  --tap: var(--control-md);
+  --tap-sm: var(--control-sm);
+  --row-h: 52px;
+}
+@media (max-width: 1023.98px), (pointer: coarse) {
+  :root {
+    --tap: var(--control-lg);
+    --tap-sm: var(--control-lg);
+  }
 }
 @media (min-width: 768px) {
   :root {

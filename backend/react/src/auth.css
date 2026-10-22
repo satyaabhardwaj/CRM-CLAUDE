@@ -202,15 +202,17 @@ body {
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px;
-  align-items: baseline;
+  align-items: center;
   margin-top: 18px;
 }
 .auth-label-row label {
   margin: 0;
 }
 .auth-label-row a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-sm);
   font-size: 13px;
-  padding: 5px 0;
 }
 .auth-password {
   position: relative;

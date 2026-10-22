@@ -22,7 +22,8 @@ function rules(css) {
       buf = '';
     } else if (ch === '}') {
       const head = stack.pop();
-      if (head !== undefined && !head.startsWith('@')) out.push([head, buf.trim(), stack.filter((s) => s.startsWith('@media')).join(' ')]);
+      // Keyframe steps (from, to, 50%) are not selectors.
+      if (head !== undefined && !head.startsWith('@') && !stack.some((s) => s.startsWith('@keyframes'))) out.push([head, buf.trim(), stack.filter((s) => s.startsWith('@media')).join(' ')]);
       buf = '';
     } else buf += ch;
   }

@@ -1,5 +1,10 @@
 import { Sidebar } from "../../../backend/react/src/Sidebar";
-import { AppHeader, BellPlaceholder } from "../../../backend/react/src/Shell";
+import {
+  AppHeader,
+  BellPlaceholder,
+  Rail as RailPanel,
+  Skeleton,
+} from "../../../backend/react/src/Shell";
 import {
   Component,
   useEffect,
@@ -251,6 +256,12 @@ export function App() {
         />
       </div>
       {statusUI()}
+      {!status.ready && !status.error && (
+        <>
+          <div className="stagebar" aria-hidden="true" />
+          <Skeleton sidebar label="Loading Design" />
+        </>
+      )}
       {status.ready && (
         <>
           <div className="stagebar" role="tablist" aria-label="Design stages">
@@ -328,12 +339,9 @@ export function App() {
               )}
             </main>
             {tab !== "today" && (
-              <aside
-                className={"rail" + (rail ? " design-rail-open" : "")}
-                aria-label="Also today"
-              >
+              <RailPanel open={rail} onClose={() => setRail(false)}>
                 <Rail all={filtered} ctx={ctx} />
-              </aside>
+              </RailPanel>
             )}
           </div>
         </>

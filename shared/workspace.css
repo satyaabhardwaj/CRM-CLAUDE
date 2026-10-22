@@ -86,9 +86,6 @@ body {
     overflow-x: auto;
     overflow-y: hidden;
   }
-  #app > .body > .rail:not(.sales-rail-open):not(.design-rail-open) {
-    display: none;
-  }
 }
 @media (min-width: 1024px) {
   html,
@@ -238,8 +235,8 @@ body {
 }
 .app-header-search input {
   width: 100%;
-  height: var(--control-md);
-  min-height: var(--control-md);
+  height: var(--tap);
+  min-height: var(--tap);
   padding: 0 var(--space-3);
   border: 1px solid var(--color-edge);
   border-radius: var(--radius-md);
@@ -329,7 +326,7 @@ body {
     position: static;
   }
   .app-primary .btn {
-    min-height: var(--control-md);
+    min-height: var(--tap);
     padding: 0 var(--space-4);
     box-shadow: none;
     font-size: var(--text-13);
@@ -486,6 +483,8 @@ body {
   flex: none;
   display: flex;
   gap: var(--space-1);
+  /* Same height empty (while loading) as with tabs, so nothing below moves. */
+  min-height: calc(var(--tabs-h) + 1px);
   padding: 0 var(--page-gutter);
   overflow-x: auto;
   scrollbar-width: none;
@@ -571,27 +570,6 @@ body {
   .management-tools .management-select {
     padding-block: var(--space-2);
   }
-}
-
-/* ---------- Status bars under the toolbar ---------- */
-.sales-status,
-.design-status,
-.management-status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: var(--control-lg);
-  padding: var(--space-2) var(--page-gutter);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-line);
-  font-size: var(--text-13);
-  overflow-wrap: anywhere;
-}
-.sales-status[role="alert"],
-.design-status[role="alert"],
-.management-status[role="alert"] {
-  color: var(--color-danger);
 }
 
 /* ---------- Sidebar (desktop) and drawer (below 1024) ---------- */
@@ -765,9 +743,11 @@ body {
   border-bottom: 1px solid var(--color-line);
 }
 
-/* ---------- "Also today" panel below 1280 ---------- */
+/* ---------- "Also today": a column from 1280, a side panel below ---------- */
 .sales-rail-toggle,
-.design-rail-toggle {
+.design-rail-toggle,
+.rail-head,
+.rail-backdrop {
   display: none;
 }
 @media (max-width: 1279.98px) {
@@ -780,40 +760,69 @@ body {
   #app > .body > .rail {
     display: none;
   }
-  #app > .body > .rail.sales-rail-open,
-  #app > .body > .rail.design-rail-open {
+  #app > .body > .rail.rail-open {
     position: fixed;
-    top: calc(var(--header-h) + var(--tabs-h) + 1px);
+    top: 0;
     right: 0;
     bottom: 0;
     z-index: var(--z-drawer);
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    width: min(340px, calc(100vw - 48px));
-    padding: var(--space-3);
+    width: min(360px, calc(100vw - 48px));
+    padding: 0 var(--space-3) var(--space-6);
     overflow-y: auto;
+    overscroll-behavior: contain;
     background: var(--color-page);
-    border-left: 1px solid var(--color-line);
     box-shadow: var(--shadow-3);
+    animation: rail-enter var(--motion-base) var(--ease);
+  }
+  .rail-open .rail-head {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-raised);
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    min-height: var(--header-h);
+    margin: 0 calc(-1 * var(--space-3));
+    padding: 0 var(--space-2) 0 var(--space-4);
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-line);
+  }
+  .rail-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-drawer) - 1);
+    display: block;
+    border: 0;
+    background: var(--color-backdrop);
+    cursor: default;
   }
 }
-@media (min-width: 1024px) and (max-width: 1279.98px) {
-  #app > .body > .rail.sales-rail-open,
-  #app > .body > .rail.design-rail-open {
-    top: calc(var(--header-h) + 1px);
+@keyframes rail-enter {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
   }
 }
 @media (min-width: 1280px) {
   #app > .body > .rail {
     display: flex;
+    flex: 0 0 300px;
     flex-direction: column;
     gap: var(--space-4);
-    flex: 0 0 300px;
     width: 300px;
     min-height: 0;
     overflow-y: auto;
   }
+}
+
+.skeleton-sidebar {
+  pointer-events: none;
 }
 
 /* ---------- Page header ---------- */
@@ -1027,16 +1036,8 @@ body {
     height: auto;
     clip-path: none;
   }
-  .architects-page .row > span:nth-child(5)::before {
-    content: "Orders";
-  }
-  .architects-page .row > span:nth-child(6)::before {
-    content: "Order value";
-  }
-  .architects-page .row > span:nth-child(7)::before {
-    content: "Success fees";
-  }
-  .architects-page .row > span:nth-child(n + 5)::before {
+  .architects-page .row > span[data-label]:not(:has(.field))::before {
+    content: attr(data-label);
     display: block;
     margin-bottom: var(--space-1);
     color: var(--color-ink-3);

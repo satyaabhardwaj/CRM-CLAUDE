@@ -4,6 +4,30 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ## Unreleased
 
+### UI polish, Phase 4: components on every screen (22 Oct)
+- **Shared component CSS:** `shared/look.css` is one tokenised component layer, with the old "calmer colours" overrides folded in.
+- **Touch sizes** (`--tap`): buttons, fields, list rows, steps and map controls are 44 px on touch screens and below 1024. With a mouse they are 40 px (32 px for small).
+- **Buttons:**
+  - one set: default, dark, line, warn, small and round;
+  - a busy button keeps its width (`StableLabel`: Upload, Refresh, Save payment).
+- **Chips:** one system, with status pills and priority tags sharing size and semantic colours.
+- **Tables:**
+  - numeric columns are right-aligned, and rows have a fixed minimum height;
+  - below 768 the Sales lists, Accounts tables, Management people and client tables, and the Design board and tracker become labelled cards (`cardify`, `useCardLabels`);
+  - master data stays a sideways-scrolling table, so all of its 40 columns stay reachable.
+- **Tooltips:** any text cut off with "…" shows its full text on hover (`useAutoTitle`, everywhere).
+- **Windows (dialogs):**
+  - full-screen sheets on phones, with a sticky close bar;
+  - the page behind does not scroll;
+  - native focus trap, and focus returns to the opener.
+- **Bell panel:** stays inside the screen at every width.
+- **"Also today":** below 1280 it is a side panel with a backdrop, a close button and Escape; focus moves in and comes back.
+- **Saving, saved, read-only and error notices:** one toast position (top on phones, bottom-left on desktop), so they no longer push the page.
+- **Loading:** skeletons in the shape of each module's first screen. Empty states have one centred style.
+- **Fixes:**
+  - Design's list rows no longer render as unstyled native buttons;
+  - the Accounts Summary no longer overflows on phones.
+
 ### UI polish, Phase 3: design system and app shell (22 Oct)
 - **Tokens** (`shared/tokens.css`): spacing, type scale with fixed line heights, weights, radius, shadows, control heights, a z-index scale, motion and semantic colours. The old names stay as aliases.
 - **One breakpoint set everywhere: 640 / 768 / 1024 / 1280.** It replaces 600/700/1000/1100/1200 in CSS and the 700 px JavaScript query.

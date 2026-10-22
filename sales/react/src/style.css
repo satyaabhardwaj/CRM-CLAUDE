@@ -78,6 +78,7 @@
   grid-column: span 3;
 }
 .sales-list-pick {
+  min-height: var(--tap);
   display: flex;
   flex: 1;
   align-items: center;
@@ -196,17 +197,5 @@
   .sales-dialog .flexrow,
   .sales-dialog .tl {
     flex-wrap: wrap;
-  }
-  .bell-panel {
-    position: fixed;
-    top: calc(var(--header-h) + var(--space-2));
-    right: var(--space-3);
-    left: var(--space-3);
-    width: auto;
-    max-height: 70dvh;
-    overflow: auto;
-  }
-  .bell-panel .bell-col {
-    min-width: 0;
   }
 }

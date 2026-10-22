@@ -145,7 +145,7 @@ export function Table({
 }) {
   return (
     <div className="a-table-scroll">
-      <table className="a-table">
+      <table className="a-table cardify">
         <thead>
           <tr>
             {headers.map((h) => (
@@ -203,7 +203,7 @@ export function Clients({ clients, open }: { clients: Client[]; open: Open }) {
         </span>
       </div>
       <section className="card a-table-scroll">
-        <table className="a-table">
+        <table className="a-table cardify">
           <thead>
             <tr>
               {[
