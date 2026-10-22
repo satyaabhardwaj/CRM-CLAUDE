@@ -17,10 +17,12 @@ from .auth import digest
 
 def register(app,engine,settings,who):
     files = Attachments(settings)
-    def admin(request):
+    # External actions (signing, voice notes, scratch uploads) belong to Sales' order forms; factory mail
+    # (always refused while disabled) to Accounts and Design. Administrators may do all of them.
+    def admin(request, roles=('admin','sales')):
         with engine.connect() as db:
             user=who(db,request)
-            if user['role']!='admin': raise HTTPException(403,'Administrator access required for external actions.')
+            if user['role'] not in roles: raise HTTPException(403,'Your role cannot use this external action.')
             return user
 
     def temp_owner(user): return 'temporary-'+digest(user['id'])[:32]
@@ -105,7 +107,7 @@ def register(app,engine,settings,who):
 
     @app.post('/api/mail/send')
     async def mail(request:Request):
-        admin(request);body=await json_body(request)
+        admin(request,('admin','accounts','design'));body=await json_body(request)
         # Factory is the only supported recipient. Keep delivery blocked on the
         # server too, even if an old browser or a direct API call requests it.
         if body.get('kind') != 'factory':

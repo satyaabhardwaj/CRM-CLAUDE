@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy import select, insert, update
 from core.storage import validate
 from .models import state, clients, grants, audit
+from . import permissions
 
 def event(db, user, action, resource=None):
     db.execute(insert(audit).values(id=str(uuid.uuid4()), user_id=user, action=action, resource=resource, created=int(time.time())))
@@ -33,14 +34,18 @@ def import_snapshot(db, value):
 def allowed(db, user, client_id, write=False):
     if user['role'] == 'reader' and write:
         raise HTTPException(403,'Reader access is read-only.')
-    if user['role'] == 'admin' or (user['role'] == 'reader' and not write):
+    # Departments see every client and may attach files to any; which fields they may change is checked
+    # per field on save (permissions.check_client / check_store).
+    if user['role'] in ('admin',) + permissions.DEPARTMENTS or (user['role'] == 'reader' and not write):
         return
     grant = db.execute(select(grants).where(grants.c.user_id==user['id'],grants.c.client_id==client_id)).mappings().first()
     if not grant or (write and not grant['can_write']):
         raise HTTPException(403,'Client access denied.')
 
 def save_legacy(db, user, incoming):
-    if user['role'] != 'admin':
+    if user['role'] == 'reader':
+        raise HTTPException(403,'Reader access is read-only.')
+    if user['role'] not in permissions.EDITORS:
         raise HTTPException(403,'Whole-workspace saves require an administrator.')
     try:
         validate(incoming)
@@ -57,6 +62,10 @@ def save_legacy(db, user, incoming):
     if not existing.issubset(incoming_ids):
         raise HTTPException(422,'Removing client records is disabled; use the existing soft-delete workflow.')
     previous = db.execute(select(state.c.payload).where(state.c.id==1)).scalar_one()
+    if user['role'] != 'admin':
+        stored = {row.id: row.payload for row in db.execute(select(clients.c.id, clients.c.payload))}
+        # Raises 403 for any change outside the caller's department; the transaction (and rev) roll back.
+        permissions.check_store(user['role'], previous, incoming, stored)
     architect_rows = incoming.get('architects', [])
     if not isinstance(architect_rows, list) or any(
         not isinstance(a, dict) or not isinstance(a.get('id'), str) or not a['id'].strip()

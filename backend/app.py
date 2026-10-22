@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import NullPool
 from .config import Settings, ROOT
 from .models import clients, state, grants, sessions, credentials
-from . import auth, repository
+from . import auth, repository, permissions
 from core.security import public_file
 
 class Login(BaseModel):
@@ -193,6 +193,10 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
         except ValueError: raise HTTPException(422,'Invalid numeric value.') from None
         with engine.begin() as db:
             user=who(db,request);repository.allowed(db,user,client_id,write=True)
+            if user['role'] in permissions.DEPARTMENTS:
+                current=db.execute(select(clients.c.payload).where(clients.c.id==client_id)).scalar_one_or_none()
+                if current is None: raise HTTPException(404,'Client not found.')
+                permissions.check_client(user['role'],current,body.payload)
             # Serialize with legacy writes before checking the per-client version.
             db.execute(update(state).where(state.c.id==1).values(rev=state.c.rev+1))
             result=db.execute(update(clients).where(clients.c.id==client_id,clients.c.version==body.version).values(payload=body.payload,version=body.version+1))

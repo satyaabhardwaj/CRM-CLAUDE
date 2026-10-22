@@ -6,12 +6,13 @@ from backend.config import Settings
 from backend.local import load
 from backend.models import users,grants
 from backend.repository import import_snapshot,snapshot
+from backend.permissions import ROLES
 
 parser=argparse.ArgumentParser(description='Explicit migration operations. No reset or overwrite command.')
 sub=parser.add_subparsers(dest='command',required=True)
 p=sub.add_parser('import');p.add_argument('source',type=Path)
 p=sub.add_parser('verify');p.add_argument('source',type=Path)
-p=sub.add_parser('user');p.add_argument('id');p.add_argument('--role',choices=['admin','reader','assigned'],required=True)
+p=sub.add_parser('user');p.add_argument('id');p.add_argument('--role',choices=list(ROLES),required=True)
 p=sub.add_parser('grant');p.add_argument('user');p.add_argument('client');p.add_argument('--write',action='store_true')
 args=parser.parse_args();load();engine=create_engine(Settings.load().database_url)
 with engine.begin() as db:

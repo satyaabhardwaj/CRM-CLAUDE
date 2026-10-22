@@ -6,7 +6,7 @@ Current behaviour of the CRM's identity, permission and secret handling. The imp
 
 FastAPI is the only data path. Browsers never get database credentials or the Supabase service key.
 
-Every CRM table (Alembic 0001–0006) has:
+Every CRM table (Alembic 0001–0008) has:
 - RLS enabled;
 - PUBLIC, anon and authenticated access revoked.
 
@@ -21,13 +21,45 @@ Factory email returns 403. Signatures are off, and there are no Zoho writes.
 
 ## Roles
 
+Decided 22 Oct 2026. Enforced on the server in `backend/permissions.py`; the screens only reflect it.
+
 | Role | Can do |
 |---|---|
-| admin | Whole workspace: every module, edits, uploads, approved side effects |
-| reader | Whole workspace and file reads; no writes, no side effects |
+| admin | Everything: every module, edits, uploads, approvals, settings, user administration (with MFA) |
+| sales | Edits Sales; views every other module |
+| design | Edits Design; views every other module |
+| measurement | Edits Measurement; views every other module |
+| accounts | Edits Accounts and gives the four Accounts approvals (Booking to Design 50%, Production drawing 80%, Factory go-ahead 80% + PDI, Dispatch 100%); views every other module |
+| reader | Views everything; edits nothing (Management uses this) |
 | assigned | Only granted clients, through `/api/clients` and `/api/clients/{id}`; writes only with an explicit write grant; no whole-workspace dashboards |
 
-Staff "viewing" dropdowns are business filters, not permissions.
+MFA is required for admin only; optional for everyone else. Staff "viewing" dropdowns are business filters, not permissions.
+
+### Department roles: what each may change
+
+Every save (`PUT /api/store` and `PUT /api/clients/{id}`) is compared field by field with the stored copy. Any change outside the caller's department is refused with 403 ("… access cannot change <field> on <client>. Nothing was saved.") and the whole save rolls back. Admin is unchecked; reader cannot save at all.
+
+Screens fill in defaults before saving (`shared/rules.js` `L.ensure`, and `L.flow` in Design). The server fills the same defaults into the stored copy first (`with_defaults`), so a default never counts as an edit. `backend/tests/test_permissions.py` checks this against the real `rules.js`; on 22 Oct it matched all 28 live clients.
+
+| Client field | Who may change it |
+|---|---|
+| `gates.*` (the four Accounts approvals), `pis`, `accountsOperations`, `approvalNotes` | accounts |
+| `factoryAt`, `factoryMail` | accounts, design |
+| `post.*` (EPT, appliances, design, PDI), `drawingSignedAt`, `timelineChanges`, `approvals.timeline` | design |
+| `approvals.plan` | admin only |
+| `design.*`, `timeline.*` | sales, design |
+| `measurement` | design and measurement: all of it; sales: create the first request and set its date |
+| `payment.receipts` | sales: add "Requested" receipts, withdraw ones not confirmed; accounts: add confirmed receipts and decide requested ones (status, date, reason, notes only) |
+| `approvals.booking` | sales: set "Pending"; accounts: "Approved" or "Rejected" |
+| `stage` | sales: any; accounts: "booked" only |
+| `bookedAt`, `payment.tokenPlan`, `payment.tokenBy` | sales, accounts |
+| `news` (activity log) | sales, design, accounts: add entries on top only |
+| every other client field | sales |
+| a new client | sales |
+
+Outside the client list: `architects` and `people` are Sales'; `seen.design`, `seen.accounts`, `seen.measurement` belong to that department and other `seen` entries (personal bells) to Sales; everything else (for example `settings`) is admin only. Removing clients or architects stays refused for everyone.
+
+Other actions: departments may attach files to any client (the record change itself is checked on save). OCF signing, voice notes and scratch uploads are for sales and admin. Factory mail is refused for everyone while it is disabled.
 
 ## Sessions and login
 
