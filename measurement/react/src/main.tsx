@@ -105,17 +105,16 @@ function App() {
             onClick={() => go(id)}
           >
             {i === 0 ? "All four" : STAGES[i - 1]}
-            {ready && (
-              <b>
-                {
-                  count(
+            {/* Badge slot is always there, so tabs do not move when counts arrive. */}
+            <b aria-hidden={!ready}>
+              {ready
+                ? count(
                     i === 0
                       ? live.records
                       : live.records.filter((r) => slug(r.stage) === id),
                   ).Open
-                }
-              </b>
-            )}
+                : ""}
+            </b>
           </button>
         ))}
       </nav>

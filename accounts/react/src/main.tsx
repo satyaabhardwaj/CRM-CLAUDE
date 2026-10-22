@@ -105,7 +105,10 @@ function App() {
               disabled={store.saving}
             >
               {label}
-              {store.data && counts[id] !== undefined && <b>{counts[id]}</b>}
+              {/* The badge keeps its place while loading, so tabs do not move when counts arrive. */}
+              {counts[id] !== undefined && (
+                <b aria-hidden={!store.data}>{store.data ? counts[id] : ""}</b>
+              )}
             </button>
           ))}
       </nav>

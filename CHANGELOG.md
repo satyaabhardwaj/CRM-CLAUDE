@@ -4,6 +4,17 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ## Unreleased
 
+### UI polish, Phase 6: verification (22 Oct)
+- **New checks:**
+  - `npm run ui:a11y`: accessible names, landmarks, a keyboard Tab walk, and Escape for the drawer, bell and user menu.
+  - `npm run ui:visual`: 12 screenshot baselines on synthetic data with a frozen clock, committed in `tests/ui/visual/baselines`.
+  - The layout audit also covers zoom 200% and Windows 125%/150% (`--widths zoom200,win125,win150,laptop125`).
+- **Fixes:**
+  - the Sales bell closes on Escape;
+  - Accounts and Measurement tab badges keep their place while counts load, so the tabs no longer move.
+- **New docs:** `docs/UI_GUIDE.md` (tokens, breakpoints, shell and component rules, real-phone checklist), and an ARCHITECTURE UI section.
+- **Results:** in FINAL_DEPLOYMENT_CHECKLIST ("UI polish regression").
+
 ### UI polish, Phase 5: smooth and fast (22 Oct)
 - **Background refresh changes nothing on screen when nothing changed.**
   - Accounts, Management and the Measurement bell now skip the update when the saved revision is the same, as Sales and Design already did.

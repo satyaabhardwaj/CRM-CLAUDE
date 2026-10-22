@@ -9,7 +9,9 @@
     "db:migrate": "python scripts/migrate_schema.py",
     "db:seed": "python -m backend.seed_local",
     "ui:audit": "node tests/ui/layout-audit/audit.mjs",
-    "ui:css-map": "node tests/ui/layout-audit/css-map.mjs"
+    "ui:css-map": "node tests/ui/layout-audit/css-map.mjs",
+    "ui:visual": "playwright test -c tests/ui/visual/playwright.config.mjs",
+    "ui:a11y": "node tests/ui/layout-audit/a11y.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",

@@ -13,7 +13,8 @@ Sales, Design, Measurement, Accounts and Management are native React 19 + TypeSc
 | department/react/tests | Synthetic model, persistence and component regression tests |
 | department/assets | Generated frontend assets; ignored locally, included in releases |
 | shared/runtime.js | Data cache, money/date formatting, notification records and PDF service; no UI renderer or save loop |
-| shared/look.css | Shared design tokens and layout primitives |
+| shared/tokens.css, look.css, ui.css, workspace.css | Design tokens, shared components, interaction layer and the app shell (see [UI_GUIDE](UI_GUIDE.md)) |
+| backend/react/src/Shell.tsx, Sidebar.tsx | The shared header, department tabs, sidebar/drawer, "Also today" panel, skeletons and UI helpers every module imports |
 | shared/rules.js, signals.js, people.js, pin.js | Shared financial/workflow rules, signals, staff data and PIN lookup |
 | shared/kit.js | Old UI kit, kept only as the reference for the runtime parity test (`tests/runtime.test.cjs`) |
 | backend/app.py, auth.py, mfa.py, recovery.py | FastAPI routes, sessions, realms, MFA, password recovery |
@@ -46,6 +47,23 @@ The remaining JavaScript services are data, math and PDF integrations, not UI ad
 - Sales `reports.js` renders PDFs.
 
 Keeping them stable avoids changing financial contracts. Leaflet owns the map geometry; popup contents are React portals.
+
+## User interface
+
+All five modules share one shell and one design system (UI polish, Oct 2026). The rules for new screens are in [UI_GUIDE](UI_GUIDE.md).
+
+- **Shell:** one header (`AppHeader`). The department tabs sit in the same place in every module, and the sixth tab is **Management**. One breakpoint set: 640 / 768 / 1024 / 1280.
+- **Layout:** below 1024 the page scrolls as one document and the sidebar is a drawer. From 1024 a fixed frame holds a scrolling main column.
+- **Styles:**
+  - tokens in `shared/tokens.css`;
+  - components in `shared/look.css`;
+  - shell in `shared/workspace.css`;
+  - no `!important`, and no selector defined twice (`npm run ui:css-map`).
+- **Refresh:** background polls skip unchanged revisions and pause while someone types, so refresh never moves focus or scroll.
+- **Verification** (synthetic data only, `tests/ui`):
+  - `npm run ui:audit`: every screen and state at 10 widths;
+  - `npm run ui:a11y`: names, landmarks, keyboard;
+  - `npm run ui:visual`: screenshot baselines.
 
 ## Data and permissions
 

@@ -31,7 +31,16 @@ export const VIEWPORTS = [
   { name: '1440', width: 1440, height: 900, touch: false },
   { name: '1920', width: 1920, height: 1080, touch: false },
 ];
+// Zoom and Windows display scaling: the same screen seen as a smaller CSS viewport at a higher pixel ratio.
+// Pick them with --widths zoom200,win125,win150 (they are not in the default run).
+export const SCALED = [
+  { name: 'zoom200', width: 720, height: 450, scale: 2, touch: false }, // 1440 x 900 at 200 % browser zoom
+  { name: 'win125', width: 1536, height: 864, scale: 1.25, touch: false }, // 1920 x 1080 at 125 %
+  { name: 'win150', width: 1280, height: 720, scale: 1.5, touch: false }, // 1920 x 1080 at 150 %
+  { name: 'laptop125', width: 1093, height: 614, scale: 1.25, touch: false }, // 1366 x 768 at 125 %
+];
 const DYNAMIC_VIEWPORTS = ['390', '1440'];
+const isMobileBrowser = (vp) => vp.touch && vp.width < 768;
 const SERVERS = { stress: 4311, one: 4312, empty: 4313 };
 const CREDENTIALS = { email: 'admin@qa.invalid', password: 'synthetic-qa-only' }; // from scripts/serve_workflow_qa.py
 const OUT = path.resolve(args.out || path.join(ROOT, '.local/ui-polish/audit-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '')));
@@ -39,7 +48,7 @@ const BROWSERS = { chromium, firefox, webkit };
 const browserName = args.browser || 'chromium';
 const only = args.only ? new RegExp(args.only) : null;
 const widths = args.widths ? String(args.widths).split(',') : null;
-const viewports = VIEWPORTS.filter((v) => !widths || widths.includes(v.name));
+const viewports = [...VIEWPORTS, ...SCALED].filter((v) => (widths ? widths.includes(v.name) : VIEWPORTS.includes(v)));
 const quick = !!args.quick;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -185,7 +194,7 @@ async function runState(browser, vp, screen, server, opts = {}) {
   const record = { screen: screen.id, module: screen.module, viewport: vp.name, width: vp.width, height: vp.height,
     dataset: opts.dataset || 'stress', variant: opts.variant || 'default', browser: browserName };
   const context = await browser.newContext({
-    viewport: { width: vp.width, height: vp.height }, hasTouch: vp.touch, isMobile: vp.touch && vp.width < 768 && browserName !== 'firefox',
+    viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.scale || 1, hasTouch: vp.touch, isMobile: isMobileBrowser(vp) && browserName !== 'firefox',
     storageState: screen.loggedOut ? undefined : server.state, baseURL: server.origin, reducedMotion: 'no-preference',
   });
   await context.addInitScript(installShiftObserver);

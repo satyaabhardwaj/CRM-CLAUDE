@@ -25,6 +25,7 @@ Per-module test and format commands are in [SETUP](docs/SETUP.md#frontends).
 | Doc | What it covers |
 |---|---|
 | [ARCHITECTURE](docs/ARCHITECTURE.md) | Folders, boundaries, how to add features |
+| [UI_GUIDE](docs/UI_GUIDE.md) | Tokens, breakpoints, shell and component rules for screens; real-phone checklist |
 | [SETUP](docs/SETUP.md) | Local machine setup, ports, checks |
 | [DEPLOYMENT](docs/DEPLOYMENT.md) | Vercel + Supabase plan (not yet authorized) |
 | [OPERATIONS](docs/OPERATIONS.md) | Backup, one-command restore, rotation, incidents |
