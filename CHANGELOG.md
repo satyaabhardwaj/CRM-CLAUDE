@@ -4,6 +4,13 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ## Unreleased
 
+## v1.0-rc6 (22 Oct, 6e42372)
+Change password, the sign-in Show button fix and the cloud readiness pack, merged to `main` from PR #1. Local image `magppie-crm:rc6-6e42372`; see [FINAL_DEPLOYMENT_CHECKLIST](docs/FINAL_DEPLOYMENT_CHECKLIST.md).
+
+### Sign-in Show button and formatting fixes (22 Oct)
+- The Show/Hide button sits inside the sign-in password box again. The change-password section had reused the sign-in form's `auth-password` class; it is now `auth-change-password` (5f8c1c1).
+- Prettier formatting for the change-password files, so `format:check` passes in CI (ae0b2a5).
+
 ### Change password from Account security (22 Oct)
 - New "Change password" section on `/security`, backed by `POST /api/auth/password`.
 - It needs the current password, and a code when an authenticator is enabled. Unenrolled admins must enrol first.

@@ -6,13 +6,24 @@ Local verification only; no cloud deployment is authorized. The target is Vercel
 
 | Item | State |
 |---|---|
-| Release candidate | `v1.0-rc3` (7305e0f) on `main`. Branch `ui/polish-v1` adds the UI polish (design system, shared shell, components, smooth refresh); `v1.0-rc5` follows its Gate 3 approval and merge. |
+| Release candidate | `v1.0-rc6` (6e42372) on `main`. It includes the UI polish (design system, shared shell, components, smooth refresh), change password on Account security, the sign-in Show button fix and the deployment readiness pack ([DEPLOYMENT](DEPLOYMENT.md)). |
+| GitHub CI | Green on `main` at 6e42372 (3/3) and on PR #1 (7/7), as reported by the owner on 22 Oct. |
 | Live data | Local DB `postgres` and bucket `crm-uploads`: 28 clients, 15 public tables, 15 attachments. Unchanged by the UI polish. `crm_audit` and `crm_sessions` change by design; `crm_mfa` changed on 22 Oct when the owner signed in and opened Account security (authenticator not yet enabled). |
 | Backups | `.local/backups/phase0-20261021-2322` and `.local/backups/phase3-20261021-2347` (restore verified). Older backups and evidence are in the encrypted archive (see [OPERATIONS](OPERATIONS.md)). |
 | Restore | One command, `scripts/restore_postgres.py`, into a new database only. The 21 Oct duplicate-schema failure is fixed. Rehearsed on 21 Oct: tables, clients and all 15 attachment bytes matched, with RLS on and no public grants. The rehearsal databases and bucket were dropped. |
 | QA leftovers | All QA and restore databases, the 85 stray `test_*` schemas in the live database and the QA bucket were removed (Gate A). `test_api.py` now refuses non-test databases. |
 | Legacy code | Archived on branch `archive/legacy-2026-10` and removed from `main`. |
-| Backend tests | See the rc3 regression below. |
+| Backend tests | 127 passed, 1 skipped on an isolated PostgreSQL database (change password, 22 Oct). Earlier runs are below. |
+
+### Local image for v1.0-rc6 (22 Oct, code 6e42372)
+
+| Check | Result |
+|---|---|
+| Image | `magppie-crm:rc6-6e42372` (sha256:72e89d323020…), built with `docker compose` from the runbook in `deploy/README.md`. Previous image kept: `magppie-crm:v1.0-rc5` (sha256:09b4963c263c…). |
+| Container on 127.0.0.1:4302 | Healthy. Read-only root (`/app` not writable, `/tmp` tmpfs), all capabilities dropped, no-new-privileges, not privileged, UID 10001, published on loopback only. No Docker volume was removed. |
+| Signed-out smoke | `/api/health` ok; `/login` and `/security` 200; all five modules redirect to sign-in; `/api/store`, `/api/clients`, `/api/auth/me` and `POST /api/auth/password` 401; private paths (`.env.local`, `data/`, `.local/`, source, docs) not served. Cross-site POST and a foreign Host header 403. Headers: `no-store`, `nosniff`, `DENY`. |
+| rc6 changes in the image | Change-password endpoint present; sign-in CSS keeps `.auth-password` separate from `.auth-change-password` (Show button fix). |
+| Secret scan of image `/app` (273 files) | 0 real secrets; no env, key or data files. Matches were only the public local database default `postgres` and the public Zoho endpoint URLs. Image environment holds no credentials. |
 
 ### UI polish regression (22 Oct, branch ui/polish-v1)
 

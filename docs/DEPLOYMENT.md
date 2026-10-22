@@ -6,7 +6,7 @@ Status: **not deployed.** Nothing in this document has been done in the cloud. C
 - Every secret, with owner and rotation: [PRODUCTION_SECRETS](PRODUCTION_SECRETS.md).
 - Backup and restore commands: [OPERATIONS](OPERATIONS.md).
 
-Release to deploy: tag **`v1.0-rc5`** (`df57e00`).
+Release to deploy: tag **`v1.0-rc6`** (`6e42372`).
 
 ## 1. Target
 
@@ -99,7 +99,7 @@ Migrations never run on app start or during a Vercel build.
 3. **Database:** migrate the preview project (section 4) and create `crm_app` (section 5).
 4. **Users:** provision preview identities with `backend.provision_user --confirm-target "HOST/DATABASE"`: one admin (who enrols MFA at first sign-in), one reader and one assigned.
 5. **Data:** load synthetic data only, unless you approve a copy.
-6. **Deploy** tag `v1.0-rc5` to preview.
+6. **Deploy** tag `v1.0-rc6` to preview.
 7. **Verify on the preview URL:**
    - sign-in, MFA, sign-out, and old cookies rejected;
    - each role's allowed and denied actions, CRUD and Bin restore;
@@ -132,7 +132,7 @@ Before the window:
    - Do **not** carry over development users, credentials, sessions, MFA, grants or realm bindings; apply the destination-only identity plan in PRODUCTION_SECRETS.
 4. **Reconcile:** row fingerprints and attachment hashes must equal the manifest. **Any mismatch: stop and roll back** (step R).
 5. **Identities:** provision named users. Admins sign in, enrol MFA and save their recovery codes.
-6. **Deploy and smoke:** deploy `v1.0-rc5` to production, then check health, sign-in, each module, one attachment, the counts (28 clients, 44 architects, 15 attachments today), factory mail 403 and Measurement.
+6. **Deploy and smoke:** deploy `v1.0-rc6` to production, then check health, sign-in, each module, one attachment, the counts (28 clients, 44 architects, 15 attachments today), factory mail 403 and Measurement.
 7. **Open:** tell users the new URL. Keep the local copy read-only for 14 days.
 
 **Rollback (R):** done before any production write by users. Nothing local has been changed, so it is reversible.
