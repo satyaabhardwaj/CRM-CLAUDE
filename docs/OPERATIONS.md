@@ -33,6 +33,15 @@ $env:POSTGRES_BIN = "C:\Program Files\PostgreSQL\18\bin"
 
 It writes `database.dump`, every attachment under `uploads/`, and `manifest.json` (table fingerprints, attachment and dump SHA-256). It fails if data changed during the backup. `--restore-check` restores into a new `crm_restore_<hex>` database and requires the fingerprints to match; drop that database afterwards.
 
+**Nightly backup (automatic, since 23 Oct 2026).** Windows Task Scheduler runs `scripts\daily_backup.py` every night at 23:00 (task "MAGPPIE CRM daily backup"; if the laptop is off, it runs at the next start). Each run:
+- starts Docker and the local database if needed (data kept);
+- makes `.localackups\daily-YYYYMMDD-HHMM` with `--restore-check`, then drops only its own rehearsal database;
+- retries three times, 10 minutes apart, if someone was working during the backup;
+- keeps 30 days of `daily-*` folders (always the newest three); hand-made backups are never touched;
+- writes one line to `.localackups\daily-backup.log` (`"ok": true` with table and attachment counts, or the reason it failed).
+
+Check it: open `daily-backup.log` and look at the last line. Run it now: `.venv\Scripts\python.exe -B scripts\daily_backup.py`. Change the time: Task Scheduler → "MAGPPIE CRM daily backup" → Triggers. The backups stay on this laptop; copy one off the machine (encrypted) regularly, because a lost or broken laptop takes them with it.
+
 **Restore (one command, repeatable).** It always goes into a NEW database, never over the live one:
 
 ```powershell
