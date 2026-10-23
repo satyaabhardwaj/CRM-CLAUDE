@@ -74,7 +74,7 @@ it("checks length and the repeat before calling the server", async () => {
   type("password-new", "short");
   type("password-again", "short");
   await submit();
-  expect(host.textContent).toContain("at least 16 characters");
+  expect(host.textContent).toContain("at least 12 characters");
   type("password-new", NEW);
   type("password-again", NEW + "x");
   await submit();
@@ -126,6 +126,12 @@ it("appears only once the account may change its password", async () => {
       true,
       false,
     ],
+    // A laptop without the MFA key: an admin cannot enrol there, so the password form is offered.
+    [
+      { available: false, enabled: false, recovery_codes: 0, required: true },
+      true,
+      false,
+    ],
   ];
   for (const [body, shown, code] of cases) {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(status(body)));
@@ -136,4 +142,24 @@ it("appears only once the account may change its password", async () => {
     host.remove();
   }
   await render(<div />);
+});
+
+it("tells a person with a temporary password to choose their own", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValueOnce(
+      status({
+        available: true,
+        enabled: false,
+        recovery_codes: 0,
+        required: false,
+        must_change_password: true,
+      }),
+    ),
+  );
+  await render(<Security />);
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+    "temporary password",
+  );
+  expect(host.querySelector(".auth-change-password")).not.toBeNull();
 });
