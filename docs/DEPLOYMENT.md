@@ -46,6 +46,7 @@ Set in Vercel under Project → Settings → Environment Variables, scoped to Pr
 | `CRM_ORIGIN` | exact preview HTTPS origin | exact production HTTPS origin | Cookie/origin checks; must be `https://`. |
 | `CRM_AUTH_REALM` | new UUID | different new UUID | Never reuse or change after provisioning. |
 | `CRM_MFA_ENCRYPTION_KEY` | new key | different new key | Required (admins must use MFA). Back up separately; never regenerate. |
+| `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` | absent | optional | Mail over HTTPS through the Gmail API (scope `gmail.send`), preferred over SMTP. Set from a separate OAuth client per environment. |
 | `CRM_EMAIL_OTP` | `0` | `0` until the recovery mailbox is verified, then `1` if wanted | Sign-in code by email; needs the `RECOVERY_SMTP_*` settings. Admins still need an authenticator here. |
 | `CRM_SESSION_IDLE_MINUTES` | `240` | `240` | Optional; idle sign-out (default 240). Not a secret. |
 | `CRM_SESSION_MAX_HOURS` | `12` | `12` | Optional; absolute session limit (default 12). Not a secret. |

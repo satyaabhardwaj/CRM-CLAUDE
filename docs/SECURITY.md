@@ -108,6 +108,7 @@ Decided 23 Oct 2026 (owner: the admin `info@mymagppie.com` signs in with a code 
 - **Flow:** the password returns 202 `{"mfa_required": true, "method": "email", "to": "i***@…"}` and a ten-minute HttpOnly challenge cookie (`crm_email_challenge`), with no access to anything. A six-digit code is emailed; `POST /api/auth/email-code/verify` with it issues the normal session. "Send a new code" (`POST /api/auth/email-code/resend`) after 30 seconds, three times at most; only the newest code works.
 - **Limits:** 5 wrong codes end the challenge; 10 verify attempts per user per hour; the code expires after 10 minutes; one pending challenge per user.
 - **Storage:** only hashes (`crm_login_codes`, migration 0010). The code hash is bound to the challenge cookie, so the table alone cannot be brute-forced; a password change or sign-out cancels a pending code.
+- **How mail is sent** (`backend/mail_transport.py`): the Gmail API over HTTPS when `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET` and `GMAIL_REFRESH_TOKEN` are set (scope `gmail.send` only; the token can send but not read mail), otherwise SMTP; with both, SMTP is the fallback. Reset links use the same path.
 - **Mail down:** nobody is signed in and the screen says the code could not be sent. An operator on the laptop can set `CRM_EMAIL_OTP=0` in `.env.local` and restart to sign in with the password alone.
 
 ## Changing your password

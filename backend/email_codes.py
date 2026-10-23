@@ -12,10 +12,7 @@ import hmac
 import logging
 import os
 import secrets
-import smtplib
-import ssl
 import time
-from email.message import EmailMessage
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
@@ -24,6 +21,7 @@ from . import auth
 from .models import credentials, users, recovery_emails, login_codes
 from .recovery import allow
 from .repository import event
+from .mail_transport import mailer
 
 COOKIE = 'crm_email_challenge'
 LIFETIME = 600
@@ -32,26 +30,17 @@ SENDS = 4  # the first email and three re-sends
 
 
 def configured_sender():
-    """send(email, code) using the reset-link mailbox, or None when sign-in codes are off."""
+    """send(email, code) using the CRM's mailbox (Gmail API, then SMTP), or None when sign-in codes are off."""
     if os.environ.get('CRM_EMAIL_OTP') != '1':
         return None
-    names = ('RECOVERY_SMTP_HOST', 'RECOVERY_SMTP_USER', 'RECOVERY_SMTP_PASSWORD', 'RECOVERY_MAIL_FROM')
-    values = {k: os.environ.get(k, '') for k in names}
-    if not all(values.values()):
-        raise RuntimeError('CRM_EMAIL_OTP=1 needs the RECOVERY_SMTP_* mail settings (scripts/set_recovery_mail.py).')
-    port = int(os.environ.get('RECOVERY_SMTP_PORT', '587'))
+    mail = mailer()
+    if mail is None:
+        raise RuntimeError('CRM_EMAIL_OTP=1 needs the CRM mail settings (scripts/set_gmail_api.py or scripts/set_recovery_mail.py).')
 
     def send(email, code):
-        message = EmailMessage()
-        message['From'] = values['RECOVERY_MAIL_FROM']
-        message['To'] = email
-        message['Subject'] = f'{code} is your MAGPPIE CRM sign-in code'
-        message.set_content(f'Your MAGPPIE CRM sign-in code is {code}.\n\nIt works once, for 10 minutes.\n'
-                            'If you did not just sign in, change your password: someone may know it.')
-        with smtplib.SMTP(values['RECOVERY_SMTP_HOST'], port, timeout=15) as server:
-            server.starttls(context=ssl.create_default_context())
-            server.login(values['RECOVERY_SMTP_USER'], values['RECOVERY_SMTP_PASSWORD'])
-            server.send_message(message)
+        mail(email, f'{code} is your MAGPPIE CRM sign-in code',
+             f'Your MAGPPIE CRM sign-in code is {code}.\n\nIt works once, for 10 minutes.\n'
+             'If you did not just sign in, change your password: someone may know it.')
     return send
 
 

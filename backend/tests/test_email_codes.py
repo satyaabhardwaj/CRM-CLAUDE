@@ -122,7 +122,7 @@ def test_codes_are_off_without_the_setting(api, tmp_path, monkeypatch):
     monkeypatch.setenv('CRM_EMAIL_OTP', '1')
     for name in ('RECOVERY_SMTP_HOST', 'RECOVERY_SMTP_USER', 'RECOVERY_SMTP_PASSWORD', 'RECOVERY_MAIL_FROM'):
         monkeypatch.delenv(name, raising=False)
-    with pytest.raises(RuntimeError, match='RECOVERY_SMTP'):
+    with pytest.raises(RuntimeError, match='mail settings'):
         email_codes.configured_sender()
 
 

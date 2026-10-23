@@ -31,6 +31,8 @@ Required means required for the indicated capability, not permission to enable i
 | SUPABASE_SERVICE_ROLE_KEY | Privileged private Storage API access | Server secret; never browser | Required with Supabase Storage |
 | Production admin email | Account identifier, returned to the signed-in user | Account-private, not an API secret | Required; chosen during provisioning |
 | Production admin password | CRM password authentication | Private input; salted hash stored server-side | Required; unique, at least 12 characters via provision_user |
+| GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN | Send the CRM's emails through the Gmail API (gmail.send only) | Server secret | Optional; preferred over SMTP because HTTPS works on any network |
+| GMAIL_CLIENT_ID | OAuth client identifier for the above | Server-only configuration | With the two above |
 | CRM_EMAIL_OTP | Turns on sign-in codes by email (uses the RECOVERY_SMTP_* mailbox) | Plain configuration, not secret | Optional; requires the recovery mail settings |
 | CRM_SESSION_IDLE_MINUTES, CRM_SESSION_MAX_HOURS | Idle and absolute session limits | Plain configuration, not secret | Optional; defaults 240 minutes and 12 hours |
 | CRM_LOCAL_ADMIN_PASSWORD | Laptop-only first-run admin password | Local `.env.local` only | Never set in preview or production (ignored there) |

@@ -71,7 +71,24 @@ All ports listen on 127.0.0.1 only. Port 4300, the old standalone JSON server, i
    - If `CRM_MFA_ENCRYPTION_KEY` is set in `.env.local`, admins must set up an authenticator after signing in. A fresh clone does not set it; on a laptop that has it, put `# ` before that line and restart the CRM for password-only sign-in.
 8. Run `npm run build` to build all six frontends, then **Start CRM.cmd**.
 
-### Reset emails and sign-in codes by email
+### Email on any network (recommended): Gmail API over HTTPS
+
+Some networks (for example this office line) block outgoing mail on port 587, so SMTP fails there. The Gmail API sends over HTTPS (port 443), which works everywhere. One-time setup, signed in to Google as `info@mymagppie.com`:
+
+1. Open https://console.cloud.google.com and create a project, for example `magppie-crm`.
+2. **APIs & Services → Library → Gmail API → Enable.**
+3. **Google Auth Platform → Branding / Audience:** app name `MAGPPIE CRM`, support email the mailbox, audience **Internal** (only your Google Workspace).
+4. **Clients → Create client → Application type: Desktop app**, name `MAGPPIE CRM laptop`, then **Download JSON**.
+5. Run, with the downloaded file's path:
+   ```powershell
+   .venv\Scripts\python.exe scripts\set_gmail_api.py --email info@mymagppie.com --client-file "$HOME\Downloads\client_secret_....json"
+   ```
+   The browser opens Google's sign-in: sign in as the mailbox and allow "Send email on your behalf" (send only; it cannot read mail). A test email is sent over HTTPS; only then are the settings saved to `.env.local`.
+6. Restart the CRM (`Stop CRM.cmd`, then `Start CRM.cmd`). You may delete the downloaded file.
+
+With both set, the CRM uses the Gmail API first and SMTP only if the API fails. To stop it: remove "MAGPPIE CRM" under the Google account's third-party access, or delete the `GMAIL_*` lines.
+
+### Reset emails and sign-in codes by email (SMTP)
 
 `.venv\Scripts\python.exe scripts\set_recovery_mail.py --email info@mymagppie.com` asks for the mailbox's Google App Password at a hidden prompt, sends a test email, and only then turns on "Forgot password?" emails and sign-in codes by email (`CRM_RECOVERY_ENABLED=1`, `CRM_EMAIL_OTP=1`, `RECOVERY_SMTP_*` in `.env.local`). Restart the CRM afterwards. Add `--no-login-codes` for reset emails only. The account's email must be its verified recovery mailbox (`backend.recovery_email --ownership-verified`).
 
