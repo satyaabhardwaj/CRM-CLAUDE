@@ -6,7 +6,7 @@ Status: **not deployed.** Nothing in this document has been done in the cloud. C
 - Every secret, with owner and rotation: [PRODUCTION_SECRETS](PRODUCTION_SECRETS.md).
 - Backup and restore commands: [OPERATIONS](OPERATIONS.md).
 
-Release to deploy: tag **`v1.0-rc6`** (`6e42372`).
+Release to deploy: **`v1.0-rc8`**, to be tagged on `main` at `7fa46cb` once the owner approves (sliding sessions, department roles, Users page, email sign-in codes, mail over HTTPS, nightly backup job). `v1.0-rc7` (`c2eebf1`) predates all of that.
 
 ## 1. Target
 
@@ -47,7 +47,7 @@ Set in Vercel under Project → Settings → Environment Variables, scoped to Pr
 | `CRM_AUTH_REALM` | new UUID | different new UUID | Never reuse or change after provisioning. |
 | `CRM_MFA_ENCRYPTION_KEY` | new key | different new key | Required (admins must use MFA). Back up separately; never regenerate. |
 | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` | absent | optional | Mail over HTTPS through the Gmail API (scope `gmail.send`), preferred over SMTP. Set from a separate OAuth client per environment. |
-| `CRM_EMAIL_OTP` | `0` | `0` until the recovery mailbox is verified, then `1` if wanted | Sign-in code by email; needs the `RECOVERY_SMTP_*` settings. Admins still need an authenticator here. |
+| `CRM_EMAIL_OTP` | `1` if the preview admin's mailbox is verified | `1` once `info@mymagppie.com` is verified as recovery mailbox | Sign-in code by email; needs the CRM mail settings (Gmail API preferred, or SMTP). In preview and production admins still need an authenticator app as well (see decision D6). |
 | `CRM_SESSION_IDLE_MINUTES` | `240` | `240` | Optional; idle sign-out (default 240). Not a secret. |
 | `CRM_SESSION_MAX_HOURS` | `12` | `12` | Optional; absolute session limit (default 12). Not a secret. |
 | `CRM_LOCAL_ADMIN`, `CRM_LOCAL_ADMIN_PASSWORD` | absent | absent | Laptop-only first-run admin; ignored in preview and production. Never set in Vercel. |
@@ -58,8 +58,9 @@ Set in Vercel under Project → Settings → Environment Variables, scoped to Pr
 | `SUPABASE_UPLOADS_BUCKET` | `crm-uploads` | `crm-uploads` | Must be private. |
 | `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET`, `ZOHO_REFRESH_TOKEN` | optional (mock or read-only) | required for Measurement | Read-only scopes only. |
 | `ZOHO_ACCOUNTS_URL`, `ZOHO_API_DOMAIN`, `ZOHO_ORG_ID` | as above | as above | India data centre defaults. |
-| `CRM_RECOVERY_ENABLED` | `0` | `0` until recovery mail is verified, then `1` | |
-| `RECOVERY_SMTP_HOST`, `RECOVERY_SMTP_PORT`, `RECOVERY_SMTP_USER`, `RECOVERY_SMTP_PASSWORD`, `RECOVERY_MAIL_FROM` | absent | set only when recovery is enabled | Separate from any factory mail. |
+| `CRM_RECOVERY_ENABLED` | `1` | `1` | Reset links by email; needs the CRM mail settings. |
+| `RECOVERY_MAIL_FROM` | `info@mymagppie.com` | `info@mymagppie.com` | Sender of reset links and sign-in codes. |
+| `RECOVERY_SMTP_HOST`, `RECOVERY_SMTP_PORT`, `RECOVERY_SMTP_USER`, `RECOVERY_SMTP_PASSWORD` | absent | absent (Gmail API is used) | Only if SMTP is chosen instead of the Gmail API; Vercel may block outbound SMTP. Separate from any factory mail. |
 | `GROQ_API_KEY` / `OPENAI_API_KEY` | absent | optional (voice notes) | Groq wins when both are set. |
 | `MIGRATION_DATABASE_URL` | **operator only** | **operator only** | Owner/direct connection for migrations and `runtime_role`. Never set in Vercel. |
 
@@ -102,11 +103,14 @@ Migrations never run on app start or during a Vercel build.
    - Recheck the historical Vercel project `magppie-crm` before any change; unrelated projects stay untouched.
 2. **Vercel project:** import the GitHub repo with Git auto-deploy off (as in `vercel.json`) and set the preview variables (section 3).
 3. **Database:** migrate the preview project (section 4) and create `crm_app` (section 5).
-4. **Users:** provision preview identities with `backend.provision_user --confirm-target "HOST/DATABASE"`: one admin (who enrols MFA at first sign-in), one reader and one assigned.
+4. **Users:** with the exported preview configuration, `python -m backend.users add EMAIL --role ROLE --confirm-target "HOST/DATABASE"` for one admin (who enrols the authenticator at first sign-in) and one user per department role (sales, design, measurement, accounts, reader); each gets a one-time temporary password and must choose their own at first sign-in. Then `backend.recovery_email --email EMAIL --confirm-target "HOST/DATABASE" --ownership-verified` for the admin's mailbox, so reset links and sign-in codes go there.
 5. **Data:** load synthetic data only, unless you approve a copy.
-6. **Deploy** tag `v1.0-rc6` to preview.
+6. **Deploy** tag `v1.0-rc8` to preview.
 7. **Verify on the preview URL:**
-   - sign-in, MFA, sign-out, and old cookies rejected;
+   - sign-in, the emailed sign-in code, MFA, sign-out, and old cookies rejected;
+   - idle sign-out after `CRM_SESSION_IDLE_MINUTES` with the "Stay signed in" warning (preview may shorten it to 5 minutes for this check), and unsaved work kept across sign-in;
+   - the Users page: add, role change, deactivate, reset password (forced change at next sign-in);
+   - reset link email arrives (Gmail API from Vercel);
    - each role's allowed and denied actions, CRUD and Bin restore;
    - private upload/download, with an unsigned URL refused;
    - money calculations and factory mail 403;
@@ -137,7 +141,7 @@ Before the window:
    - Do **not** carry over development users, credentials, sessions, MFA, grants or realm bindings; apply the destination-only identity plan in PRODUCTION_SECRETS.
 4. **Reconcile:** row fingerprints and attachment hashes must equal the manifest. **Any mismatch: stop and roll back** (step R).
 5. **Identities:** provision named users. Admins sign in, enrol MFA and save their recovery codes.
-6. **Deploy and smoke:** deploy `v1.0-rc6` to production, then check health, sign-in, each module, one attachment, the counts (28 clients, 44 architects, 15 attachments today), factory mail 403 and Measurement.
+6. **Deploy and smoke:** deploy `v1.0-rc8` to production, then check health, sign-in, each module, one attachment, the counts (28 clients, 44 architects, 15 attachments today), factory mail 403 and Measurement.
 7. **Open:** tell users the new URL. Keep the local copy read-only for 14 days.
 
 **Rollback (R):** done before any production write by users. Nothing local has been changed, so it is reversible.
@@ -178,20 +182,26 @@ Retention and the alert email are open decisions (section 10).
 
 Logs keep no request bodies or query strings (already the case). Set log retention to at least 30 days.
 
-## 10. Decisions still open
+## 10. Decisions (owner)
 
-| Decision | Needed by |
-|---|---|
-| Domain and DNS access (or an initial `*.vercel.app` URL) | Gate B (origin) |
-| Vercel team and plan (Pro) and who owns billing | Gate B |
-| Supabase organisation and plan (Pro, Mumbai), project names | Gate B |
-| Production admin (name and email) and who holds the second admin | Gate C |
-| Users and roles file: who is admin, reader or assigned, and which clients each assigned user may see or write | Gate C |
-| Recovery email: SMTP provider, sender address and verified mailboxes; until then `CRM_RECOVERY_ENABLED=0` | before enabling recovery |
-| Backup retention (proposed: 12 weekly + 12 monthly) and the alert email address | Gate C |
-| Cutover window, freeze notice and rollback owner | Gate C |
-| Preview data: synthetic only, or an approved anonymised copy | Gate B |
-| Business rules awaiting Manish (CLAUDE.md "To confirm"): post-design order defaults; PI booking line; "On hold" orders; Order type; retry timer; timeline offsets; GST on the designer's estimate; payment plan approver; OCF generator; re-approval after changes; "Express" timeline; restoring disqualified leads; Management client-wise scope; real post-design stages from Zoho; Accounts stage money order; Accounts gates; Measurement request types | before go-live, or accepted as is |
+Accounts found on 23 Oct 2026 (read only): Supabase organisation "Magppie1234's Org" on **Pro** with three unrelated projects in Mumbai (`clarity-desk-prod`, `magppie-factory`, `Kitchen_Designer`), none for this CRM; Vercel team "Magppie Silverstone Pvt Ltd" with a historical project **`magppie-crm`** (an earlier build) and `magppie-crm-clone`. Nothing was created or changed.
+
+| # | Decision | Recommendation | Needed by |
+|---|---|---|---|
+| D1 | Go-ahead for preview (creates cloud resources and cost) | Yes, preview first | Gate B |
+| D2 | Supabase projects: new `magppie-crm-preview` and `magppie-crm-prod` in the existing Pro org, Mumbai | Yes; each project adds compute cost (about $10/month on the smallest size) | Gate B |
+| D3 | Vercel project: a new project (for example `magppie-crm-v2`) or reuse the historical `magppie-crm` | New project; leave `magppie-crm` untouched until retired | Gate B |
+| D4 | Address: `*.vercel.app` for preview; production on `crm.mymagppie.com` (needs DNS access for `mymagppie.com`) | Yes; tell us who manages DNS | Gate B / C |
+| D5 | Preview data: synthetic only, or a copy of real data | Synthetic only | Gate B |
+| D6 | Admin second step in the cloud: authenticator app required (current rule) plus the emailed code, or the emailed code alone | Keep the authenticator for admins | Gate B |
+| D7 | Mail from the cloud: a separate Gmail API OAuth client for Vercel (same mailbox `info@mymagppie.com`) | Yes; created the same way as the laptop's | Gate B |
+| D8 | Who signs in on preview (emails and roles) | The owner as admin plus one test person per role | Gate B |
+| D9 | Release tag `v1.0-rc8` on `main` | Yes | Gate B |
+| D10 | Production admins (at least two, each with an authenticator) | Owner plus one trusted person | Gate C |
+| D11 | Staff list for production: email and role of each person | From the current team | Gate C |
+| D12 | Cutover window (about one hour, local CRM closed), freeze notice and rollback owner | An evening or weekend | Gate C |
+| D13 | Backups and alerts: Point-in-time recovery add-on, alert email address | PITR on for production; alerts to `info@mymagppie.com` | Gate C |
+| D14 | Business rules awaiting Manish (CLAUDE.md "To confirm") | Decide or accept as is | before go-live |
 
 ## 11. Not deployment
 
