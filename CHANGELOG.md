@@ -4,8 +4,18 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ## Unreleased
 
+### Sign-in, sessions, department roles and user management (22–23 Oct, branch feature/auth-real-use)
+- **Sliding sessions:** sign-out after 4 hours without real use and at most 12 hours after sign-in (`CRM_SESSION_IDLE_MINUTES`, `CRM_SESSION_MAX_HOURS`); background polling never keeps a session alive. A "Stay signed in" dialog warns two minutes before. Migration 0007.
+- **No lost work:** when a session ends, unsaved client changes are kept in the tab and saved once after signing in again; sign-in returns to the same page (`next`, same-site paths only).
+- **Department roles:** sales, design, measurement and accounts edit their own department and view the rest; reader views everything; only accounts and admin give the four Accounts approvals. Enforced on every save by `backend/permissions.py` (403, nothing saved). Screens show a "View only" pill. Migration 0008.
+- **Users page** (Management, administrators with an authenticator) and `python -m backend.users`: add with a one-time temporary password, change role, deactivate, reactivate, reset password (forces a new password). The last administrator is protected; nobody is deleted; every action is audited. Migration 0009.
+- **Passwords:** one rule, 12–1024 characters, everywhere.
+- **Laptop first-run admin:** a random password shown once (no fixed password in the repository), changed at first sign-in.
+- **QA server:** one synthetic user per role and `--idle-minutes` / `--max-hours`.
+- Decisions and evidence: [history/AUTH_REAL_USE.md](docs/history/AUTH_REAL_USE.md).
+
 ### Local admin for a fresh clone (22 Oct)
-- On a laptop (development database on localhost, localhost address), the CRM now starts a fresh clone by itself: an empty workspace if there is none, and the admin `admin@magppie.local` with the starting password `Admin@1234` if that email is missing. Existing workspaces and accounts are never changed. `CRM_LOCAL_ADMIN_PASSWORD` overrides the password; `CRM_LOCAL_ADMIN=0` turns it off. It never runs on preview, production or Vercel.
+- On a laptop (development database on localhost, localhost address), the CRM now starts a fresh clone by itself: an empty workspace if there is none, and the admin `admin@magppie.local` with the starting password `Admin@1234` if that email is missing. Existing workspaces and accounts are never changed. `CRM_LOCAL_ADMIN_PASSWORD` overrides the password; `CRM_LOCAL_ADMIN=0` turns it off. It never runs on preview, production or Vercel. (The fixed password was replaced on 23 Oct by a random one shown once; see above.)
 - `python -m backend.local_admin` resets that admin (or creates another) with a password of at least 8 characters typed at a hidden prompt.
 - Tests: `backend/tests/test_local_admin.py` (10), plus a fresh-clone run on a throwaway database (migrate, start, sign in, Sales opens). See [SETUP](docs/SETUP.md).
 

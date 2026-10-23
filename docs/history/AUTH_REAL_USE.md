@@ -65,3 +65,42 @@ Production-ready sign-in, sessions, department roles and user management for the
 - **Where it is shown:** the Windows launcher creates the admin itself, before starting the server, and prints the password in its own visible window, then waits for Enter (the window otherwise closes on success). The server's stdout and stderr go to `.local/crm-launcher.*.log`, so the server never prints it there: when it creates the admin itself (a direct start, for example on a Mac) it writes to the terminal device (`/dev/tty` or `CONOUT$`); with no terminal it prints only a note to run `python -m backend.local_admin`, never the password.
 - `CRM_LOCAL_ADMIN_PASSWORD` still chooses the password (it must meet the 12-character rule; no forced change), and `CRM_LOCAL_ADMIN=0` still turns this off. Still never on preview, production, Vercel, or a non-localhost database or address.
 - **Fix found while testing:** change password refused admins without an authenticator even where one cannot be set up (a laptop without `CRM_MFA_ENCRYPTION_KEY`), which with the forced change would lock a fresh-clone admin out. It now refuses only where enrolment is required (`enrollment_required`), and Account security offers the form there.
+
+### Phase 8: verification
+- **Bug found by the visual run and fixed:** the session guard's default clock and redirect functions were new on every render, which restarted its start-up effect, so every module page called `/api/auth/me` about 80 times a second. They are now stable module constants, and a test renders the guard as the pages do (no props) and checks it reads the session once.
+- Change-password tests that compared user rows now sort them (PostgreSQL returns them in another order once `last_login` is written).
+- The QA server (`scripts/serve_workflow_qa.py`) now uses real sign-in with one synthetic user per role (`<role>@qa.invalid`, QA-only password `synthetic-qa-only`) and `--idle-minutes` / `--max-hours` for testing the warning. The audits keep signing in as `admin@qa.invalid`.
+- Docker Desktop and local Supabase had stopped overnight; they were started again with the normal command (`supabase start`, data kept). The CRM itself was not started on this branch, because the live database has not been migrated.
+
+## After merging: live local database, in this order
+
+Run from `C:\Users\am600\Projects\CRM-CLAUDE` in PowerShell, after `git switch main` and `git pull`.
+
+1. **Stop the CRM:** double-click `Stop CRM.cmd` (keeps Supabase data).
+2. **Start only the database again:** `npm run db:start`.
+3. **Backup, with a restore check** (new folder name each time):
+   ```powershell
+   $env:POSTGRES_BIN = "C:\Program Files\PostgreSQL\18\bin"
+   .venv\Scripts\python.exe scripts\backup_postgres.py --output .local\backups\before-auth-roles --writes-paused --restore-check
+   ```
+   Drop the `crm_restore_<hex>` database it reports afterwards.
+4. **Apply the migrations** (0007 sliding sessions, 0008 department roles, 0009 user administration):
+   ```powershell
+   npm run db:migrate
+   ```
+   Check: `docker exec supabase_db_magppie-crm-dev psql -U postgres -Atc "select version_num from alembic_version"` prints `0009`.
+5. **Map existing users to the new roles.** Dry run first, it only lists:
+   ```powershell
+   .venv\Scripts\python.exe -m backend.users list
+   ```
+   Every existing user keeps their role (today: one admin, `admin@magppie.local`). For each staff member, add them or change their role, for example:
+   ```powershell
+   .venv\Scripts\python.exe -m backend.users add person@magppie.com --role sales
+   .venv\Scripts\python.exe -m backend.users role person@magppie.com --role accounts
+   ```
+   (or use Management → Users once signed in as an administrator).
+6. **Start the CRM:** `Start CRM.cmd`, then check health, sign-in, each module, one attachment and the counts (28 clients, 15 attachments).
+
+**If anything fails:**
+- Before step 4 nothing has changed: `git switch` back to the previous `main` commit and start as before.
+- After step 4 the old code cannot sign in (it does not fill the new session columns), so roll back the database too: restore the step-3 backup into a new database (`scripts\restore_postgres.py --backup .local\backups\before-auth-roles --create-database crm_restore_before_auth --bucket crm-restore-before-auth`), point `DATABASE_URL` at it, switch the code back, and start. Never restore over the live database.

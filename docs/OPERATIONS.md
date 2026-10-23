@@ -75,10 +75,23 @@ Follow the rotation steps in [PRODUCTION_SECRETS](PRODUCTION_SECRETS.md#rotation
 - **`CRM_MFA_ENCRYPTION_KEY`:** cannot simply be replaced. It needs a reviewed re-encryption, or every enrolled user re-enrolls. Never regenerate it on restart.
 - **Archive passphrase** (`C:\Users\am600\Magppie-Keys\`): keep it in the password manager; whoever holds it can read the 2026-10 archive.
 
+## Staff accounts
+
+Day to day, an administrator uses Management → **Users** (needs an authenticator). The command line does the same: `python -m backend.users …` (outside development add `--confirm-target HOST/DATABASE`).
+
+| Situation | What to do |
+|---|---|
+| Someone joins | Users → Add person: email and role (sales, design, measurement, accounts, reader; admin only if needed). Give them the temporary password privately (it is shown once); they choose their own at first sign-in. Admins must then set up an authenticator. |
+| Someone changes department | Change the role. They are signed out and see the new access at their next sign-in. |
+| Someone leaves | Deactivate. All their sessions end at once and they cannot sign in; their history stays. Never delete accounts. |
+| Forgotten password | Reset password. They are signed out everywhere, get a temporary password (shown once) and must choose a new one at sign-in. Their authenticator is kept. Email recovery stays off. |
+| Lost authenticator (and all recovery codes) | Follow "Lost MFA" in [SECURITY](SECURITY.md) (operator, `backend.reset_mfa`). A password reset never removes MFA. |
+| The only administrator is unavailable | The last active administrator cannot be removed or demoted. Keep at least two active administrators with authenticators. |
+
 ## Incidents
 
 1. **Contain.**
-   - For suspected account compromise: reset that user's password (this revokes their sessions), or have an operator delete their `crm_sessions` rows.
+   - For suspected account compromise: deactivate the user on the Users page (all sessions end at once), then reset their password before reactivating.
    - For a leaked secret: rotate it as above.
    - For bad data: pause writes.
 2. **Preserve.** Take a new backup before changing anything (`backup_postgres.py`). Never restore over the live database.

@@ -63,10 +63,17 @@ All ports listen on 127.0.0.1 only. Port 4300, the old standalone JSON server, i
    - run `npm run db:migrate`;
    - run `python -m backend.seed_local`. It refuses non-local URLs and an occupied database.
    - Create an admin with `python -m backend.provision_user --email EMAIL --role admin`. The password is entered at a hidden prompt.
-   - **On a laptop, this is automatic:** when the CRM starts on a development database on localhost (and a localhost address), it creates an empty workspace if there is none and adds the admin `admin@magppie.local` with the starting password `Admin@1234` if that email is missing. It never changes an existing workspace or account, and it never runs on preview, production or Vercel. Change the password afterwards on Account security. Set `CRM_LOCAL_ADMIN_PASSWORD` in `.env.local` for a different starting password, or `CRM_LOCAL_ADMIN=0` to turn this off.
-   - To reset that admin (or create another) by hand: `python -m backend.local_admin [--email EMAIL]`, with a password of at least 8 characters at a hidden prompt. An existing account gets the new password, the admin role and active status, and its sessions end.
+   - **On a laptop, this is automatic:** when the CRM starts on a development database on localhost (and a localhost address), it creates an empty workspace if there is none and adds the admin `admin@magppie.local` if that email is missing, with a **random password shown once**:
+     - `Start CRM.cmd` shows it in its window and waits for Enter; started another way, the server writes it to the terminal itself. It is never stored in the repository or a log file.
+     - Sign in with it; the CRM then asks for your own password (at least 12 characters) before anything else opens.
+     - It never changes an existing workspace or account, and never runs on preview, production or Vercel. `CRM_LOCAL_ADMIN_PASSWORD` in `.env.local` chooses the password instead (12 characters or more, no forced change); `CRM_LOCAL_ADMIN=0` turns this off.
+   - Missed the password, or need another admin? `python -m backend.local_admin [--email EMAIL]` sets one at a hidden prompt (at least 12 characters). An existing account gets the new password, the admin role and active status, and its sessions end.
    - If `CRM_MFA_ENCRYPTION_KEY` is set in `.env.local`, admins must set up an authenticator after signing in. A fresh clone does not set it; on a laptop that has it, put `# ` before that line and restart the CRM for password-only sign-in.
 8. Run `npm run build` to build all six frontends, then **Start CRM.cmd**.
+
+### Synthetic QA server (no live data)
+
+`python scripts/serve_workflow_qa.py --dataset workflow --port 4303` serves the real app on a fresh SQLite database on loopback. Sign in as `<role>@qa.invalid` (admin, sales, design, measurement, accounts, reader, assigned) with the QA-only password `synthetic-qa-only`. Add `--idle-minutes 3 --max-hours 1` to see the "Stay signed in" warning after one minute. External providers are denied and factory mail stays 403.
 
 `.env.local` takes precedence over the older `.local/backend-local.json`. Exported process variables take precedence over both. The Vercel entrypoint loads no local env file.
 

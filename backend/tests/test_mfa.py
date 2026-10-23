@@ -54,7 +54,7 @@ def begin(client,email,password=PASSWORD):
 @pytest.mark.parametrize('role',['admin','reader','assigned'])
 def test_enrollment_challenge_roles_and_replay(setup,role):
     create,engine,clock=setup;client,uid,email=create(role)
-    with engine.connect() as db:before=[list(db.execute(select(users.c.id,users.c.role,users.c.active)).mappings()),list(db.execute(select(grants)).mappings())]
+    with engine.connect() as db:before=[list(db.execute(select(users.c.id,users.c.role,users.c.active).order_by(users.c.id)).mappings()),list(db.execute(select(grants).order_by(grants.c.user_id,grants.c.client_id)).mappings())]
     secret,codes=enroll(client,clock)
     assert len(set(codes))==10
     assert client.get('/api/auth/me').status_code==401
@@ -69,7 +69,7 @@ def test_enrollment_challenge_roles_and_replay(setup,role):
     assert client.get('/api/auth/me').json()['role']==role
     assert client.get('/api/store').status_code==(403 if role=='assigned' else 200)
     if role!='admin':assert client.put('/api/store',json={}).status_code==403
-    with engine.connect() as db:assert [list(db.execute(select(users.c.id,users.c.role,users.c.active)).mappings()),list(db.execute(select(grants)).mappings())]==before
+    with engine.connect() as db:assert [list(db.execute(select(users.c.id,users.c.role,users.c.active).order_by(users.c.id)).mappings()),list(db.execute(select(grants).order_by(grants.c.user_id,grants.c.client_id)).mappings())]==before
     begin(client,email)
     assert client.post('/api/auth/mfa/verify',json={'code':codes[0]}).status_code==200
     begin(client,email)

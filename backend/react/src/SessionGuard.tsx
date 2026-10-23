@@ -42,9 +42,13 @@ const minutes = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
+// Stable defaults: new functions on every render would restart the effects below (and refetch in a loop).
+const systemClock = () => Date.now();
+const goTo = (url: string) => location.assign(url);
+
 export function SessionGuard({
-  clock = () => Date.now(),
-  navigate = (url: string) => location.assign(url),
+  clock = systemClock,
+  navigate = goTo,
 }: {
   clock?: () => number;
   navigate?: (url: string) => void;

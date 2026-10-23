@@ -287,3 +287,22 @@ describe("Stay signed in", () => {
     expect(host.textContent).not.toContain("Stay signed in");
   });
 });
+
+it("used as the pages use it (no props), it reads the session once and does not loop", async () => {
+  const fetcher = vi.fn().mockImplementation(
+    async () =>
+      new Response(
+        JSON.stringify({
+          idle_expires_at: 1_800_014_400,
+          expires_at: 1_800_043_200,
+          now: 1_800_000_000,
+        }),
+      ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  await render(<SessionGuard />);
+  for (let i = 0; i < 5; i++) await act(async () => {});
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 1200)));
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(fetcher).toHaveBeenCalledWith("/api/auth/me", expect.anything());
+});

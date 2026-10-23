@@ -6,7 +6,7 @@ Current behaviour of the CRM's identity, permission and secret handling. The imp
 
 FastAPI is the only data path. Browsers never get database credentials or the Supabase service key.
 
-Every CRM table (Alembic 0001–0008) has:
+Every CRM table (Alembic 0001–0009) has:
 - RLS enabled;
 - PUBLIC, anon and authenticated access revoked.
 
@@ -63,8 +63,12 @@ Other actions: departments may attach files to any client (the record change its
 
 ## Sessions and login
 
-- Passwords are salted PBKDF2-HMAC-SHA256 with 600,000 iterations. Passwords set by provisioning or reset must be 16–1024 characters.
-- A session is a random HttpOnly cookie (`crm_session`), SameSite=Strict, valid for at most one hour. It is Secure when the origin is HTTPS. Only its hash is stored.
+- Passwords are salted PBKDF2-HMAC-SHA256 with 600,000 iterations. Every password that is set (provisioning, Users page, reset link, change, local admin) must be 12–1024 characters (`backend/passwords.py`).
+- A session is a random HttpOnly cookie (`crm_session`), SameSite=Strict, Secure when the origin is HTTPS. Only its hash is stored.
+- **Sliding sessions (decided 22 Oct 2026):** a session ends after `CRM_SESSION_IDLE_MINUTES` (default 240) without real use and at most `CRM_SESSION_MAX_HOURS` (default 12) after sign-in.
+  - Real use renews it, at most once a minute: a save or other change, opening a page, or `POST /api/auth/activity` (sent by the page after keyboard or mouse use, or by "Stay signed in"). Background polling (`GET /api/...`) and requests marked `X-CRM-Background: 1` never do, so an idle open tab still signs out.
+  - `GET /api/auth/me` reports `idle_expires_at`, `expires_at` and the server's `now`. Two minutes before the end every module page shows a "Stay signed in" dialog; near the 12-hour limit it explains that there is no extension.
+  - When a session ends, unsaved client changes are kept in that browser tab (`sessionStorage`, per user, module and client; no secrets) and saved once after signing in again, on the newest copy; a client changed by someone else meanwhile is never overwritten. Sign-in returns to the page (`next`, same-site paths only).
 - Logout deletes the session and any pending MFA challenge.
 - Login limits are shared in PostgreSQL:
   - 20 attempts per key per minute, 200 globally;
@@ -99,12 +103,25 @@ Every login and every request must match both an account binding and a session b
 
 - **Where:** Account security (`/security`), section "Change password". Endpoint `POST /api/auth/password` in `backend/mfa.py`.
 - **Needs:** the current password, plus an authenticator or recovery code when an authenticator is enabled. An admin who has not enrolled yet must enrol first (403). Reader and assigned users without an authenticator use the password alone.
-- **New password:** 16–1024 characters (the provisioning and reset rule) and different from the current one.
+- **New password:** 12–1024 characters (the one rule) and different from the current one.
+- An admin on a laptop where no authenticator can be set up (no `CRM_MFA_ENCRYPTION_KEY`) changes the password with the current password alone.
+- After an administrator's reset (or on a fresh laptop's first admin) the person must choose a new password before anything else opens: every data API answers 403 `password_change_required` and pages go to `/security`.
 - **Effect:**
   - every other session of that user ends; the session that made the change stays signed in;
   - open reset links and pending sign-in challenges for that user are cancelled;
   - MFA is unchanged, and the audit log records `auth.password_changed`.
 - **Limits:** ten attempts per user per hour, 100 globally per hour. A wrong code or password counts as an attempt; a used code cannot be replayed.
+
+## Users page (administrators)
+
+- Management → **Users**, shown to administrators only; `GET/POST /api/admin/users…` in `backend/user_admin.py`, rules in `backend/users.py`. The same rules are on the command line: `python -m backend.users list|add|role|deactivate|reactivate|reset-password` (outside development add `--confirm-target HOST/DATABASE`).
+- Needs an administrator with an enabled authenticator (on a development laptop without the MFA key, the same exception as the admin MFA rule).
+- **Add:** email and role; a 16-character temporary password is shown once; the person must choose their own at first sign-in. Hosted environments bind the new account to the environment's realm automatically.
+- **Change role:** the person is signed out so every screen starts with the new access.
+- **Deactivate:** signs the person out everywhere at once and blocks sign-in; nothing is deleted. **Reactivate** restores sign-in.
+- **Reset password:** a new temporary password shown once; all sessions end; the authenticator stays; a new password is required at the next sign-in. This is how a forgotten password is handled (email recovery stays off).
+- **Guards:** nobody can deactivate or demote themselves; the last active administrator can never be deactivated or demoted; users are never deleted.
+- Every action is audited: `user.create`, `user.role`, `user.deactivate`, `user.reactivate`, `user.password_reset`. The list shows email, role, active, authenticator on/off and last sign-in; never a password, hash or session.
 
 ## Password recovery
 
