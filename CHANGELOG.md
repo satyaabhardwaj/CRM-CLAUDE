@@ -4,6 +4,9 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ## Unreleased
 
+### Nightly backup (23 Oct)
+- `scripts/daily_backup.py`, scheduled in Windows Task Scheduler at 23:00 ("MAGPPIE CRM daily backup"): a verified backup (restore check) into `.local/backups/daily-*`, retries if data changed mid-backup, keeps 30 days, logs each run to `.local/backups/daily-backup.log`. Hand-made backups are never removed. Tests: `backend/tests/test_daily_backup.py` (3). See [OPERATIONS](docs/OPERATIONS.md).
+
 ### Sign-in code by email (23 Oct, branch feature/email-otp)
 - After the password, accounts with a verified mailbox and no authenticator app get a six-digit code by email (`info@mymagppie.com` first) and enter it to finish signing in. On with `CRM_EMAIL_OTP=1` and the reset-link mail settings.
 - The code works once for 10 minutes, 5 wrong tries end it, "Send a new code" after 30 seconds (three times). Only hashes are stored (migration 0010); sign-out or a password change cancels a pending code; if mail fails nobody is signed in.
