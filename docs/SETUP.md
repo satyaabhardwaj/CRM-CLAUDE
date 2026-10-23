@@ -71,6 +71,10 @@ All ports listen on 127.0.0.1 only. Port 4300, the old standalone JSON server, i
    - If `CRM_MFA_ENCRYPTION_KEY` is set in `.env.local`, admins must set up an authenticator after signing in. A fresh clone does not set it; on a laptop that has it, put `# ` before that line and restart the CRM for password-only sign-in.
 8. Run `npm run build` to build all six frontends, then **Start CRM.cmd**.
 
+### Reset emails and sign-in codes by email
+
+`.venv\Scripts\python.exe scripts\set_recovery_mail.py --email info@mymagppie.com` asks for the mailbox's Google App Password at a hidden prompt, sends a test email, and only then turns on "Forgot password?" emails and sign-in codes by email (`CRM_RECOVERY_ENABLED=1`, `CRM_EMAIL_OTP=1`, `RECOVERY_SMTP_*` in `.env.local`). Restart the CRM afterwards. Add `--no-login-codes` for reset emails only. The account's email must be its verified recovery mailbox (`backend.recovery_email --ownership-verified`).
+
 ### Synthetic QA server (no live data)
 
 `python scripts/serve_workflow_qa.py --dataset workflow --port 4303` serves the real app on a fresh SQLite database on loopback. Sign in as `<role>@qa.invalid` (admin, sales, design, measurement, accounts, reader, assigned) with the QA-only password `synthetic-qa-only`. Add `--idle-minutes 3 --max-hours 1` to see the "Stay signed in" warning after one minute. External providers are denied and factory mail stays 403.

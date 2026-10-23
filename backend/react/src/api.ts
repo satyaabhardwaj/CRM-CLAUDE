@@ -16,13 +16,15 @@ export async function signIn(email: string, password: string) {
         ? data.error
         : "Could not sign in.",
     );
+  const record = (data && typeof data === "object" ? data : {}) as Record<
+    string,
+    unknown
+  >;
   return {
-    mfa_required: !!(
-      data &&
-      typeof data === "object" &&
-      "mfa_required" in data &&
-      data.mfa_required === true
-    ),
+    mfa_required: record.mfa_required === true,
+    // "email": a sign-in code was emailed to `to` (masked); otherwise the authenticator app.
+    method: record.method === "email" ? ("email" as const) : ("app" as const),
+    to: typeof record.to === "string" ? record.to : "",
   };
 }
 export async function signOut() {

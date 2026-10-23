@@ -1,11 +1,13 @@
-"""Turn on "Forgot password?" emails for this laptop's CRM. The person types the mailbox password at a hidden prompt.
+"""Turn on "Forgot password?" emails and sign-in codes by email for this laptop's CRM. The person types the mailbox
+password at a hidden prompt.
 
   .venv\\Scripts\\python.exe scripts\\set_recovery_mail.py --email info@mymagppie.com
 
 Defaults suit Google Workspace (smtp.gmail.com, port 587, STARTTLS) and need a Google App Password for that mailbox
 (Google Account -> Security -> 2-Step Verification -> App passwords). Before anything is saved, it signs in to the
-mail server and sends one test email to the same address. Only then does it write the RECOVERY_* settings and
-CRM_RECOVERY_ENABLED=1 into .env.local. The password is never printed or logged.
+mail server and sends one test email to the same address. Only then does it write the RECOVERY_* settings,
+CRM_RECOVERY_ENABLED=1 and (unless --no-login-codes) CRM_EMAIL_OTP=1 into .env.local. The password is never printed
+or logged.
 """
 import argparse
 import getpass
@@ -34,6 +36,7 @@ def main():
     parser.add_argument('--email', required=True, help='Mailbox that sends the reset links (also the sign-in user)')
     parser.add_argument('--host', default='smtp.gmail.com')
     parser.add_argument('--port', type=int, default=587)
+    parser.add_argument('--no-login-codes', action='store_true', help='Only reset emails; no sign-in codes by email')
     args = parser.parse_args()
     if not ENV.exists():
         raise SystemExit('.env.local is missing. Complete local setup first (docs/SETUP.md).')
@@ -63,8 +66,10 @@ def main():
         'RECOVERY_SMTP_USER': email,
         'RECOVERY_SMTP_PASSWORD': password,
         'RECOVERY_MAIL_FROM': email,
+        'CRM_EMAIL_OTP': '0' if args.no_login_codes else '1',
     }), encoding='utf-8')
-    print(f'Test email sent to {email}. Reset emails are on; restart the CRM (Stop CRM.cmd, then Start CRM.cmd).')
+    codes = '' if args.no_login_codes else ' and sign-in codes by email'
+    print(f'Test email sent to {email}. Reset emails{codes} are on; restart the CRM (Stop CRM.cmd, then Start CRM.cmd).')
 
 
 if __name__ == '__main__':

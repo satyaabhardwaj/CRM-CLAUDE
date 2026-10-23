@@ -6,7 +6,7 @@ Current behaviour of the CRM's identity, permission and secret handling. The imp
 
 FastAPI is the only data path. Browsers never get database credentials or the Supabase service key.
 
-Every CRM table (Alembic 0001–0009) has:
+Every CRM table (Alembic 0001–0010) has:
 - RLS enabled;
 - PUBLIC, anon and authenticated access revoked.
 
@@ -98,6 +98,17 @@ Every login and every request must match both an account binding and a session b
   - **Hosted (preview/production):** if the encryption key or the MFA tables are missing, admins are blocked (fail closed).
   - **Development:** on a laptop without `CRM_MFA_ENCRYPTION_KEY`, the policy cannot be met, so it is not enforced there.
 - **The key:** losing `CRM_MFA_ENCRYPTION_KEY` blocks every enrolled user. Back it up separately from database dumps and never regenerate it on restart.
+
+## Sign-in code by email
+
+Decided 23 Oct 2026 (owner: the admin `info@mymagppie.com` signs in with a code sent to that mailbox).
+
+- **On** when `CRM_EMAIL_OTP=1` and the reset-link mail settings (`RECOVERY_SMTP_*`, `RECOVERY_MAIL_FROM`) are present; `scripts/set_recovery_mail.py` sets both after a real test email went out. If `CRM_EMAIL_OTP=1` is set without the mail settings, the CRM refuses to start.
+- **Who:** an active account whose sign-in email is its verified mailbox (`crm_recovery_emails`, set by `backend.recovery_email --ownership-verified` or by the owner's request) and that has no authenticator app. An enabled authenticator is used instead. In preview and production it does not replace the authenticator admins must have.
+- **Flow:** the password returns 202 `{"mfa_required": true, "method": "email", "to": "i***@…"}` and a ten-minute HttpOnly challenge cookie (`crm_email_challenge`), with no access to anything. A six-digit code is emailed; `POST /api/auth/email-code/verify` with it issues the normal session. "Send a new code" (`POST /api/auth/email-code/resend`) after 30 seconds, three times at most; only the newest code works.
+- **Limits:** 5 wrong codes end the challenge; 10 verify attempts per user per hour; the code expires after 10 minutes; one pending challenge per user.
+- **Storage:** only hashes (`crm_login_codes`, migration 0010). The code hash is bound to the challenge cookie, so the table alone cannot be brute-forced; a password change or sign-out cancels a pending code.
+- **Mail down:** nobody is signed in and the screen says the code could not be sent. An operator on the laptop can set `CRM_EMAIL_OTP=0` in `.env.local` and restart to sign in with the password alone.
 
 ## Changing your password
 

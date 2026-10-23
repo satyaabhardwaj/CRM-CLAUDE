@@ -21,7 +21,8 @@ class Login(BaseModel):
     password: str = Field(min_length=1,max_length=1024)
 
 # Requests that never count as activity: signing in or out, and the login-only MFA step.
-NO_RENEW = frozenset({'/api/auth/login', '/api/auth/logout', '/api/auth/mfa/verify', '/api/auth/forgot-password', '/api/auth/reset-password'})
+NO_RENEW = frozenset({'/api/auth/login', '/api/auth/logout', '/api/auth/mfa/verify', '/api/auth/forgot-password', '/api/auth/reset-password',
+                      '/api/auth/email-code/verify', '/api/auth/email-code/resend'})
 
 
 def activity(request):
@@ -40,7 +41,7 @@ class ClientChange(BaseModel):
     version: int = Field(ge=0,strict=True)
     payload: dict
 
-def create_app(settings=None, engine=None, authenticator=None, recovery_sender=None):
+def create_app(settings=None, engine=None, authenticator=None, recovery_sender=None, code_sender=None):
     settings = settings or Settings.load()
     engine = engine or create_engine(settings.database_url, pool_pre_ping=True, poolclass=NullPool,
                                     connect_args={'prepare_threshold':None,'connect_timeout':10})
@@ -98,6 +99,9 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
 
     from .mfa import MFA
     mfa = MFA(engine, settings)
+    from . import email_codes
+    codes = email_codes.EmailCodes(engine, settings, code_sender or email_codes.configured_sender())
+    codes.register(app)
     # Enrolment routes and /api/auth/me only need a session; everything else goes through who().
     mfa.register(app, signed_in)
 
@@ -132,8 +136,18 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
                 response=mfa.cookie(JSONResponse({'mfa_required':True},status_code=202),'crm_mfa_challenge',challenge,300)
                 response.delete_cookie('crm_session',path='/')
                 return response
-            token=auth.issue(db,user_id,settings.session_idle,realm,settings.session_max)
-            repository.event(db,user_id,'session.login')
+            mailbox=codes.mailbox(db,user_id)
+            if mailbox:
+                # No authenticator, but a verified mailbox and sign-in codes on: finish with an emailed code.
+                pending=codes.start(db,user_id,mailbox)
+            else:
+                token=auth.issue(db,user_id,settings.session_idle,realm,settings.session_max)
+                repository.event(db,user_id,'session.login')
+        if mailbox:
+            # Sent after the challenge is saved; if mail fails the challenge is removed and nobody is signed in.
+            if not codes.send_or_cancel(pending[0],mailbox,pending[1]):
+                raise HTTPException(503,'The sign-in code could not be sent. Try again in a minute.')
+            return codes.response(pending[0],mailbox)
         response=JSONResponse({'ok':True})
         response.set_cookie('crm_session',token,httponly=True,secure=settings.origin.startswith('https:'),samesite='strict',max_age=settings.session_max,path='/')
         return response
@@ -142,8 +156,9 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
     def logout(request:Request):
         with engine.begin() as db:
             mfa.revoke_challenge(db,request.cookies.get('crm_mfa_challenge',''))
+            codes.revoke(db,request.cookies.get(email_codes.COOKIE,''))
             db.execute(delete(sessions).where(sessions.c.hash==auth.digest(request.cookies.get('crm_session',''))))
-        response=JSONResponse({'ok':True});response.delete_cookie('crm_session',path='/');response.delete_cookie('crm_mfa_challenge',path='/');return response
+        response=JSONResponse({'ok':True});response.delete_cookie('crm_session',path='/');response.delete_cookie('crm_mfa_challenge',path='/');response.delete_cookie(email_codes.COOKIE,path='/');return response
 
     @app.get('/api/auth/me')
     def me(request:Request):
