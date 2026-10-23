@@ -1,4 +1,5 @@
 import type { Store } from "./types";
+import { sessionEnded } from "../../../shared/session";
 export function normalize(raw: Store): Store {
   const data = structuredClone(raw);
   data.clients.forEach(window.SalesLogic.ensure);
@@ -10,8 +11,8 @@ export async function readStore(): Promise<Store> {
     signal: AbortSignal.timeout(20000),
   });
   if (r.status === 401) {
-    location.assign("/login");
-    throw Error("Please sign in again.");
+    sessionEnded();
+    throw Error("Session ended — sign in again.");
   }
   if (!r.ok)
     throw Error(

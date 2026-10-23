@@ -1,0 +1,106 @@
+# Auth for real use (branch feature/auth-real-use, 22 Oct 2026)
+
+Production-ready sign-in, sessions, department roles and user management for the internal CRM. Owner decisions are in the task; the choices made while building it are under "Decisions taken".
+
+## Baseline (main at c2eebf1, before any change)
+
+| Check | Result |
+|---|---|
+| Frontend tests | auth 46, sales 46, design 47, accounts 26, measurement 18, management 39 (222) |
+| Backend pytest (throwaway `crm_crud_test_qa_*` PostgreSQL, dropped) | 137 passed, 1 skipped (real-Storage test) |
+| `scripts/check.py` | pass |
+| `npm run ui:audit` | Last full run (rc5/rc6 UI, see FINAL_DEPLOYMENT_CHECKLIST): 0 page overflow, overlaps, clipped text; only finding the 30 px map pins. Not re-run on main because the audit builds from the working tree; Phase 8 runs it on the branch. |
+
+## Decisions taken
+
+### Phase 1: sliding sessions
+- `crm_sessions` gains `created` (sign-in time) and `last_seen` (migration 0007, additive). `expires` stays the single check on every request: it is the idle expiry and is never moved past `created + CRM_SESSION_MAX_HOURS`, so the request path needs no new condition.
+- Existing sessions are backfilled as signed in at `expires - 3600` (they were all one-hour sessions).
+- **What counts as activity:** a change request (`POST`/`PUT`/`DELETE` under `/api/`, except sign-in, sign-out and the login MFA step), `POST /api/auth/activity` (sent by the shell after real keyboard or mouse use), and opening a page. Every `GET /api/...` (store polling, `/api/auth/me`, measurement refresh) never renews. Requests with `X-CRM-Background: 1` never renew either (for timers that save on their own; see below).
+- Renewal runs in the request middleware in its own short transaction, before the handler opens its own, so it never contends with the save it accompanies. At most once a minute per session (`last_seen` check in the same `UPDATE`).
+- The cookie's `Max-Age` is the absolute maximum (12 h); the server enforces the idle limit.
+- `GET /api/auth/me` and `POST /api/auth/activity` return `idle_expires_at` and `expires_at` (Unix seconds).
+- Settings `CRM_SESSION_IDLE_MINUTES` (default 240) and `CRM_SESSION_MAX_HOURS` (default 12) are validated at start (idle between 1 minute and the maximum). QA can shorten them.
+- Background saves were reviewed: OCF auto-sign saves once per newly booked client, and the factory-mail result is saved seconds after the person clicks Approve. Both follow a real action, so they are not tagged; the server still honours `X-CRM-Background: 1` for any future timer.
+
+### Phase 2: never lose work on session end
+- One shared helper, `shared/session.ts`, used by the auth shell and every module: `safeNext`, `loginUrl`, `sessionEnded`, drafts (`keepDrafts` / `readDrafts` / `clearDrafts`) and `replay`.
+- **What is kept:** the changed client records (and, in Sales, changed shared lists such as architects, under `@<key>`), as `{before, after}` per user + module + client in this tab's `sessionStorage`. No cookie, password or token is stored. Text still being typed in a box is not a change yet (boxes save on leaving or Enter, unchanged), so it is not kept.
+- **Accounts** saves through a mutate function, so a save cut off on its first read rebuilds the change from the saved copy on screen; a save cut off on the write carries the changed client in the error.
+- **After sign-in** the module replays the drafts once on the newest copy: a record still equal to its `before` gets the change and one save; a record changed by someone else meanwhile is not overwritten, and the person is told which client to redo. Drafts are cleared after that attempt, after any successful save, and on sign-out.
+- Measurement and Management have nothing to keep (Measurement only marks its bell as read; Management never saves); they go to sign-in and come back.
+- The fetch wrapper waits 150 ms before going to sign-in so the module can keep its draft first. The sign-in page says "Session ended — sign in again. Unsaved changes are kept and saved after you sign in." and returns to `next` after the password (and the MFA step).
+- **`next` rule:** only a same-site path: one leading `/`, no `//`, no scheme, no backslash, no control characters, checked again after decoding up to three times (so `%2F%2F`, `%5C` and double-encoding are refused), at most 2,000 characters. Anything else goes to `/`.
+- **"Stay signed in" dialog** (`backend/react/src/SessionGuard.tsx`, mounted in `#session-root` on every module page): a native modal `<dialog role="alertdialog">` with focus on the main button; Escape dismisses until the next deadline. Two minutes before the idle limit it offers "Stay signed in" (one activity ping) and "Sign out". Near the 12-hour limit it explains the limit and offers no extension. Times come from the server (`now` in the response), so a wrong laptop clock does not shift the warning. Before warning and at the deadline it re-reads `/api/auth/me`, so activity in another tab is respected. Keyboard or pointer use pings at most once a minute.
+
+### Phase 3: department roles on the server
+- Roles `sales`, `design`, `measurement`, `accounts` join `admin`, `reader`, `assigned` (migration 0008 replaces the `crm_users_role_check` constraint; the model now names it). `provision_user` and `manage.py` accept the new roles.
+- The permission map lives in `backend/permissions.py` and is documented in docs/SECURITY.md. It was derived from what each module's code actually writes (a scan of every client field assignment in `sales`, `design`, `accounts`, `measurement` React sources plus `shared/rules.js`).
+- **Sales owns everything on a client except what other departments own.** Its forms edit most of the record through generic field boxes, so an allow-list would refuse ordinary Sales work. The other departments get explicit allow-lists. Fields shared by more than one department get rules on the value: receipts (Sales requests, Accounts confirms or decides), booking approval (Sales "Pending", Accounts "Approved"/"Rejected"), stage (Accounts only "booked"), the activity log (add on top only).
+- **Defaults are not edits.** Saves carry the defaults that `L.ensure` / `L.flow` fill in. The server fills the same defaults into the stored copy (`with_defaults`), taking time-stamped fills from the incoming record. A parity test runs the real `shared/rules.js` in Node on legacy shapes; a read-only run on the 28 live clients (in memory, nothing written) matched all of them. The legacy gates back-fill is accepted only on a record that has no `gates` at all, so it cannot be used to forge an approval.
+- **Measurement** writes nothing on clients today (its screens only mark the bell). The role owns the whole `measurement` record so its visit date, assignee and "done" can be recorded when those screens are added; Design shares it, Sales may only create the first request and set its date (what its form does today).
+- The check runs after the compare-and-swap on `rev`, inside the same transaction, so a refusal rolls back and the revision is not used up; the existing stale (409) merge flow is unchanged.
+- `repository.allowed` lets departments read every client and attach files to any (the record change is checked on save). External actions: OCF signing, voice notes and scratch uploads for `sales` and `admin` (Sales' order forms use them); factory mail (still always refused) for `accounts`, `design`, `admin`.
+- `PUT /api/clients/{id}` applies the same per-field rules for departments; `assigned` keeps its grants unchanged.
+
+### Phase 4: the screens reflect the role
+- One helper, `canEdit(role, module)` in `shared/session.ts` (admin or the module's own department), and `ROLE_LABEL` for display. Sales, Design and Accounts decide "can save" from it instead of "admin only"; Measurement uses it for its bell.
+- A view-only module uses the existing read-only presentation (disabled fieldsets and buttons) and shows a quiet grey "View only" pill in the header (`AppHeader viewOnly`); the header's main action (for example New opportunity) is hidden. The old full-width "Read-only access. Changes require an administrator." line is replaced by the pill. A blocked change says "View only: your role cannot change Sales." (or Design).
+- Accounts: payment, decision and the four approval buttons follow `writable`, which is true only for accounts and admin. The pill waits until the role is known, so it does not flash.
+- Measurement marks its bell as read only for measurement and admin; other roles see the bell without saving.
+- Management is view-only for everyone already and shows no pill.
+- The account menu shows the role by name (Administrator, Sales, …, View only, Assigned clients).
+
+### Phase 5: Users page and CLI
+- `backend/users.py` holds the rules (shared by the API in `backend/user_admin.py` and the CLI `python -m backend.users`). Migration 0009 adds `must_change_password`, `last_login`, `created` to `crm_users`.
+- Users endpoints need an administrator with an enabled authenticator, except on a development laptop without an MFA key (same exception as the existing admin MFA rule).
+- Temporary passwords are 16 random URL-safe characters, shown once. `must_change_password` blocks every data API (403 `password_change_required`) and sends pages to `/security` until a new password is chosen.
+- Guards: no self-deactivation and no self-demotion (another administrator must do it); the last active administrator can never be deactivated or demoted; a role change ends that person's sessions; nothing is ever deleted. Every action is audited (`user.create`, `user.role`, `user.deactivate`, `user.reactivate`, `user.password_reset`).
+
+### Phase 6: one password rule
+- `backend/passwords.py` (`MIN_LENGTH = 12`, `MAX_LENGTH = 1024`, `check()`) is the only place the rule lives; provisioning, the reset link, change password, the local admin and `reset_admin` use it. The screens read `MIN_PASSWORD` / `MAX_PASSWORD` from `shared/session.ts` and say "At least 12 characters". Temporary passwords from the Users page and the first-run admin are 16 characters.
+
+### Phase 7: first-run local admin
+- The fixed `Admin@1234` is gone. On a fresh laptop database the CRM creates `admin@magppie.local` with a random 16-character password, marks it "must change at first sign-in", and shows it once.
+- **Where it is shown:** the Windows launcher creates the admin itself, before starting the server, and prints the password in its own visible window, then waits for Enter (the window otherwise closes on success). The server's stdout and stderr go to `.local/crm-launcher.*.log`, so the server never prints it there: when it creates the admin itself (a direct start, for example on a Mac) it writes to the terminal device (`/dev/tty` or `CONOUT$`); with no terminal it prints only a note to run `python -m backend.local_admin`, never the password.
+- `CRM_LOCAL_ADMIN_PASSWORD` still chooses the password (it must meet the 12-character rule; no forced change), and `CRM_LOCAL_ADMIN=0` still turns this off. Still never on preview, production, Vercel, or a non-localhost database or address.
+- **Fix found while testing:** change password refused admins without an authenticator even where one cannot be set up (a laptop without `CRM_MFA_ENCRYPTION_KEY`), which with the forced change would lock a fresh-clone admin out. It now refuses only where enrolment is required (`enrollment_required`), and Account security offers the form there.
+
+### Phase 8: verification
+- **Bug found by the visual run and fixed:** the session guard's default clock and redirect functions were new on every render, which restarted its start-up effect, so every module page called `/api/auth/me` about 80 times a second. They are now stable module constants, and a test renders the guard as the pages do (no props) and checks it reads the session once.
+- Change-password tests that compared user rows now sort them (PostgreSQL returns them in another order once `last_login` is written).
+- The QA server (`scripts/serve_workflow_qa.py`) now uses real sign-in with one synthetic user per role (`<role>@qa.invalid`, QA-only password `synthetic-qa-only`) and `--idle-minutes` / `--max-hours` for testing the warning. The audits keep signing in as `admin@qa.invalid`.
+- Docker Desktop and local Supabase had stopped overnight; they were started again with the normal command (`supabase start`, data kept). The CRM itself was not started on this branch, because the live database has not been migrated.
+
+## After merging: live local database, in this order
+
+Run from `C:\Users\am600\Projects\CRM-CLAUDE` in PowerShell, after `git switch main` and `git pull`.
+
+1. **Stop the CRM:** double-click `Stop CRM.cmd` (keeps Supabase data).
+2. **Start only the database again:** `npm run db:start`.
+3. **Backup, with a restore check** (new folder name each time):
+   ```powershell
+   $env:POSTGRES_BIN = "C:\Program Files\PostgreSQL\18\bin"
+   .venv\Scripts\python.exe scripts\backup_postgres.py --output .local\backups\before-auth-roles --writes-paused --restore-check
+   ```
+   Drop the `crm_restore_<hex>` database it reports afterwards.
+4. **Apply the migrations** (0007 sliding sessions, 0008 department roles, 0009 user administration):
+   ```powershell
+   npm run db:migrate
+   ```
+   Check: `docker exec supabase_db_magppie-crm-dev psql -U postgres -Atc "select version_num from alembic_version"` prints `0009`.
+5. **Map existing users to the new roles.** Dry run first, it only lists:
+   ```powershell
+   .venv\Scripts\python.exe -m backend.users list
+   ```
+   Every existing user keeps their role (today: one admin, `admin@magppie.local`). For each staff member, add them or change their role, for example:
+   ```powershell
+   .venv\Scripts\python.exe -m backend.users add person@magppie.com --role sales
+   .venv\Scripts\python.exe -m backend.users role person@magppie.com --role accounts
+   ```
+   (or use Management → Users once signed in as an administrator).
+6. **Start the CRM:** `Start CRM.cmd`, then check health, sign-in, each module, one attachment and the counts (28 clients, 15 attachments).
+
+**If anything fails:**
+- Before step 4 nothing has changed: `git switch` back to the previous `main` commit and start as before.
+- After step 4 the old code cannot sign in (it does not fill the new session columns), so roll back the database too: restore the step-3 backup into a new database (`scripts\restore_postgres.py --backup .local\backups\before-auth-roles --create-database crm_restore_before_auth --bucket crm-restore-before-auth`), point `DATABASE_URL` at it, switch the code back, and start. Never restore over the live database.

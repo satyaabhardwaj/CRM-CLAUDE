@@ -46,6 +46,9 @@ Set in Vercel under Project → Settings → Environment Variables, scoped to Pr
 | `CRM_ORIGIN` | exact preview HTTPS origin | exact production HTTPS origin | Cookie/origin checks; must be `https://`. |
 | `CRM_AUTH_REALM` | new UUID | different new UUID | Never reuse or change after provisioning. |
 | `CRM_MFA_ENCRYPTION_KEY` | new key | different new key | Required (admins must use MFA). Back up separately; never regenerate. |
+| `CRM_SESSION_IDLE_MINUTES` | `240` | `240` | Optional; idle sign-out (default 240). Not a secret. |
+| `CRM_SESSION_MAX_HOURS` | `12` | `12` | Optional; absolute session limit (default 12). Not a secret. |
+| `CRM_LOCAL_ADMIN`, `CRM_LOCAL_ADMIN_PASSWORD` | absent | absent | Laptop-only first-run admin; ignored in preview and production. Never set in Vercel. |
 | `DATABASE_URL` | `crm_app` via pooler | `crm_app` via pooler | Runtime role from `backend.runtime_role`. |
 | `CRM_STORAGE_BACKEND` | `supabase` | `supabase` | Vercel refuses anything else. |
 | `SUPABASE_URL` | preview project URL | prod project URL | Public endpoint; used for signed URLs. |
@@ -69,10 +72,10 @@ Never set in a hosted environment:
 ## 4. Migration order (each environment, operator terminal, `MIGRATION_DATABASE_URL` exported)
 
 1. **Storage policy:** apply `supabase/migrations/202610190001_private_uploads.sql`. It creates the private `crm-uploads` bucket and its policies.
-2. **Schema:** `alembic upgrade head` (0001 initial → 0002 local login → 0003 auth-attempt index → 0004 auth realms → 0005 password recovery → 0006 MFA).
+2. **Schema:** `alembic upgrade head` (0001 initial → 0002 local login → 0003 auth-attempt index → 0004 auth realms → 0005 password recovery → 0006 MFA → 0007 sliding sessions → 0008 department roles → 0009 user administration). 0007–0009 are additive (new columns and a wider role check); existing users keep their role.
 3. **Runtime role:** `backend.runtime_role` (section 5). Re-run it after every future migration.
 4. **Check:**
-   - `alembic current` shows `0006`;
+   - `alembic current` shows `0009`;
    - every CRM table has RLS on, with no `anon`/`authenticated` grants;
    - the bucket is private (an unsigned URL is refused).
 

@@ -77,6 +77,7 @@ function App() {
     <>
       <AppHeader
         current="accounts"
+        viewOnly={store.roleKnown && !store.writable}
         actions={
           store.data ? (
             <Notifications
@@ -139,12 +140,6 @@ function App() {
             )
           ) : (
             <>
-              {!store.writable && (
-                <p className="hint">
-                  Read-only access. Payment and approval actions require an
-                  administrator.
-                </p>
-              )}
               {tab === "summary" && <Summary clients={clients} />}
               {tab === "clients" && <Clients clients={clients} open={open} />}
               {tab === "daily" && (

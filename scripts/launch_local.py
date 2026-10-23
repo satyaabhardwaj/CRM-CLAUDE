@@ -110,6 +110,17 @@ def launch():
     validate_status(json.loads(status.stdout))
     from backend.local_startup import ensure_database
     ensure_database()
+    # A fresh clone gets its first admin here, in this visible window, so the one-time password is shown on
+    # screen and never reaches the server's log files.
+    from sqlalchemy import create_engine
+    from backend.config import Settings
+    from backend.local_admin import ensure_default_admin
+    settings = Settings.load()
+    engine = create_engine(settings.database_url, hide_parameters=True)
+    try:
+        ensure_default_admin(engine, settings, show=show_first_password)
+    finally:
+        engine.dispose()
     print('3/3 Starting CRM...', flush=True)
     if not healthy():
         if port_in_use():
@@ -121,6 +132,16 @@ def launch():
         wait_for(healthy, 90, 'CRM database health check')
     os.startfile(URL)
     print('CRM is ready. Browser opened.', flush=True)
+
+
+def show_first_password(password):
+    # This window closes when start-up succeeds, so wait until the person has noted the password.
+    print("\nFirst sign-in for this laptop's CRM\n  Email:    admin@magppie.local\n  Password: " + password +
+          '\n  Shown only now and stored nowhere. Change it on first sign-in (the CRM will ask).\n', flush=True)
+    try:
+        input('Press Enter when you have noted it... ')
+    except EOFError:
+        pass
 
 
 def main():

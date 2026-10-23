@@ -13,7 +13,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, insert, delete, update, inspect, func
-from . import auth
+from . import auth, passwords
 from .models import credentials, users, sessions, mfa_factors, mfa_codes, mfa_challenges, password_resets
 from .repository import event
 from .recovery import allow
@@ -44,8 +44,8 @@ class Manage(Password):
 
 
 class NewPassword(Password):
-    # Same length rule as provisioning and reset; the code is required once a factor is enabled.
-    new_password: str = Field(min_length=16, max_length=1024)
+    # The one password rule (backend/passwords.py); the code is required once a factor is enabled.
+    new_password: str = Field(min_length=passwords.MIN_LENGTH, max_length=passwords.MAX_LENGTH)
     code: str = Field(default='', max_length=50)
 
 
@@ -138,7 +138,8 @@ class MFA:
                 user=who(db,request);factor=self.factor(db,user['id'])
                 count=db.scalar(select(func.count()).select_from(mfa_codes).where(mfa_codes.c.user_id==user['id'])) if self.schema else 0
             return {'available':self.schema and self.cipher is not None,'enabled':bool(factor and factor['enabled']),'recovery_codes':count,
-                    'required':user['role'] in REQUIRED_ROLES}
+                    'required':user['role'] in REQUIRED_ROLES,
+                    'must_change_password':bool(user.get('must_change_password'))}
 
         def owner(request, password, db):
             user=who(db,request)
@@ -198,9 +199,9 @@ class MFA:
                     db.execute(update(mfa_challenges).where(mfa_challenges.c.hash==hashed).values(attempts=challenge['attempts']+1))
                     if self.verify(db,factor,body.code):
                         db.execute(delete(mfa_challenges).where(mfa_challenges.c.hash==hashed))
-                        token=auth.issue(db,row['user_id'],3600,self.realm);event(db,row['user_id'],'mfa.login')
+                        token=auth.issue(db,row['user_id'],self.settings.session_idle,self.realm,self.settings.session_max);event(db,row['user_id'],'mfa.login')
             if token is None:raise HTTPException(401,'Code is invalid, expired or already used.')
-            response=self.cookie(JSONResponse({'ok':True}),'crm_session',token,3600)
+            response=self.cookie(JSONResponse({'ok':True}),'crm_session',token,self.settings.session_max)
             response.delete_cookie('crm_mfa_challenge',path='/');return response
 
         def change(body,request,disable):
@@ -236,9 +237,11 @@ class MFA:
                 uid=owner(request,body.password,db);factor=self.factor(db,uid)
                 if factor and factor['enabled']:
                     if not self.verify(db,factor,body.code):raise HTTPException(400,'Code is invalid, expired or already used.')
-                elif db.scalar(select(users.c.role).where(users.c.id==uid)) in REQUIRED_ROLES:
+                elif self.enrollment_required(db, db.execute(select(users).where(users.c.id==uid)).mappings().one()):
+                    # Only where an authenticator can and must be set up (not a laptop without the MFA key).
                     raise HTTPException(403,'Set up your authenticator app before changing your password.')
                 db.execute(update(credentials).where(credentials.c.user_id==uid).values(password_hash=new_hash))
+                db.execute(update(users).where(users.c.id==uid).values(must_change_password=0))
                 db.execute(delete(password_resets).where(password_resets.c.user_id==uid))
                 db.execute(delete(mfa_challenges).where(mfa_challenges.c.user_id==uid))
                 # Every other session ends; this one stays signed in.

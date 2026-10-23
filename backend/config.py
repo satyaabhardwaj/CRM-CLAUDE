@@ -19,8 +19,13 @@ class Settings:
 
     environment: str = 'development'
     auth_realm: str = ''
+    # Sliding sessions (owner decision, 22 Oct 2026): idle timeout and absolute maximum from sign-in.
+    session_idle_minutes: int = 240
+    session_max_hours: int = 12
 
     def __post_init__(self):
+        if not (1 <= self.session_idle_minutes <= self.session_max_hours * 60 and 1 <= self.session_max_hours <= 24 * 30):
+            raise RuntimeError('Invalid session settings: CRM_SESSION_IDLE_MINUTES must be 1..CRM_SESSION_MAX_HOURS*60.')
         if self.environment not in ('development', 'preview', 'production'):
             raise RuntimeError('Invalid CRM_ENV.')
         if self.environment != 'development':
@@ -72,4 +77,24 @@ class Settings:
         return cls(url, origin, uploads=Path(os.environ.get('CRM_UPLOADS_DIR', str(cls.uploads))).resolve(),
                    storage_backend=storage, supabase_url=endpoint, supabase_key=key,
                    uploads_bucket=os.environ.get('SUPABASE_UPLOADS_BUCKET','crm-uploads'), supabase_internal_url=internal,
-                   environment=environment, auth_realm=os.environ.get('CRM_AUTH_REALM', ''))
+                   environment=environment, auth_realm=os.environ.get('CRM_AUTH_REALM', ''),
+                   session_idle_minutes=number('CRM_SESSION_IDLE_MINUTES', 240),
+                   session_max_hours=number('CRM_SESSION_MAX_HOURS', 12))
+
+    @property
+    def session_idle(self):
+        return self.session_idle_minutes * 60
+
+    @property
+    def session_max(self):
+        return self.session_max_hours * 3600
+
+
+def number(name, default):
+    value = os.environ.get(name, '').strip()
+    if not value:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        raise RuntimeError('Set ' + name + ' to a whole number.') from None

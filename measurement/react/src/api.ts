@@ -1,3 +1,4 @@
+import { sessionEnded } from "../../../shared/session";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adapt, type Request } from "./model";
 export function useRequests(paused: boolean) {
@@ -26,7 +27,7 @@ export function useRequests(paused: boolean) {
         { cache: "no-store", signal },
       );
       if (response.status === 401) {
-        location.assign("/login");
+        sessionEnded();
         return;
       }
       if (!response.ok)

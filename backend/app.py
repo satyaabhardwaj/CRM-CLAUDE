@@ -5,19 +5,35 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, FileResponse, RedirectResponse, HTMLResponse
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy import create_engine, select, update, delete, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import NullPool
 from .config import Settings, ROOT
 from .models import clients, state, grants, sessions, credentials
-from . import auth, repository
+from . import auth, repository, permissions
 from core.security import public_file
 
 class Login(BaseModel):
     model_config = ConfigDict(extra='forbid')
     email: str = Field(min_length=3,max_length=320)
     password: str = Field(min_length=1,max_length=1024)
+
+# Requests that never count as activity: signing in or out, and the login-only MFA step.
+NO_RENEW = frozenset({'/api/auth/login', '/api/auth/logout', '/api/auth/mfa/verify', '/api/auth/forgot-password', '/api/auth/reset-password'})
+
+
+def activity(request):
+    """Real use renews a session: a save or other change, an explicit activity ping, or opening a page.
+    Background polling (GET /api/...) never does, so an idle open tab still signs out."""
+    path = request.url.path
+    if request.headers.get('x-crm-background') == '1':
+        return False  # timers that save on their own (auto-sign, factory-mail result) are not the user
+    if request.method not in ('GET', 'HEAD', 'OPTIONS'):
+        return path.startswith('/api/') and path not in NO_RENEW
+    last = path.rsplit('/', 1)[-1]
+    return request.method == 'GET' and not path.startswith(('/api/', '/auth-assets/')) and ('.' not in last or last.endswith('.html'))
 
 class ClientChange(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -62,12 +78,20 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
                     return JSONResponse({'error':'Request too large.'},status_code=413)
                 chunks.append(chunk)
             request._body = b''.join(chunks)
+        if activity(request) and request.cookies.get('crm_session'):
+            await run_in_threadpool(renew, request.cookies.get('crm_session'))
         response = await call_next(request)
         response.headers['Cache-Control']='no-store'
         response.headers['X-Content-Type-Options']='nosniff'
         response.headers['X-Frame-Options']='DENY'
         response.headers['Referrer-Policy']='no-referrer' if request.url.path in ('/reset-password', '/forgot-password') else 'same-origin'
         return response
+
+    def renew(token):
+        try:
+            with engine.begin() as db: auth.touch(db, token, settings.session_idle, settings.session_max)
+        except SQLAlchemyError:
+            pass  # The request itself reports database problems.
 
     def signed_in(db, request):
         return auth.identity(db,request.cookies.get('crm_session'),realm)
@@ -81,7 +105,13 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
         user = signed_in(db, request)
         if mfa.enrollment_required(db, user):
             raise HTTPException(403, {'error':'Set up your authenticator app to continue.','mfa_enrollment_required':True})
+        if user.get('must_change_password'):
+            # After an administrator's reset: only Account security works until a new password is chosen.
+            raise HTTPException(403, {'error':'Choose a new password to continue.','password_change_required':True})
         return user
+
+    from .user_admin import register as register_users
+    register_users(app, engine, settings, who, mfa)
 
     @app.get('/api/health')
     def health():
@@ -102,10 +132,10 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
                 response=mfa.cookie(JSONResponse({'mfa_required':True},status_code=202),'crm_mfa_challenge',challenge,300)
                 response.delete_cookie('crm_session',path='/')
                 return response
-            token=auth.issue(db,user_id,lifetime,realm)
+            token=auth.issue(db,user_id,settings.session_idle,realm,settings.session_max)
             repository.event(db,user_id,'session.login')
         response=JSONResponse({'ok':True})
-        response.set_cookie('crm_session',token,httponly=True,secure=settings.origin.startswith('https:'),samesite='strict',max_age=lifetime,path='/')
+        response.set_cookie('crm_session',token,httponly=True,secure=settings.origin.startswith('https:'),samesite='strict',max_age=settings.session_max,path='/')
         return response
 
     @app.post('/api/auth/logout')
@@ -120,7 +150,18 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
         with engine.connect() as db:
             user = signed_in(db,request)
             email = db.execute(select(credentials.c.email).where(credentials.c.user_id==user['id'])).scalar_one_or_none()
-            return {**user, 'email': email, 'mfa_enrollment_required': mfa.enrollment_required(db,user)}
+            idle, absolute = auth.session_times(db, request.cookies.get('crm_session'), settings.session_max)
+            return {**user, 'email': email, 'mfa_enrollment_required': mfa.enrollment_required(db,user),
+                    'must_change_password': bool(user.get('must_change_password')),
+                    'idle_expires_at': idle, 'expires_at': absolute, 'now': int(time.time())}
+
+    @app.post('/api/auth/activity')
+    def still_here(request:Request):
+        # The middleware already renewed the session; this reports the new times for the warning dialog.
+        with engine.connect() as db:
+            signed_in(db,request)
+            idle, absolute = auth.session_times(db, request.cookies.get('crm_session'), settings.session_max)
+        return {'idle_expires_at': idle, 'expires_at': absolute, 'now': int(time.time())}
 
     @app.get('/api/store')
     def store(request:Request):
@@ -159,6 +200,10 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
         except ValueError: raise HTTPException(422,'Invalid numeric value.') from None
         with engine.begin() as db:
             user=who(db,request);repository.allowed(db,user,client_id,write=True)
+            if user['role'] in permissions.DEPARTMENTS:
+                current=db.execute(select(clients.c.payload).where(clients.c.id==client_id)).scalar_one_or_none()
+                if current is None: raise HTTPException(404,'Client not found.')
+                permissions.check_client(user['role'],current,body.payload)
             # Serialize with legacy writes before checking the per-client version.
             db.execute(update(state).where(state.c.id==1).values(rev=state.c.rev+1))
             result=db.execute(update(clients).where(clients.c.id==client_id,clients.c.version==body.version).values(payload=body.payload,version=body.version+1))
@@ -206,7 +251,7 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
         with engine.connect() as db:
             try: user=signed_in(db,request)
             except HTTPException: return RedirectResponse('/login',status_code=303)
-            if mfa.enrollment_required(db,user): return RedirectResponse('/security',status_code=303)
+            if mfa.enrollment_required(db,user) or user.get('must_change_password'): return RedirectResponse('/security',status_code=303)
         if not path: return RedirectResponse('/sales/',status_code=303)
         if user['role']=='assigned': raise HTTPException(403,'Assigned users access /api/clients; legacy dashboards require workspace access.')
         target=(ROOT/path).resolve()

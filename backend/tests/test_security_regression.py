@@ -42,7 +42,7 @@ def test_combined_reset_mfa_roles_and_revocation(security,role,write):
     uid=provision(engine,email,PASSWORD,role,REALM,recovery_verified=True)
     with engine.begin() as db:
         if role=='assigned':db.execute(insert(grants).values(user_id=uid,client_id='c1',can_write=int(write)))
-        before=[list(db.execute(select(t)).mappings()) for t in (users,grants)]
+        before=[list(db.execute(select(users.c.id,users.c.role,users.c.active).order_by(users.c.id)).mappings()),list(db.execute(select(grants).order_by(grants.c.user_id,grants.c.client_id)).mappings())]
     secret,codes=enable(client,clock,email)
     assert client.post('/api/auth/login',json={'email':email,'password':PASSWORD}).status_code==202
     clock[0]+=30
@@ -72,7 +72,7 @@ def test_combined_reset_mfa_roles_and_revocation(security,role,write):
     expected=200 if role=='admin' or (role=='assigned' and write) else 403
     assert client.put('/api/clients/c1',json={'version':payload['version'],'payload':payload['payload']}).status_code==expected
     with engine.connect() as db:
-        assert [list(db.execute(select(t)).mappings()) for t in (users,grants)]==before
+        assert [list(db.execute(select(users.c.id,users.c.role,users.c.active).order_by(users.c.id)).mappings()),list(db.execute(select(grants).order_by(grants.c.user_id,grants.c.client_id)).mappings())]==before
         assert db.scalar(select(mfa_factors.c.enabled).where(mfa_factors.c.user_id==uid))==1
     # Complete-session logout must invalidate a copied bearer cookie.
     cookie=client.cookies.get('crm_session');assert client.post('/api/auth/logout').status_code==200

@@ -1,3 +1,5 @@
+import { MIN_PASSWORD, MAX_PASSWORD } from "../../../shared/session";
+import { safeNext } from "../../../shared/session";
 import {
   useEffect,
   useRef,
@@ -154,7 +156,9 @@ export function MFAChallenge({
     try {
       await mfaRequest("/verify", { code });
       setCode("");
-      navigate("/");
+      navigate(
+        safeNext(new URLSearchParams(location.search).get("next")) || "/",
+      );
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -229,6 +233,7 @@ export function Security() {
     enabled: boolean;
     recovery_codes: number;
     required?: boolean;
+    must_change_password?: boolean;
   } | null>(null);
   const [secret, setSecret] = useState("");
   const [uri, setUri] = useState("");
@@ -483,10 +488,16 @@ export function Security() {
       <p className="auth-feedback" role="status" aria-live="polite">
         {message}
       </p>
+      {status?.must_change_password && codes === null && (
+        <p className="auth-notice" role="alert">
+          You signed in with a temporary password. Choose your own below to open
+          the workspace.
+        </p>
+      )}
       {status &&
         codes === null &&
         !secret &&
-        (status.enabled || !status.required) && (
+        (status.enabled || !status.required || !status.available) && (
           <ChangePassword needsCode={status.enabled} />
         )}
       <p>
@@ -495,9 +506,6 @@ export function Security() {
     </AuthLayout>
   );
 }
-
-// Same length rule as provisioning and reset (16–1024 characters).
-const MIN_PASSWORD = 16;
 
 export function ChangePassword({ needsCode }: { needsCode: boolean }) {
   const [password, setPassword] = useState("");
@@ -577,7 +585,7 @@ export function ChangePassword({ needsCode }: { needsCode: boolean }) {
           type="password"
           required
           minLength={MIN_PASSWORD}
-          maxLength={1024}
+          maxLength={MAX_PASSWORD}
           autoComplete="new-password"
           aria-describedby="password-rule"
           value={next}
@@ -591,7 +599,7 @@ export function ChangePassword({ needsCode }: { needsCode: boolean }) {
           id="password-again"
           type="password"
           required
-          maxLength={1024}
+          maxLength={MAX_PASSWORD}
           autoComplete="new-password"
           value={again}
           onChange={(e) => setAgain(e.target.value)}

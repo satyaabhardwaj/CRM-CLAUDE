@@ -7,12 +7,14 @@ from backend.local import load
 from backend.config import Settings
 from backend.models import credentials,sessions,users
 from backend.auth import password_hash
+from backend import passwords
 from backend.repository import event
 
 def replace_admin(engine,email,password):
     email=email.strip().lower()
-    if '@' not in email or len(email)>320 or len(password)<12:
-        raise ValueError('Use a valid email and password of at least 12 characters.')
+    if '@' not in email or len(email)>320:
+        raise ValueError('Use a valid email.')
+    passwords.check(password)
     hashed=password_hash(password)
     user_id=str(uuid.uuid4())
     with engine.begin() as db:

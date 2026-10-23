@@ -9,16 +9,17 @@ from .auth import password_hash
 from .config import Settings
 from .local import load
 from .models import credentials, users, auth_accounts, recovery_emails
+from .permissions import ROLES
+from . import passwords
 
 
 def provision(engine, email, password, role, realm="", recovery_verified=False):
     email = email.strip().lower()
-    if role not in ('admin', 'reader', 'assigned'):
+    if role not in ROLES:
         raise ValueError('Invalid role.')
     if len(email) > 320 or email.count('@') != 1 or any(c.isspace() for c in email) or not all(email.split('@')):
         raise ValueError('Enter a valid email.')
-    if len(password) < 16 or len(password) > 1024:
-        raise ValueError('Use a unique password of 16 to 1024 characters.')
+    passwords.check(password)
     if realm:
         uuid.UUID(realm)
     uid = str(uuid.uuid4())
@@ -35,7 +36,7 @@ def provision(engine, email, password, role, realm="", recovery_verified=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--email', required=True)
-    parser.add_argument('--role', required=True, choices=['admin', 'reader', 'assigned'])
+    parser.add_argument('--role', required=True, choices=list(ROLES))
     parser.add_argument('--confirm-target', help='Required outside development: exact database host/database (no password)')
     parser.add_argument('--recovery-email-verified', action='store_true', help='Attest that ownership of this recovery mailbox was independently verified')
     args = parser.parse_args()

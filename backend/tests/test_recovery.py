@@ -41,7 +41,7 @@ def test_reset_revokes_all_sessions_preserves_roles_and_grants(api,tmp_path,role
     _,engine,_=api
     client,uid,sent=setup(engine,tmp_path,role)
     with engine.begin() as db:
-        before=[list(db.execute(select(t)).mappings()) for t in (users,grants)]
+        before=[list(db.execute(select(users.c.id,users.c.role,users.c.active).order_by(users.c.id)).mappings()),list(db.execute(select(grants).order_by(grants.c.user_id,grants.c.client_id)).mappings())]
         first=auth.issue(db,uid,3600); second=auth.issue(db,uid,3600)
         unrelated=auth.issue(db,'a',3600)
     assert request(client,role+'@qa.invalid').status_code==202
@@ -52,7 +52,7 @@ def test_reset_revokes_all_sessions_preserves_roles_and_grants(api,tmp_path,role
     assert reset(client,value).status_code==200
     assert reset(client,value).status_code==400
     with engine.connect() as db:
-        assert [list(db.execute(select(t)).mappings()) for t in (users,grants)]==before
+        assert [list(db.execute(select(users.c.id,users.c.role,users.c.active).order_by(users.c.id)).mappings()),list(db.execute(select(grants).order_by(grants.c.user_id,grants.c.client_id)).mappings())]==before
         for cookie in (first,second):
             with pytest.raises(Exception):auth.identity(db,cookie)
         assert auth.identity(db,unrelated)['id']=='a'

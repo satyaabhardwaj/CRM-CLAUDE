@@ -1,5 +1,17 @@
 import { rules } from "./model";
 import type { Store, Client } from "./types";
+import {
+  SessionEnded,
+  sessionEnded,
+  keepDrafts,
+  readDrafts,
+  clearDrafts,
+  changedRecords,
+  replay,
+  type Draft,
+  canEdit,
+} from "../../../shared/session";
+const MODULE = "design";
 export function copy<T>(v: T): T {
   return structuredClone(v);
 }
@@ -51,10 +63,7 @@ export async function readStore(): Promise<Store> {
     cache: "no-store",
     signal: AbortSignal.timeout(20000),
   });
-  if (r.status === 401) {
-    location.assign("/login");
-    throw Error("Please sign in again.");
-  }
+  if (r.status === 401) throw new SessionEnded();
   if (!r.ok)
     throw Error(
       r.status === 403
@@ -131,10 +140,7 @@ export async function persist(
       signal: AbortSignal.timeout(20000),
     });
     if (r.status === 409) continue;
-    if (r.status === 401) {
-      location.assign("/login");
-      throw Error("Please sign in again.");
-    }
+    if (r.status === 401) throw new SessionEnded();
     if (!r.ok)
       throw Error(
         r.status === 403
@@ -166,6 +172,7 @@ export class DesignStore {
   private pending: Store | null = null;
   private rawBase: Store = { rev: 0, clients: [] };
   private generation = 0;
+  private user = "";
   state: State = {
     ready: false,
     saving: false,
@@ -192,13 +199,17 @@ export class DesignStore {
         readStore(),
         fetch("/api/auth/me", { signal: AbortSignal.timeout(20000) }),
       ]);
+      const me = r.ok ? await r.json() : null;
+      this.user = typeof me?.id === "string" ? me.id : "";
       const writable =
         r.status === 404 || r.status === 405
           ? true
-          : r.ok && (await r.json()).role === "admin";
+          : !!me && canEdit(me.role, MODULE);
       this.install(d);
       this.notify({ ready: true, writable, error: "", dirty: false });
+      if (writable) this.restoreDrafts(d);
     } catch (e) {
+      if (e instanceof SessionEnded) return sessionEnded();
       this.notify({
         error: e instanceof Error ? e.message : "Could not load Design.",
       });
@@ -235,7 +246,7 @@ export class DesignStore {
     }
     if (!this.state.writable) {
       this.notify({
-        error: "Finish saving the current change before making another.",
+        error: "View only: your role cannot change Design.",
       });
       return;
     }
@@ -264,7 +275,7 @@ export class DesignStore {
   };
   save = () => {
     if (!this.state.writable) {
-      this.notify({ error: "Read-only access. Changes cannot be saved." });
+      this.notify({ error: "View only: your role cannot change Design." });
       return;
     }
     if (this.state.saving || this.pending) return;
@@ -278,12 +289,17 @@ export class DesignStore {
     try {
       const d = await persist(this.base, this.pending, this.rawBase);
       this.pending = null;
+      if (this.user) clearDrafts(this.user, MODULE);
       this.install(d);
       this.notify({ saving: false, dirty: false, error: "", saved: true });
       const queued = this.queued.splice(0);
       if (queued.length)
         this.update(() => queued.forEach((change) => change()));
     } catch (e) {
+      if (e instanceof SessionEnded) {
+        this.keepDrafts();
+        sessionEnded();
+      }
       this.notify({
         saving: false,
         dirty: true,
@@ -308,6 +324,7 @@ export class DesignStore {
       this.install(d);
       this.notify({ dirty: false, error: "", saved: false });
     } catch (e) {
+      if (e instanceof SessionEnded) return sessionEnded();
       this.notify({
         error: e instanceof Error ? e.message : "Could not load saved data.",
       });
@@ -324,9 +341,89 @@ export class DesignStore {
         this.notify({ error: "" });
       }
     } catch (e) {
+      if (e instanceof SessionEnded) return sessionEnded();
       this.notify({
         error: e instanceof Error ? e.message : "Could not refresh saved data.",
       });
     }
+  }
+  // Session ended mid-save: keep what was not saved (per client) for after sign-in.
+  private keepDrafts() {
+    if (!this.user || !this.pending) return;
+    const pending = this.pending,
+      original = new Map(this.rawBase.clients.map((c) => [c.id, c]));
+    const drafts: Record<string, Draft> = {};
+    for (const [id, d] of Object.entries(
+      changedRecords(this.base.clients, pending.clients),
+    ))
+      drafts[id] = { before: original.get(id), after: d.after };
+    for (const key of new Set([
+      ...Object.keys(this.base),
+      ...Object.keys(pending),
+    ]))
+      if (
+        key !== "rev" &&
+        key !== "clients" &&
+        !same(this.base[key], pending[key])
+      )
+        drafts["@" + key] = { before: this.rawBase[key], after: pending[key] };
+    keepDrafts(this.user, MODULE, drafts);
+  }
+  // After signing in again: put the kept changes on the newest copy and save them once.
+  private restoreDrafts(latest: Store) {
+    const drafts = readDrafts(this.user, MODULE);
+    if (!Object.keys(drafts).length) return;
+    clearDrafts(this.user, MODULE);
+    const records: Record<string, Draft<Client>> = {};
+    const next = copy(window.Kit.store.data);
+    const conflicts: string[] = [];
+    let keys = 0;
+    for (const [id, draft] of Object.entries(drafts)) {
+      if (!id.startsWith("@")) {
+        records[id] = draft as Draft<Client>;
+        continue;
+      }
+      const key = id.slice(1);
+      if (same(latest[key], draft.after)) continue;
+      if (!same(latest[key], draft.before)) conflicts.push(key);
+      else {
+        next[key] = copy(draft.after);
+        keys++;
+      }
+    }
+    // Decide on the raw saved copy (what "before" was taken from), then apply onto the screen copy.
+    const result = replay(latest.clients, records);
+    for (const id of result.applied) {
+      const index = next.clients.findIndex((c) => c.id === id);
+      if (index < 0) next.clients.push(copy(records[id].after));
+      else next.clients[index] = copy(records[id].after);
+    }
+    const names = [...result.conflicts, ...conflicts].map(
+      (id) => latest.clients.find((c) => c.id === id)?.name || id,
+    );
+    if (!result.applied.length && !keys) {
+      if (names.length)
+        this.notify({
+          error:
+            "Your unsaved changes were not reapplied because the record changed meanwhile: " +
+            names.join(", ") +
+            ". Please redo them.",
+        });
+      return;
+    }
+    window.Kit.store.data = next;
+    this.pending = copy(next);
+    this.generation++;
+    this.notify({
+      saving: true,
+      dirty: true,
+      saved: false,
+      error: names.length
+        ? "Some unsaved changes were not reapplied because the record changed meanwhile: " +
+          names.join(", ") +
+          ". Please redo them."
+        : "",
+    });
+    void this.flush();
   }
 }

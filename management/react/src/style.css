@@ -225,3 +225,80 @@
     gap: 8px;
   }
 }
+
+/* Users (administrators only) */
+.management-users {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.management-user-add {
+  padding: var(--space-4);
+}
+.management-user-add h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-16, 16px);
+}
+.management-user-add form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.management-user-add label {
+  display: grid;
+  gap: var(--space-1);
+  min-width: min(260px, 100%);
+  font-size: var(--text-12);
+  color: var(--color-ink-3);
+}
+.management-user-add input,
+.management-user-add select,
+.management-user-row select {
+  min-height: var(--tap);
+}
+.management-secret {
+  padding: var(--space-4);
+  border-left: 4px solid var(--color-warning);
+}
+.management-secret code {
+  display: block;
+  margin: var(--space-2) 0;
+  font-size: var(--text-16, 16px);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.management-secret-actions,
+.management-confirm-actions,
+.management-user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.management-users-status:empty {
+  display: none;
+}
+.management-user-row {
+  grid-template-columns: 2fr 1.1fr 0.8fr 0.8fr 1fr 1.6fr;
+  min-width: 900px;
+}
+.management-user-row.is-inactive > :not(:last-child) {
+  opacity: 0.6;
+}
+.management-confirm {
+  max-width: min(440px, calc(100vw - 32px));
+  padding: var(--space-5);
+  border: 1px solid var(--color-edge);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+.management-confirm h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-16, 16px);
+}
+@media (max-width: 767px) {
+  .management-user-row {
+    min-width: 0;
+  }
+}

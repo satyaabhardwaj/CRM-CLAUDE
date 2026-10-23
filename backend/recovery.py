@@ -9,7 +9,7 @@ from email.message import EmailMessage
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, insert, delete, update, func, text
-from . import auth
+from . import auth, passwords
 from .models import credentials, users, sessions, password_resets, recovery_emails, audit
 from .repository import event
 
@@ -109,7 +109,7 @@ class Forgot(BaseModel):
 class Reset(BaseModel):
     model_config = ConfigDict(extra='forbid')
     token: str = Field(min_length=43, max_length=43, pattern=r'^[A-Za-z0-9_-]+$')
-    password: str = Field(min_length=16, max_length=1024)
+    password: str = Field(min_length=passwords.MIN_LENGTH, max_length=passwords.MAX_LENGTH)
 
 
 def register_recovery(app, engine, settings, sender=None):

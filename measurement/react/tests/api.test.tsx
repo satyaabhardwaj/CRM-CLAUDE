@@ -108,7 +108,7 @@ describe("live API lifecycle", () => {
       vi.fn().mockResolvedValue(new Response("", { status: 401 })),
     );
     await mount();
-    expect(assign).toHaveBeenCalledWith("/login");
+    expect(assign).toHaveBeenCalledWith("/login?reason=ended");
   });
   it("aborts pending work on unmount", async () => {
     let signal: AbortSignal | undefined;

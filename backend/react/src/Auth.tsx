@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { MFAChallenge, AuthLayout, Spinner } from "./MFA";
 import { signIn, signOut } from "./api";
+import { safeNext, ROLE_LABEL } from "../../../shared/session";
+// Where to go after signing in: the page the person was on, if it is a safe same-site path.
+export function afterSignIn(search = location.search) {
+  return safeNext(new URLSearchParams(search).get("next")) || "/";
+}
+function endedMessage(search = location.search) {
+  const reason = new URLSearchParams(search).get("reason");
+  return reason === "idle" || reason === "ended"
+    ? "Session ended — sign in again. Unsaved changes are kept and saved after you sign in."
+    : "";
+}
 export function HeaderSession() {
   const details = useRef<HTMLDetailsElement>(null);
   const [panel, setPanel] = useState<"" | "profile" | "settings">("");
@@ -30,7 +41,7 @@ export function HeaderSession() {
           !value.email.trim() ||
           !("role" in value) ||
           typeof value.role !== "string" ||
-          !["admin", "reader", "assigned"].includes(value.role)
+          !(value.role in ROLE_LABEL)
         )
           throw new Error("Account unavailable");
         if (!controller.signal.aborted)
@@ -86,7 +97,7 @@ export function HeaderSession() {
           {account ? (
             <>
               <b>{account.email}</b>
-              <span>{account.role}</span>
+              <span>{ROLE_LABEL[account.role]}</span>
             </>
           ) : (
             <span role="status">
@@ -108,7 +119,7 @@ export function HeaderSession() {
           <section className="user-menu-info">
             <b>Signed-in account</b>
             <p>{account?.email || "Account details unavailable"}</p>
-            {account && <p>{account.role}</p>}
+            {account && <p>{ROLE_LABEL[account.role]}</p>}
             <p>Account details are managed by your administrator.</p>
           </section>
         )}
@@ -183,7 +194,7 @@ export function Login({
   const [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
     [busy, setBusy] = useState(false),
-    [message, setMessage] = useState(""),
+    [message, setMessage] = useState(endedMessage),
     [signedIn, setSignedIn] = useState(false),
     [mfaRequired, setMfaRequired] = useState(false),
     [showPassword, setShowPassword] = useState(false),
@@ -208,7 +219,7 @@ export function Login({
       const result = await signIn(email, password);
       setPassword("");
       if (result.mfa_required) setMfaRequired(true);
-      else navigate("/");
+      else navigate(afterSignIn());
     } catch (error) {
       setMessage(
         error instanceof Error && error.name !== "TimeoutError"

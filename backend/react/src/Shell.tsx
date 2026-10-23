@@ -69,8 +69,11 @@ export function AppHeader({
   search,
   actions,
   primary,
+  viewOnly = false,
 }: {
   current: Department;
+  // The signed-in role may look at this module but not change it (server-enforced).
+  viewOnly?: boolean;
   // Label of the module's sidebar; shows the menu button that opens it as a drawer on small screens.
   navigation?: string;
   search?: ReactNode;
@@ -161,8 +164,16 @@ export function AppHeader({
             <ShellIcon name={searching ? "close" : "search"} />
           </button>
         )}
+        {viewOnly && (
+          <span
+            className="pill grey view-only"
+            title="Your role can view this module but not change it."
+          >
+            View only
+          </span>
+        )}
         {actions}
-        {primary && <div className="app-primary">{primary}</div>}
+        {primary && !viewOnly && <div className="app-primary">{primary}</div>}
         <HeaderSession />
       </div>
     </header>

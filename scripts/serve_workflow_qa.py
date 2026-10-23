@@ -1,7 +1,11 @@
 """Loopback-only synthetic browser QA. Never loads local credentials or live data.
 
-Uses the real FastAPI routes and compiled UI with a fresh SQLite database per run.
+Uses the real FastAPI routes, real sign-in and the compiled UI with a fresh SQLite database per run.
 External providers are replaced with deterministic fixtures or denied.
+
+One synthetic user per role signs in as <role>@qa.invalid with the QA-only password synthetic-qa-only:
+admin, sales, design, measurement, accounts, reader, assigned. Shorten sessions for manual checks with
+--idle-minutes 3 (the "Stay signed in" warning appears after 1 minute) and --max-hours 1.
 """
 from pathlib import Path
 import sys
@@ -18,7 +22,9 @@ def main():
     from sqlalchemy import create_engine, insert
     from backend.app import create_app
     from backend.config import Settings
-    from backend.models import metadata, users
+    from backend.models import metadata, users, credentials, grants
+    from backend.auth import password_hash
+    from backend.permissions import ROLES
     from backend.repository import import_snapshot
     from measurement.backend.connection import connection
     from ai.agents import transcriber
@@ -28,6 +34,8 @@ def main():
     parser.add_argument('--port', type=int, default=4303)
     parser.add_argument('--dataset', choices=['workflow', 'stress', 'one', 'empty'], default='workflow',
                         help='workflow: the 4 original clients; the others come from tests/ui/layout-audit/stress_data.py')
+    parser.add_argument('--idle-minutes', type=int, default=240, help='QA only: shorter idle timeout')
+    parser.add_argument('--max-hours', type=int, default=12, help='QA only: shorter absolute session limit')
     args = parser.parse_args()
     folder = ROOT / '.local' / ('workflow-qa-' + uuid.uuid4().hex)
     folder.mkdir(parents=True)
@@ -50,14 +58,12 @@ def main():
         snapshot, synthetic_requests = build(args.dataset)
     with engine.begin() as db:
         import_snapshot(db, snapshot)
-        for role in ('admin', 'reader'):
+        hashed = password_hash('synthetic-qa-only')  # one QA-only synthetic password for every role
+        for role in ROLES:
             db.execute(insert(users).values(id='qa-' + role, role=role, active=1))
-
-    def authenticate(email, password):
-        role = email.split('@')[0]
-        if email not in ('admin@qa.invalid', 'reader@qa.invalid') or password != 'synthetic-qa-only':
-            raise HTTPException(401, 'Email or password is incorrect.')
-        return 'qa-' + role, 3600
+            db.execute(insert(credentials).values(user_id='qa-' + role, email=role + '@qa.invalid', password_hash=hashed))
+        if snapshot['clients']:  # assigned sees one granted client
+            db.execute(insert(grants).values(user_id='qa-assigned', client_id=snapshot['clients'][0]['id'], can_write=1))
 
     def denied(*args, **kwargs):
         raise HTTPException(503, 'External actions are disabled in synthetic QA.')
@@ -77,7 +83,8 @@ def main():
                 modified_at='2026-10-21T06:00:00Z') for i, stage in enumerate(
                     ['First Measurement', 'EPT Marking', 'EPT Verification', 'PDI'])]}
     connection.requests = requests
-    app = create_app(Settings(str(engine.url), origin='http://127.0.0.1:%d' % args.port, uploads=folder/'uploads'), engine, authenticate)
+    app = create_app(Settings(str(engine.url), origin='http://127.0.0.1:%d' % args.port, uploads=folder/'uploads',
+                              session_idle_minutes=args.idle_minutes, session_max_hours=args.max_hours), engine)
     (ROOT / '.local' / 'workflow-qa-current.txt').write_text(str(folder))
     print('Synthetic QA only (%s): http://127.0.0.1:%d/login' % (args.dataset, args.port), flush=True)
     uvicorn.run(app, host='127.0.0.1', port=args.port, access_log=False)

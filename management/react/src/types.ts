@@ -71,7 +71,7 @@ export interface Rules {
 }
 export type Open = { kind: "client" | "person"; id: string };
 export type Show = (value: Open) => void;
-export type Tab = "overview" | "people" | "clients" | "analysis";
+export type Tab = "overview" | "people" | "clients" | "analysis" | "users";
 export type Range = "all" | "month" | "lastMonth" | "week";
 declare global {
   interface Window {
