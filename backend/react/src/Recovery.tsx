@@ -1,3 +1,4 @@
+import { MIN_PASSWORD, MAX_PASSWORD } from "../../../shared/session";
 import { useRef, useState, type FormEvent } from "react";
 
 import { AuthLayout, Spinner } from "./MFA";
@@ -66,7 +67,7 @@ export function Recovery({ reset = false }: { reset?: boolean }) {
       <h1>{reset ? "Reset password" : "Forgot password?"}</h1>
       <p className="auth-intro">
         {reset
-          ? "Choose a unique password of at least 16 characters."
+          ? `Choose a unique password of at least ${MIN_PASSWORD} characters.`
           : "Enter your account email to request a reset link."}
       </p>
       {reset && !validToken ? (
@@ -89,13 +90,14 @@ export function Recovery({ reset = false }: { reset?: boolean }) {
                   aria-describedby="password-guidance"
                   autoComplete="new-password"
                   required
-                  minLength={16}
-                  maxLength={1024}
+                  minLength={MIN_PASSWORD}
+                  maxLength={MAX_PASSWORD}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <p id="password-guidance" className="auth-hint">
-                  Use 16-1024 characters. Choose a long, unique password.
+                  At least {MIN_PASSWORD} characters. Choose a long, unique
+                  password.
                 </p>
                 <label htmlFor="confirm-password">Confirm password</label>
                 <input
@@ -104,8 +106,8 @@ export function Recovery({ reset = false }: { reset?: boolean }) {
                   aria-describedby="password-guidance"
                   autoComplete="new-password"
                   required
-                  minLength={16}
-                  maxLength={1024}
+                  minLength={MIN_PASSWORD}
+                  maxLength={MAX_PASSWORD}
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                 />

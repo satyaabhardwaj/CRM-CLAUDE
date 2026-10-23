@@ -214,3 +214,7 @@ export type Module = "sales" | "design" | "measurement" | "accounts";
 export function canEdit(role: string | null | undefined, module: Module) {
   return role === "admin" || role === module;
 }
+
+// The one password rule (backend/passwords.py): 12 to 1024 characters.
+export const MIN_PASSWORD = 12;
+export const MAX_PASSWORD = 1024;

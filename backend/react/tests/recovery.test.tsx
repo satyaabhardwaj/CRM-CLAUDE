@@ -108,9 +108,9 @@ it("reset guidance matches server limits and offers a new link on rejection", as
     ),
   );
   await render(true);
-  expect(host.textContent).toContain("16-1024");
+  expect(host.textContent).toContain("At least 12 characters");
   expect(host.querySelector("#new-password")?.getAttribute("minlength")).toBe(
-    "16",
+    "12",
   );
   expect(host.querySelector("#new-password")?.getAttribute("maxlength")).toBe(
     "1024",

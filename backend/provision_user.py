@@ -10,6 +10,7 @@ from .config import Settings
 from .local import load
 from .models import credentials, users, auth_accounts, recovery_emails
 from .permissions import ROLES
+from . import passwords
 
 
 def provision(engine, email, password, role, realm="", recovery_verified=False):
@@ -18,8 +19,7 @@ def provision(engine, email, password, role, realm="", recovery_verified=False):
         raise ValueError('Invalid role.')
     if len(email) > 320 or email.count('@') != 1 or any(c.isspace() for c in email) or not all(email.split('@')):
         raise ValueError('Enter a valid email.')
-    if len(password) < 16 or len(password) > 1024:
-        raise ValueError('Use a unique password of 16 to 1024 characters.')
+    passwords.check(password)
     if realm:
         uuid.UUID(realm)
     uid = str(uuid.uuid4())
