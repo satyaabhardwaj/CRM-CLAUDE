@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { MFAChallenge, AuthLayout, Spinner } from "./MFA";
+import { EmailCodeChallenge } from "./EmailCode";
 import { signIn, signOut } from "./api";
 import { safeNext, ROLE_LABEL } from "../../../shared/session";
 // Where to go after signing in: the page the person was on, if it is a safe same-site path.
@@ -197,6 +198,7 @@ export function Login({
     [message, setMessage] = useState(endedMessage),
     [signedIn, setSignedIn] = useState(false),
     [mfaRequired, setMfaRequired] = useState(false),
+    [emailedTo, setEmailedTo] = useState<string | null>(null),
     [showPassword, setShowPassword] = useState(false),
     [capsLock, setCapsLock] = useState(false),
     pending = useRef(false);
@@ -218,7 +220,9 @@ export function Login({
     try {
       const result = await signIn(email, password);
       setPassword("");
-      if (result.mfa_required) setMfaRequired(true);
+      if (result.mfa_required && result.method === "email")
+        setEmailedTo(result.to);
+      else if (result.mfa_required) setMfaRequired(true);
       else navigate(afterSignIn());
     } catch (error) {
       setMessage(
@@ -231,6 +235,8 @@ export function Login({
       setBusy(false);
     }
   }
+  if (emailedTo !== null)
+    return <EmailCodeChallenge to={emailedTo} navigate={navigate} />;
   if (mfaRequired) return <MFAChallenge navigate={navigate} />;
   return (
     <AuthLayout>

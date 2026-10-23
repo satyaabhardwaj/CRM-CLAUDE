@@ -86,6 +86,7 @@ Day to day, an administrator uses Management → **Users** (needs an authenticat
 | Someone leaves | Deactivate. All their sessions end at once and they cannot sign in; their history stays. Never delete accounts. |
 | Forgotten password | Reset password. They are signed out everywhere, get a temporary password (shown once) and must choose a new one at sign-in. Their authenticator is kept. Email recovery stays off. |
 | Lost authenticator (and all recovery codes) | Follow "Lost MFA" in [SECURITY](SECURITY.md) (operator, `backend.reset_mfa`). A password reset never removes MFA. |
+| The sign-in code email does not arrive | Check spam, then "Send a new code" (after 30 s, three times). If the mailbox or Google is down, an operator on the laptop sets `CRM_EMAIL_OTP=0` in `.env.local` and restarts the CRM; sign-in is then password-only until it is set back to `1`. With the Gmail API set up (`scripts\set_gmail_api.py`) mail goes over HTTPS and does not depend on port 587; re-run that script if Google revoked access. |
 | The only administrator is unavailable | The last active administrator cannot be removed or demoted. Keep at least two active administrators with authenticators. |
 
 ## Incidents

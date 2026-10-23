@@ -60,4 +60,5 @@ def test_success_sends_a_test_mail_then_saves_without_printing_the_password(env,
     saved = env.read_text(encoding='utf-8')
     assert FakeSMTP.sent == ['info@example.test']
     assert 'CRM_RECOVERY_ENABLED=1' in saved and 'RECOVERY_SMTP_PASSWORD=abcdefghijklmnop' in saved
+    assert 'CRM_EMAIL_OTP=1' in saved
     assert 'abcdefghijklmnop' not in capsys.readouterr().out

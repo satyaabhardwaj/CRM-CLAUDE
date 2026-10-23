@@ -4,6 +4,13 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ## Unreleased
 
+### Sign-in code by email (23 Oct, branch feature/email-otp)
+- After the password, accounts with a verified mailbox and no authenticator app get a six-digit code by email (`info@mymagppie.com` first) and enter it to finish signing in. On with `CRM_EMAIL_OTP=1` and the reset-link mail settings.
+- The code works once for 10 minutes, 5 wrong tries end it, "Send a new code" after 30 seconds (three times). Only hashes are stored (migration 0010); sign-out or a password change cancels a pending code; if mail fails nobody is signed in.
+- `scripts/set_recovery_mail.py` now turns on both reset emails and sign-in codes after a successful test email (`--no-login-codes` for reset emails only).
+- Tests: `backend/tests/test_email_codes.py` (8), `backend/react/tests/email-code.test.tsx` (3).
+- **Mail on any network:** the CRM's emails (sign-in codes, reset links) go through the Gmail API over HTTPS when set up with `scripts/set_gmail_api.py`, with SMTP as the fallback. The office network blocks port 587, so SMTP alone failed there. Tests: `backend/tests/test_mail_transport.py` (7).
+
 ### Sign-in, sessions, department roles and user management (22–23 Oct, branch feature/auth-real-use)
 - **Sliding sessions:** sign-out after 4 hours without real use and at most 12 hours after sign-in (`CRM_SESSION_IDLE_MINUTES`, `CRM_SESSION_MAX_HOURS`); background polling never keeps a session alive. A "Stay signed in" dialog warns two minutes before. Migration 0007.
 - **No lost work:** when a session ends, unsaved client changes are kept in the tab and saved once after signing in again; sign-in returns to the same page (`next`, same-site paths only).

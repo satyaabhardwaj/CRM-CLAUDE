@@ -2,16 +2,14 @@
 import logging
 import os
 import secrets
-import smtplib
-import ssl
 import time
-from email.message import EmailMessage
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, insert, delete, update, func, text
 from . import auth, passwords
 from .models import credentials, users, sessions, password_resets, recovery_emails, audit
 from .repository import event
+from .mail_transport import mailer
 
 MESSAGE = 'If this account is eligible, a password reset link will be sent.'
 INVALID = 'This reset link is invalid or expired. Request a new one.'
@@ -20,21 +18,13 @@ INVALID = 'This reset link is invalid or expired. Request a new one.'
 def configured_sender():
     if os.environ.get('CRM_RECOVERY_ENABLED') != '1':
         return None
-    names = ('RECOVERY_SMTP_HOST', 'RECOVERY_SMTP_USER', 'RECOVERY_SMTP_PASSWORD', 'RECOVERY_MAIL_FROM')
-    values = {k:os.environ.get(k, '') for k in names}
-    if not all(values.values()):
-        raise RuntimeError('Configure the separate recovery mail credentials.')
-    port = int(os.environ.get('RECOVERY_SMTP_PORT', '587'))
+    # Gmail API over HTTPS when set up (works on any network), SMTP otherwise (backend/mail_transport.py).
+    mail = mailer()
+    if mail is None:
+        raise RuntimeError('Configure the separate recovery mail (scripts/set_gmail_api.py or scripts/set_recovery_mail.py).')
     def send(email, url):
-        message = EmailMessage()
-        message['From'] = values['RECOVERY_MAIL_FROM']
-        message['To'] = email
-        message['Subject'] = 'Reset your MAGPPIE CRM password'
-        message.set_content('Use this link within 15 minutes to reset your password:\n'+url+'\nIf you did not request this, ignore this email.')
-        with smtplib.SMTP(values['RECOVERY_SMTP_HOST'], port, timeout=15) as server:
-            server.starttls(context=ssl.create_default_context())
-            server.login(values['RECOVERY_SMTP_USER'], values['RECOVERY_SMTP_PASSWORD'])
-            server.send_message(message)
+        mail(email, 'Reset your MAGPPIE CRM password',
+             'Use this link within 15 minutes to reset your password:\n'+url+'\nIf you did not request this, ignore this email.')
     return send
 
 
