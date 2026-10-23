@@ -33,7 +33,7 @@ $env:POSTGRES_BIN = "C:\Program Files\PostgreSQL\18\bin"
 
 It writes `database.dump`, every attachment under `uploads/`, and `manifest.json` (table fingerprints, attachment and dump SHA-256). It fails if data changed during the backup. `--restore-check` restores into a new `crm_restore_<hex>` database and requires the fingerprints to match; drop that database afterwards.
 
-**Nightly backup (automatic, since 23 Oct 2026).** Windows Task Scheduler runs `scripts\daily_backup.py` every night at 23:00 (task "MAGPPIE CRM daily backup"; if the laptop is off, it runs at the next start). Each run:
+**Nightly backup (set up 23 Oct 2026, currently turned off at the owner's request to save disk space; turn it on in Task Scheduler → "MAGPPIE CRM daily backup" → Enable).** Windows Task Scheduler runs `scripts\daily_backup.py` every night at 23:00 (task "MAGPPIE CRM daily backup"; if the laptop is off, it runs at the next start). Each run:
 - starts Docker and the local database if needed (data kept);
 - makes `.localackups\daily-YYYYMMDD-HHMM` with `--restore-check`, then drops only its own rehearsal database;
 - retries three times, 10 minutes apart, if someone was working during the backup;
