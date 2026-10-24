@@ -1,11 +1,13 @@
 import time
 import json
+import re
 from pathlib import Path
 from urllib.parse import urlsplit
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, FileResponse, RedirectResponse, HTMLResponse
 from starlette.concurrency import run_in_threadpool
+from starlette.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy import create_engine, select, update, delete, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -46,6 +48,7 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
     engine = engine or create_engine(settings.database_url, pool_pre_ping=True, poolclass=NullPool,
                                     connect_args={'prepare_threshold':None,'connect_timeout':10})
     app = FastAPI(title='MAGPPIE CRM', version='0.1.0', docs_url=None, redoc_url=None, openapi_url=None)
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
     app.state.engine = engine
     from .local_admin import ensure_default_admin
     ensure_default_admin(engine, settings)
@@ -83,6 +86,11 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
             await run_in_threadpool(renew, request.cookies.get('crm_session'))
         response = await call_next(request)
         response.headers['Cache-Control']='no-store'
+        # Only content-addressed build chunks may be cached across releases.
+        # Stable app.js, login.js, CSS and all authenticated/API responses stay no-store.
+        if (request.method in ('GET', 'HEAD') and response.status_code == 200
+                and re.fullmatch(r'/(?:auth-assets|(?:sales|design|accounts|measurement|management)/assets)/[^/]+-[A-Za-z0-9_-]{8,}\.(?:js|css|woff2?)', request.url.path)):
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
         response.headers['X-Content-Type-Options']='nosniff'
         response.headers['X-Frame-Options']='DENY'
         response.headers['Referrer-Policy']='no-referrer' if request.url.path in ('/reset-password', '/forgot-password') else 'same-origin'
@@ -183,14 +191,19 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
         with engine.connect() as db:
             user=who(db,request)
             if user['role']=='assigned': raise HTTPException(403,'Use the assigned-client workspace; full CRM access is restricted.')
-            return repository.snapshot(db)
+            # Payloads are already validated JSON. Encode on this worker thread
+            # instead of recursively copying the full workspace on the event loop.
+            return JSONResponse(repository.snapshot(db))
 
     @app.put('/api/store')
     async def save(request:Request):
         if len(await request.body())>5*1024*1024: raise HTTPException(413,'Store too large.')
         try: incoming=await request.json()
         except ValueError: raise HTTPException(400,'Invalid JSON.') from None
-        with engine.begin() as db: return repository.save_legacy(db,who(db,request),incoming)
+        def persist():
+            with engine.begin() as db:
+                return repository.save_legacy(db, who(db, request), incoming)
+        return await run_in_threadpool(persist)
 
     @app.get('/api/clients')
     def list_clients(request:Request,offset:int=0,limit:int=50):
