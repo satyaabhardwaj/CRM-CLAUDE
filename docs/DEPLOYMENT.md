@@ -129,7 +129,7 @@ Before the window:
 - Rehearse the whole runbook once on preview with a copy of synthetic data.
 - Confirm the window, the people and the rollback owner.
 
-1. **Freeze:** announce the window and stop writes locally (close the CRM on every machine, then `Stop CRM.cmd`).
+1. **Freeze (only after START CUTOVER):** announce the window and stop every CRM writer. The currently verified Docker app is `magppie-crm-container-crm-1` on 4302; stop that app container without removing it or its volumes. `Stop CRM.cmd` handles the native launcher and local Supabase; it does not stop the Docker app container. Verify both app ports 4301/4302 are unavailable and all staff have closed the app. Since `Stop CRM.cmd` also stops the database/Storage, run `npm run db:start` to start only the database/Storage services before backup. Keep every CRM app process stopped; do not run `Start CRM.cmd`. If the native stop script refuses an unrelated listener, investigate its ownership instead of killing it.
 2. **Final backup:** take the local backup and check it can be restored:
 
    ```powershell
@@ -141,11 +141,11 @@ Before the window:
    - Do **not** carry over development users, credentials, sessions, MFA, grants or realm bindings; apply the destination-only identity plan in PRODUCTION_SECRETS.
 4. **Reconcile:** row fingerprints and attachment hashes must equal the manifest. **Any mismatch: stop and roll back** (step R).
 5. **Identities:** provision named users. Admins sign in, enrol MFA and save their recovery codes.
-6. **Deploy and smoke:** deploy the exact tested release commit to production, then check health, sign-in, each module, one attachment, the counts (28 clients, 44 architects, 15 attachments today), factory mail 403 and Measurement.
+6. **Deploy and smoke:** deploy the exact tested release commit to production, then check health, sign-in, each module, one attachment, the counts from the final frozen backup manifest (never hard-code the earlier audit counts), factory mail 403 and Measurement.
 7. **Open:** tell users the new URL. Keep the local copy read-only for 14 days.
 
 **Rollback (R):** done before any production write by users. Nothing local has been changed, so it is reversible.
-- Point users back to the local CRM (`Start CRM.cmd`).
+- Before any production user writes, resume the verified local runtime recorded at freeze (the existing Docker app on 4302 or the native launcher if it was verified). Reconcile the launcher retirement marker if already activated through an explicitly approved rollback; do not silently bypass it.
 - Leave the production project as it is for diagnosis.
 - Never restore over production. A second attempt goes into a new database.
 

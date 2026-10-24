@@ -21,6 +21,18 @@ from backend.local import load
 from backend.storage import Attachments
 
 
+def load_backup_settings():
+    # A hosted operator must inject a complete environment. Never fill missing
+    # destination/Storage credentials from the laptop's live .env.local.
+    hosted = os.environ.get('CRM_ENV') in ('preview', 'production') or os.environ.get('VERCEL')
+    if not hosted:
+        load()
+    settings = Settings.load()
+    if hosted and settings.storage_backend != 'supabase':
+        raise RuntimeError('Hosted backups require explicit Supabase Storage configuration.')
+    return settings
+
+
 def fingerprint(url):
     engine = create_engine(url)
     result = {}
@@ -45,8 +57,7 @@ def main():
     parser.add_argument('--writes-paused', action='store_true', required=True)
     parser.add_argument('--restore-check', action='store_true')
     args = parser.parse_args()
-    load()
-    settings = Settings.load()
+    settings = load_backup_settings()
     source = make_url(settings.database_url)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)

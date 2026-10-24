@@ -7,11 +7,13 @@ Production has not moved. The live laptop database and bucket remain the source;
 | Source | `release/go-live`, latest main baseline afdc8d4; cleanup and safeguards committed in phases |
 | Live data | SELECT-only audit: 28 clients, 15 objects, live migration 0010; no live repairs or cleanup |
 | Database changes | Migrations 0011–0012 tested through upgrade/downgrade; housekeeping dry-run by default; metadata exposure on live source recorded |
-| Tests | CI PostgreSQL 231 passed/5 skipped plus new migration regression passed; separate private Storage test passed; six frontend test/build/format runs passed; visual 12 passed, a11y 14 checks, cross-browser E2E 48 passed plus Users GUI 6 passed; 1,100 layout states and 18-state map fix recheck |
+| Tests | CI at 9239168: PostgreSQL 234 passed/7 skipped; separate private Storage test passed; six frontend test/build/format runs passed; visual 12 passed, a11y 14 checks, combined cross-browser E2E 54 passed; 1,100 layout states and 18-state map fix recheck |
 | Performance | PostgreSQL 20-user/5-minute: zero errors, p95 63 ms, max 175 ms. GET/save p95 140/168 ms. Five modules usable <2 s; refresh <50 ms after Management fix |
-| CI | 4e497c0 green (four jobs); subsequent UI/metadata changes need fresh CI |
+| CI | 9239168 fully green, including staging Docker and browser/load; new changes require their own CI |
 | Preview | Supabase preview at 0012; synthetic IDs/RLS/grants/private bucket verified. Vercel deployment blocked on separate secret scopes; no preview URL confirmed |
 | Production | Not migrated/deployed; admin/staff list, address, PITR, window and rollback owner unresolved |
+| Local restore rehearsal | Real PostgreSQL dump/restore + private Storage: 540 synthetic clients, three matching file hashes, zero identities imported; hosted rehearsal still pending |
+| Nightly backup | Task Scheduler reports Disabled; prior owner choice retained. No claim of active nightly backups |
 | Cutover | No final freeze/backup/import/reconciliation; laptop retirement safeguards not activated |
 
 See [the execution log](history/GO_LIVE_2026-10-24.md) and [database audit](history/DB_AUDIT_2026-10-24.md) for exact scope, limitations and pending checks. No v1.0.0 release claim is made.

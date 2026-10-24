@@ -4,7 +4,7 @@ Day-to-day running, backup/restore, secret rotation and incidents for the 4301 C
 
 ## Cutover status — 24 October 2026
 
-Live data remains local. Hosted daily backups/PITR, alerts and weekly encrypted off-laptop exports are requirements, not completed controls. Do not disable the current backup task or remove local data before verified cutover. The owner must authorize `START CUTOVER`; any restore failure requires inspection without overwriting destination data. See [the execution log](history/GO_LIVE_2026-10-24.md).
+Live data remains local. Hosted daily backups/PITR, alerts and weekly encrypted off-laptop exports are requirements, not completed controls. Read-only Task Scheduler inspection on 24 October confirms the nightly backup task is Disabled (the prior owner decision to save disk space); it was not enabled or disabled in this task. Automatic nightly protection is therefore not active. Preserve existing backups and local data. The owner must authorize `START CUTOVER`; any restore failure requires inspection without overwriting destination data. See [the execution log](history/GO_LIVE_2026-10-24.md).
 
 ## Running
 
@@ -20,7 +20,7 @@ Live data remains local. Hosted daily backups/PITR, alerts and weekly encrypted 
 GitHub Actions (`.github/workflows/check.yml`) runs on Ubuntu and Windows with Python 3.12 and Node 24, without provider credentials:
 - `scripts/check.py`;
 - format, test and build for all six frontends;
-- the backend tests on PostgreSQL 18 (`crm_crud_test_ci`).
+- the backend tests on PostgreSQL 17 (`crm_crud_test_ci`).
 
 Locally, `python -B scripts/build.py` makes a deterministic source ZIP without data or credentials; compare its SHA-256 before a rollout.
 
@@ -35,7 +35,7 @@ $env:POSTGRES_BIN = "C:\Program Files\PostgreSQL\18\bin"
 .venv\Scripts\python.exe scripts\backup_postgres.py --output .local\backups\NAME --writes-paused --restore-check
 ```
 
-It writes `database.dump`, every attachment under `uploads/`, and `manifest.json` (table fingerprints, attachment and dump SHA-256). It fails if data changed during the backup. `--restore-check` restores into a new `crm_restore_<hex>` database and requires the fingerprints to match; drop that database afterwards.
+It writes `database.dump`, every attachment under `uploads/`, and `manifest.json` (table fingerprints, attachment and dump SHA-256). It fails if data changed during the backup. `--restore-check` restores into a new `crm_restore_<hex>` database and requires the fingerprints to match. Retain the rehearsal database until its exact cleanup target is approved.
 
 **Nightly backup (set up 23 Oct 2026, currently turned off at the owner's request to save disk space; turn it on in Task Scheduler â†’ "MAGPPIE CRM daily backup" â†’ Enable).** Windows Task Scheduler runs `scripts\daily_backup.py` every night at 23:00 (task "MAGPPIE CRM daily backup"; if the laptop is off, it runs at the next start). Each run:
 - starts Docker and the local database if needed (data kept);
@@ -46,13 +46,13 @@ It writes `database.dump`, every attachment under `uploads/`, and `manifest.json
 
 Check it: open `daily-backup.log` and look at the last line. Run it now: `.venv\Scripts\python.exe -B scripts\daily_backup.py`. Change the time: Task Scheduler â†’ "MAGPPIE CRM daily backup" â†’ Triggers. The backups stay on this laptop; copy one off the machine (encrypted) regularly, because a lost or broken laptop takes them with it.
 
-**Restore (one command, repeatable).** It always goes into a NEW database, never over the live one:
+**Full disaster-recovery restore (includes identities; never use for the production cutover).** It always goes into a NEW database, never over the live one:
 
 ```powershell
 .venv\Scripts\python.exe scripts\restore_postgres.py --backup .local\backups\NAME --create-database crm_restore_qa_NAME --bucket crm-restore-qa-name
 ```
 
-For a separately created empty database (for example a new Supabase project), set `RESTORE_DATABASE_URL` in the process environment and omit `--create-database`. `--bucket` is optional; it creates a new private bucket, uploads the attachments and reads every byte back.
+For a full disaster-recovery restore into a separately created empty database, set `RESTORE_DATABASE_URL` in the process environment and omit `--create-database`. `--bucket` is optional; it creates a new private bucket, uploads the attachments and reads every byte back.
 
 The script refuses:
 - the live database (same host, port and name as `DATABASE_URL`) or `postgres` when creating;
@@ -140,3 +140,9 @@ Prepared, not activated: `.local/production-cutover.json` with a `production_url
 At the authorized cutover, create the marker exclusively (never overwrite an existing marker), stop the old local stack without removing volumes, record the 14-day retention deadline, and disable the named nightly local backup task. Move secret files to `C:\Users\am600\Magppie-Keys` by copy, hash verification, then separately authorized source cleanup. Do not move/delete current secret files during preparation. Record Supabase daily-backup status, the owner's PITR choice and alert delivery before announcing production. Weekly exports must be encrypted and retained by the owner off this laptop. A development checkout must use new synthetic data and credentials, never the retained live database.
 
 Rollback is a controlled owner action, not removal of the retirement marker as a troubleshooting shortcut. If production has accepted writes, do not restart the stale laptop as the live service; pause and reconcile those writes first.
+
+## OTP-independent rehearsal evidence
+
+See [RESTORE_REHEARSAL_2026-10-24](history/RESTORE_REHEARSAL_2026-10-24.md): fresh synthetic PostgreSQL source/destination, a real pg_dump/pg_restore check, and actual private local Supabase buckets. Business-only import reconciled 540 clients and three file hashes with zero identities imported. The hosted transport was adapted to local QA; hosted TLS/pooler/permissions still need verification.
+
+Hosted backup commands now skip local configuration loading when CRM_ENV is preview/production or VERCEL is set. Inject the full operator environment privately, including explicit Supabase Storage; filesystem fallback is refused. Do not change the live laptop .env.local.
