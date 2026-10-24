@@ -39,11 +39,8 @@ def main():
             'MIGRATION_DATABASE_URL':url.replace('postgresql://','postgresql+psycopg://',1),
             'CRM_STORAGE_BACKEND':'supabase','SUPABASE_URL':api,
             'SUPABASE_SERVICE_ROLE_KEY':key,'SUPABASE_UPLOADS_BUCKET':'crm-uploads'}
-    previous=ROOT/'.local/backend-local.json'
-    if previous.exists():
-        old=json.loads(previous.read_text(encoding='utf-8'))
-        for name in ('POSTGRES_BIN','MEASUREMENT_ENV_FILE'):
-            if old.get(name): config[name]=old[name]
+    for name in ('POSTGRES_BIN','MEASUREMENT_ENV_FILE'):
+        if os.environ.get(name): config[name]=os.environ[name]
     destination=ROOT/'.local/supabase.env'
     destination.parent.mkdir(exist_ok=True)
     destination.write_text('\n'.join(k+'='+v for k,v in config.items())+'\n',encoding='utf-8')
