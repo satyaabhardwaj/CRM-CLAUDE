@@ -21,17 +21,22 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           height="655"
         />
         <div className="auth-brand-copy">
-          <p className="auth-eyebrow">Your team, connected</p>
+          <p className="auth-eyebrow">Magppie CRM</p>
           <p className="auth-brand-title">
-            Thoughtful spaces.
-            <br />
-            Seamless teamwork.
+            Every kitchen, from first call <span>to handover.</span>
           </p>
           <p className="auth-brand-detail">
-            One place to bring every detail together.
+            Leads, designs, site visits and payments in one place for the whole
+            team.
           </p>
+          <ol className="auth-journey" aria-label="Order journey">
+            {["Lead", "Design", "Measure", "Booking", "Handover"].map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
         </div>
-        <p className="auth-brand-foot">MAGPPIE CRM</p>
+        <KitchenArt />
+        <p className="auth-brand-foot">Magppie Silverstone &middot; MAGPPIE CRM</p>
       </aside>
       <div className="auth-content">
         <main className="auth-card">
@@ -50,6 +55,45 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         </main>
       </div>
     </div>
+  );
+}
+// Line drawing of a kitchen elevation for the brand panel; decorative only.
+function KitchenArt() {
+  return (
+    <svg
+      className="auth-art"
+      viewBox="0 0 560 300"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g className="art-line">
+        <path d="M20 268H540" />
+        {/* wall cabinets either side of a window */}
+        <rect x="40" y="40" width="130" height="72" rx="4" />
+        <path d="M105 40v72M88 78h8M114 78h8" />
+        <rect x="200" y="28" width="200" height="112" rx="3" />
+        <path d="M300 28v112M200 84h200" />
+        <rect x="430" y="40" width="90" height="72" rx="4" />
+        <path d="M471 78h8" />
+        {/* base run with worktop, oven and tap */}
+        <rect x="32" y="152" width="496" height="10" rx="2" />
+        <rect x="40" y="162" width="480" height="96" rx="3" />
+        <path d="M150 162v96M410 162v96M90 200h20M440 200h20M480 200h20" />
+        <path d="M160 172h240M160 200h240" />
+        <path d="M250 214h100v34h-100zM262 228h76" />
+        <path d="M292 152v-14a8 8 0 0 1 16 0" />
+      </g>
+      {/* pendant lights in front of the window */}
+      <g className="art-accent">
+        <path d="M240 0v84M300 0v84M360 0v84" />
+        <path d="M226 98a14 14 0 0 1 28 0zM286 98a14 14 0 0 1 28 0zM346 98a14 14 0 0 1 28 0z" />
+      </g>
+      <g className="art-glow">
+        <ellipse cx="240" cy="104" rx="20" ry="5" />
+        <ellipse cx="300" cy="104" rx="20" ry="5" />
+        <ellipse cx="360" cy="104" rx="20" ry="5" />
+      </g>
+    </svg>
   );
 }
 export function Spinner() {
