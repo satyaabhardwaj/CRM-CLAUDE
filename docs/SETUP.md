@@ -1,6 +1,6 @@
 # Local setup
 
-The CRM runs locally on this Windows laptop. FastAPI serves the app on http://127.0.0.1:4301, backed by local Supabase: PostgreSQL on 56322 and private Storage on 56321. No cloud deployment is authorized; see [DEPLOYMENT](DEPLOYMENT.md).
+The CRM runs locally on this Windows laptop. FastAPI serves the app on http://127.0.0.1:4301, backed by local Supabase: PostgreSQL on 56322 and private Storage on 56321. Hosted preparation is authorized, but cutover has not occurred. The laptop is not yet development-only; see the current [go-live log](history/GO_LIVE_2026-10-24.md). After verified cutover the local live launcher must be retired before staff use hosted production.
 
 ## Daily start
 

@@ -1,6 +1,6 @@
 # Deployment (Vercel + Supabase): readiness pack
 
-Status: **not deployed.** Nothing in this document has been done in the cloud. Creating projects, setting secrets, migrating, importing data or deploying happens only in a separate task you approve explicitly: Gate B "DEPLOY PREVIEW", then Gate C "GO LIVE".
+Status (24 October 2026): **production cutover not performed.** The owner has authorized preview and production preparation in the go-live task. Only Vercel `magppie-crm-v2` and the named Supabase preview/production projects are authorized. Production cutover still requires the literal `START CUTOVER`. Current evidence and unresolved gates are recorded in [the execution log](history/GO_LIVE_2026-10-24.md).
 
 - Current state and test evidence: [FINAL_DEPLOYMENT_CHECKLIST](FINAL_DEPLOYMENT_CHECKLIST.md).
 - Every secret, with owner and rotation: [PRODUCTION_SECRETS](PRODUCTION_SECRETS.md).
@@ -98,9 +98,9 @@ Migrations never run on app start or during a Vercel build.
 
 ## 6. Step list
 
-**Gate B: preview (needs "DEPLOY PREVIEW")**
+**Gate B: preview (authorized in the 24 October master task; synthetic data only)**
 1. **Owner, accounts:** the Vercel team (Pro), and Supabase org and projects `magppie-crm-preview` and `magppie-crm-prod` in Mumbai.
-   - Recheck the historical Vercel project `magppie-crm` before any change; unrelated projects stay untouched.
+   - Use only Vercel `magppie-crm-v2`. The old `magppie-crm` and all unrelated projects stay untouched.
 2. **Vercel project:** import the GitHub repo with Git auto-deploy off (as in `vercel.json`) and set the preview variables (section 3).
 3. **Database:** migrate the preview project (section 4) and create `crm_app` (section 5).
 4. **Users:** with the exported preview configuration, `python -m backend.users add EMAIL --role ROLE --confirm-target "HOST/DATABASE"` for one admin (who enrols the authenticator at first sign-in) and one user per department role (sales, design, measurement, accounts, reader); each gets a one-time temporary password and must choose their own at first sign-in. Then `backend.recovery_email --email EMAIL --confirm-target "HOST/DATABASE" --ownership-verified` for the admin's mailbox, so reset links and sign-in codes go there.
@@ -118,7 +118,7 @@ Migrations never run on app start or during a Vercel build.
    - phones (UI_GUIDE checklist);
    - a secret scan of the deployed assets.
 
-**Gate C: production (needs "GO LIVE")**
+**Gate C: production (requires "START CUTOVER" and all preview/readiness gates passed)**
 8. Production variables, migration, runtime role and fresh identities, as for preview.
 9. The cutover runbook (section 7).
 10. Backups and monitoring switched on (sections 8–9) before users are told.
@@ -137,7 +137,7 @@ Before the window:
    ```
 
    Record the manifest fingerprints and attachment hashes.
-3. **Import:** load only the approved business data (`crm_state`, `crm_clients`) and the attachments into production, using `scripts/restore_postgres.py` into the empty prod database (`RESTORE_DATABASE_URL`) and `--bucket`.
+3. **Import:** use `scripts/restore_postgres.py --business-only --backup <verified-folder> --bucket crm-uploads --confirm-target <host/database> --confirm-storage-origin <https-project-origin>`. Privately inject `RESTORE_DATABASE_URL`, `RESTORE_SUPABASE_URL`, and `RESTORE_SUPABASE_SERVICE_ROLE_KEY`. This path requires a restore-verified backup, a migrated destination with every CRM table empty, and an existing empty private bucket. It imports only `crm_state`, `crm_clients`, and attachments. Never use the full-database restore path for production identity separation. An interrupted upload leaves destination objects for inspection; do not overwrite or retry blindly.
    - Do **not** carry over development users, credentials, sessions, MFA, grants or realm bindings; apply the destination-only identity plan in PRODUCTION_SECRETS.
 4. **Reconcile:** row fingerprints and attachment hashes must equal the manifest. **Any mismatch: stop and roll back** (step R).
 5. **Identities:** provision named users. Admins sign in, enrol MFA and save their recovery codes.

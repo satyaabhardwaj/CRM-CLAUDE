@@ -1,3 +1,23 @@
+# Deployment readiness — 24 October 2026
+
+Production has not moved. The live laptop database and bucket remain the source; do not treat local test results as hosted verification. Preview/production work is authorized only for the named projects, with production cutover gated by `START CUTOVER`.
+
+| Gate | Current evidence |
+| --- | --- |
+| Source | `release/go-live`, latest main baseline afdc8d4; cleanup and safeguards committed in phases |
+| Live data | SELECT-only audit: 28 clients, 15 objects, live migration 0010; no live repairs or cleanup |
+| Database changes | Migration 0011 upgrade/downgrade tested on throwaway PostgreSQL; housekeeping dry-run by default |
+| Tests | PostgreSQL 226 passed/3 skipped; separate private Storage test passed; six frontend test/build/format runs passed; visual 12 passed, a11y 14 checks, cross-browser E2E 42 passed |
+| Performance | Synthetic 20-user/5-minute repeat: zero errors, p95 81 ms, max 231 ms; Sales usable 671–964 ms, refresh main-thread 22–35 ms; other modules pending |
+| CI | 9983f26 green; subsequent changes need fresh CI |
+| Preview | Blocked on separate environment secret scopes and verified Supabase access; no preview URL confirmed |
+| Production | Not migrated/deployed; admin/staff list, address, PITR, window and rollback owner unresolved |
+| Cutover | No final freeze/backup/import/reconciliation; laptop retirement safeguards not activated |
+
+See [the execution log](history/GO_LIVE_2026-10-24.md) and [database audit](history/DB_AUDIT_2026-10-24.md) for exact scope, limitations and pending checks. No v1.0.0 release claim is made.
+
+## Historical readiness evidence (22 October; superseded by current status above)
+
 # Deployment readiness (updated 22 October 2026)
 
 Local verification only; no cloud deployment is authorized. The target is Vercel (React assets + FastAPI) with Supabase (PostgreSQL + private Storage). Vercel builds from source; the Docker image is local verification evidence, not its deployment artifact. The plan is in [DEPLOYMENT](DEPLOYMENT.md).

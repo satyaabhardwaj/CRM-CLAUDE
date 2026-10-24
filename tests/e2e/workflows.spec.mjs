@@ -32,7 +32,7 @@ const test = base.extend({
   }, { scope: 'worker' }],
 });
 async function login(request, role) {
-  expect((await request.post('/api/auth/login', { data: { email: `${role}@qa.invalid`, password } })).status()).toBe(200);
+  expect((await request.post('/api/auth/login', { headers: { Origin: origin }, data: { email: `${role}@qa.invalid`, password } })).status()).toBe(200);
 }
 async function edit(api, id, mutate, expected = 200) {
   const row = await (await api.get(`/api/clients/${id}`)).json();
@@ -47,7 +47,7 @@ test('password sign-in, navigation, mobile layout and sign-out', async ({ page }
   await page.getByLabel('Email', { exact: true }).fill('sales@qa.invalid');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
-  await expect(page).toHaveURL(/\/sales\//);
+  await expect(page).toHaveURL(/\/sales\//, { timeout: 10000 });
   for (const module of ['sales', 'design', 'accounts', 'measurement', 'management']) {
     await page.goto(`/${module}/`);
     await expect(page.locator('summary[aria-label="User menu"]')).toBeVisible();
@@ -70,6 +70,33 @@ test('department edits and Accounts approval refusals', async ({ playwright, adm
     await api.dispose();
   }
   await edit(admin, 'qa-qualified', c => { c.gates = {}; });
+});
+
+test('expired session retains an opportunity draft and returns to the same page', async ({ page }, info) => {
+  await login(page.request, 'sales');
+  await page.goto('/sales/#qualified');
+  await page.getByRole('button', { name: 'New opportunity', exact: true }).click();
+  const name = `Synthetic retained ${info.project.name}`;
+  await page.getByLabel('Customer name', { exact: true }).fill(name);
+  await page.getByLabel('Phone', { exact: true }).fill('0000000000');
+  await page.getByLabel('Source', { exact: true }).selectOption('Walk-in');
+  let expired = false;
+  await page.route('**/api/store', async route => {
+    if (!expired && route.request().method() === 'PUT') {
+      expired = true;
+      expect((await page.request.post('/__qa__/expire-session', { headers: { Origin: origin } })).status()).toBe(200);
+    }
+    await route.continue();
+  });
+  await page.getByRole('button', { name: 'Save opportunity', exact: true }).click();
+  await expect(page).toHaveURL(/\/login\?/, { timeout: 10000 });
+  expect(new URL(page.url()).searchParams.get('next')).toBe('/sales/#qualified');
+  expect(await page.evaluate(() => Object.keys(sessionStorage).some(key => key.startsWith('crm.draft.')))).toBe(true);
+  await page.getByLabel('Email', { exact: true }).fill('sales@qa.invalid');
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Log in', exact: true }).click();
+  await expect(page).toHaveURL(/\/sales\/#qualified/, { timeout: 10000 });
+  await expect.poll(async () => (await (await page.request.get('/api/store')).json()).clients.some(c => c.name === name)).toBe(true);
 });
 
 test('workflow persistence, Bin restore and concurrent-write rejection', async ({ admin }, info) => {
@@ -109,7 +136,9 @@ test('email code and unauthenticated errors', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
   const code = await (await page.request.get('/__qa__/outbox?email=reader%40qa.invalid')).json();
   expect((await page.request.get('/api/store')).status()).toBe(401);
-  expect((await page.request.post('/api/auth/email-code/verify', { headers: { Origin: origin }, data: { code: code.code } })).status()).toBe(200);
+  for (let i = 0; i < 6; i++) await page.getByLabel(`Digit ${i + 1} of 6`, { exact: true }).fill(code.code[i]);
+  await page.getByRole('button', { name: 'Verify and sign in', exact: true }).click();
+  await expect(page).toHaveURL(/\/accounts\//, { timeout: 10000 });
   expect((await page.request.put('/api/store', { headers: { Origin: origin }, data: { rev: 0, clients: [] } })).status()).toBe(403);
 });
 

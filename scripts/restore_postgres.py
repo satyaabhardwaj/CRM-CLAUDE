@@ -196,11 +196,13 @@ def restore_business_only(args):
     folder = args.backup.resolve()
     manifest = verify_backup(folder)
     raw = (folder / 'business.json').read_bytes()
+    if manifest.get('restore_verified') is not True:
+        raise SystemExit('Business import requires a backup that passed --restore-check.')
     if hashlib.sha256(raw).hexdigest() != manifest.get('business_sha256'):
         raise SystemExit('Business export does not match the manifest; use a fresh verified backup.')
     rows = json.loads(raw)
     expected = {name: manifest['tables'][name] for name in BUSINESS}
-    settings = Settings(str(target), storage_backend='supabase', supabase_url=endpoint,
+    settings = Settings(target.render_as_string(hide_password=False), storage_backend='supabase', supabase_url=endpoint,
                         supabase_key=os.environ['RESTORE_SUPABASE_SERVICE_ROLE_KEY'], uploads_bucket=args.bucket)
     files = Attachments(settings)
     bucket = files.request('GET', 'bucket/' + quote(args.bucket, safe='')).json()

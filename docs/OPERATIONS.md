@@ -2,6 +2,10 @@
 
 Day-to-day running, backup/restore, secret rotation and incidents for the 4301 CRM. Setup is in [SETUP](SETUP.md), hosting in [DEPLOYMENT](DEPLOYMENT.md), and identities in [SECURITY](SECURITY.md).
 
+## Cutover status — 24 October 2026
+
+Live data remains local. Hosted daily backups/PITR, alerts and weekly encrypted off-laptop exports are requirements, not completed controls. Do not disable the current backup task or remove local data before verified cutover. The owner must authorize `START CUTOVER`; any restore failure requires inspection without overwriting destination data. See [the execution log](history/GO_LIVE_2026-10-24.md).
+
 ## Running
 
 - **Start** with `Start CRM.cmd`, which opens http://127.0.0.1:4301. **Stop** the database with `npm run db:stop`; data is kept.

@@ -1,11 +1,12 @@
 import time
 import json
 import re
+import threading
 from pathlib import Path
 from urllib.parse import urlsplit
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, FileResponse, RedirectResponse, HTMLResponse
+from fastapi.responses import JSONResponse, FileResponse, RedirectResponse, HTMLResponse, Response
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field, ConfigDict
@@ -50,6 +51,10 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
     app = FastAPI(title='MAGPPIE CRM', version='0.1.0', docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
     app.state.engine = engine
+    # Per-process business JSON cache. Every hit still checks authentication and
+    # the DB revision under a shared row lock, so other workers' writes invalidate it.
+    store_cache = {'rev': None, 'body': None}
+    store_cache_lock = threading.Lock()
     from .local_admin import ensure_default_admin
     ensure_default_admin(engine, settings)
     realm = settings.auth_realm if settings.environment != 'development' else ''
@@ -191,9 +196,15 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
         with engine.connect() as db:
             user=who(db,request)
             if user['role']=='assigned': raise HTTPException(403,'Use the assigned-client workspace; full CRM access is restricted.')
-            # Payloads are already validated JSON. Encode on this worker thread
-            # instead of recursively copying the full workspace on the event loop.
-            return JSONResponse(repository.snapshot(db))
+            revision = db.scalar(select(state.c.rev).where(state.c.id == 1).with_for_update(read=True))
+            with store_cache_lock:
+                if revision is not None and store_cache['rev'] == revision:
+                    body = store_cache['body']
+                else:
+                    body = JSONResponse(repository.snapshot(db)).body
+                    if len(body) <= 8 * 1024 * 1024:
+                        store_cache.update(rev=revision, body=body)
+            return Response(body, media_type='application/json')
 
     @app.put('/api/store')
     async def save(request:Request):

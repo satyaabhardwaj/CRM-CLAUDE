@@ -109,6 +109,19 @@ def main():
     app = create_app(Settings(str(engine.url), origin='http://127.0.0.1:%d' % args.port, uploads=folder/'uploads',
                               session_idle_minutes=args.idle_minutes, session_max_hours=args.max_hours), engine, code_sender=sender)
     if args.e2e:
+        from fastapi import Request
+        from sqlalchemy import update
+        from backend import auth
+        from backend.models import sessions
+        @app.post('/__qa__/expire-session')
+        def expire_synthetic_session(request: Request):
+            token = request.cookies.get('crm_session')
+            with engine.begin() as db:
+                user = auth.identity(db, token)
+                if not user['id'].startswith('qa-'): raise HTTPException(403, 'Synthetic users only.')
+                db.execute(update(sessions).where(sessions.c.hash == auth.digest(token)).values(expires=1))
+            return {'ok': True}
+        app.router.routes.insert(0, app.router.routes.pop())
         @app.get('/__qa__/outbox')
         def captured_code(email: str):
             if email != 'reader@qa.invalid': raise HTTPException(404, 'Synthetic mailbox only.')
