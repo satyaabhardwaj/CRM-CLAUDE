@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
 const origin = process.env.QA_ORIGIN || 'http://127.0.0.1:4342';
-if (origin !== 'http://127.0.0.1:4342') throw new Error('Refusing a non-synthetic load-test target');
+if (!/^http:\/\/127\.0\.0\.1:(4342|4343)$/.test(origin)) throw new Error('Refusing a non-synthetic load-test target');
 const seconds = Number(process.env.LOAD_SECONDS || 300);
 if (!(seconds >= 10 && seconds <= 300)) throw new Error('Use 10..300 seconds');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));

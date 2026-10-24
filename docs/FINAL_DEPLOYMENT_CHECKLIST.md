@@ -6,11 +6,11 @@ Production has not moved. The live laptop database and bucket remain the source;
 | --- | --- |
 | Source | `release/go-live`, latest main baseline afdc8d4; cleanup and safeguards committed in phases |
 | Live data | SELECT-only audit: 28 clients, 15 objects, live migration 0010; no live repairs or cleanup |
-| Database changes | Migration 0011 upgrade/downgrade tested on throwaway PostgreSQL; housekeeping dry-run by default |
-| Tests | PostgreSQL 226 passed/3 skipped; separate private Storage test passed; six frontend test/build/format runs passed; visual 12 passed, a11y 14 checks, cross-browser E2E 42 passed |
-| Performance | Synthetic 20-user/5-minute repeat: zero errors, p95 81 ms, max 231 ms; Sales usable 671–964 ms, refresh main-thread 22–35 ms; other modules pending |
-| CI | 9983f26 green; subsequent changes need fresh CI |
-| Preview | Supabase preview at 0011; synthetic IDs/RLS/grants/private bucket verified. Vercel deployment blocked on separate secret scopes; no preview URL confirmed |
+| Database changes | Migrations 0011–0012 tested through upgrade/downgrade; housekeeping dry-run by default; metadata exposure on live source recorded |
+| Tests | CI PostgreSQL 231 passed/5 skipped plus new migration regression passed; separate private Storage test passed; six frontend test/build/format runs passed; visual 12 passed, a11y 14 checks, cross-browser E2E 48 passed plus Users GUI 6 passed; 1,100 layout states and 18-state map fix recheck |
+| Performance | PostgreSQL 20-user/5-minute: zero errors, p95 63 ms, max 175 ms. GET/save p95 140/168 ms. Five modules usable <2 s; refresh <50 ms after Management fix |
+| CI | 4e497c0 green (four jobs); subsequent UI/metadata changes need fresh CI |
+| Preview | Supabase preview at 0012; synthetic IDs/RLS/grants/private bucket verified. Vercel deployment blocked on separate secret scopes; no preview URL confirmed |
 | Production | Not migrated/deployed; admin/staff list, address, PITR, window and rollback owner unresolved |
 | Cutover | No final freeze/backup/import/reconciliation; laptop retirement safeguards not activated |
 

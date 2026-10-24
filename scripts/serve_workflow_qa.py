@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--port', type=int, default=4303)
     parser.add_argument('--container', action='store_true', help='Synthetic Docker QA only; publish its port on host loopback')
     parser.add_argument('--e2e', action='store_true', help='Synthetic authenticator and captured-mail fixtures; never deploy this server')
+    parser.add_argument('--postgres-test', action='store_true', help='New isolated schema in explicitly configured local TEST_DATABASE_URL only')
     parser.add_argument('--dataset', choices=['workflow', 'stress', 'one', 'empty'], default='workflow',
                         help='workflow: the 4 original clients; the others come from tests/ui/layout-audit/stress_data.py')
     parser.add_argument('--idle-minutes', type=int, default=240, help='QA only: shorter idle timeout')
@@ -41,7 +42,25 @@ def main():
     args = parser.parse_args()
     folder = ROOT / '.local' / ('workflow-qa-' + uuid.uuid4().hex)
     folder.mkdir(parents=True)
-    engine = create_engine('sqlite:///' + (folder / 'qa.db').as_posix())
+    if args.postgres_test:
+        import os
+        from sqlalchemy import event, text
+        from sqlalchemy.engine import make_url
+        url = make_url(os.environ.get('TEST_DATABASE_URL', ''))
+        hosts = {'localhost', '127.0.0.1'}
+        if args.container: hosts.add('supabase_db_magppie-crm-dev')
+        if url.host not in hosts or not (url.database or '').startswith('crm_crud_test_'):
+            raise RuntimeError('Refusing a non-test database; QA never loads live settings.')
+        engine = create_engine(url, hide_parameters=True)
+        schema = 'qa_' + uuid.uuid4().hex
+        with engine.begin() as db: db.execute(text('CREATE SCHEMA ' + schema))
+        engine.dispose()
+        @event.listens_for(engine, 'connect')
+        def isolate(connection, _):
+            with connection.cursor() as cursor: cursor.execute('SET search_path TO ' + schema)
+            connection.commit()
+    else:
+        engine = create_engine('sqlite:///' + (folder / 'qa.db').as_posix())
     metadata.create_all(engine)
     clients = []
     for index, stage in enumerate(['qualified', 'design', 'booked', 'post']):

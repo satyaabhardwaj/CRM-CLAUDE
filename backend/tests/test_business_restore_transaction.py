@@ -20,7 +20,10 @@ def test_business_import_commits_only_after_hash_reconciliation(empty_destinatio
     if engine.dialect.name != 'postgresql': pytest.skip('PostgreSQL transaction orchestration')
     with engine.begin() as db:
         db.execute(text('CREATE TABLE alembic_version (version_num varchar(32) NOT NULL)'))
-        db.execute(text("INSERT INTO alembic_version VALUES ('0011')"))
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+        head = ScriptDirectory.from_config(Config('alembic.ini')).get_current_head()
+        db.execute(text('INSERT INTO alembic_version VALUES (:head)'), {'head': head})
     rows = {'crm_state': [{'id': 1, 'rev': 7, 'payload': {}}],
             'crm_clients': [{'id': 'qa-restore', 'position': 0, 'version': 2, 'payload': {'id': 'qa-restore'}}]}
     business = json.dumps(rows).encode()

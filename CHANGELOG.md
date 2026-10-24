@@ -6,8 +6,8 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ### Go-live preparation (24 Oct; v1.0.0 not released)
 - Retired legacy server and JSON/local fallback setup paths; kept active business/auth rules.
-- Added client-grant index migration 0011 and dry-run housekeeping for expired authentication artifacts.
-- Batched workspace saves; revision-aware authenticated JSON cache, compression and immutable hashed-asset caching.
+- Added client-grant index migration 0011, private migration metadata hardening 0012, and dry-run housekeeping for expired authentication artifacts.
+- Batched workspace saves; revision-aware authenticated JSON cache, compression and immutable hashed-asset caching. Unchanged Management polls avoid repeated client normalization; map markers have 44px touch targets.
 - Added business-only restore with empty-destination and fingerprint checks, excluding all identities.
 - Added synthetic cross-browser E2E, 20-user load smoke and CI checks. Current evidence and hosted blockers are in `docs/history/GO_LIVE_2026-10-24.md`.
 

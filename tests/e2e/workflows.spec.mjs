@@ -156,7 +156,26 @@ test('email code and unauthenticated errors', async ({ page }) => {
   expect((await page.request.put('/api/store', { headers: { Origin: origin }, data: { rev: 0, clients: [] } })).status()).toBe(403);
 });
 
-test('Users add, reset and deactivate preserve account identity', async ({ admin, page }, info) => {
+test('Users page adds, resets and deactivates a synthetic person', async ({ page, admin }, info) => {
+  await page.context().addCookies((await admin.storageState()).cookies);
+  await page.goto('/management/#users');
+  const email = `ui-staff-${info.project.name}-${Date.now()}@qa.invalid`;
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByRole('combobox', { name: 'Role', exact: true }).selectOption('reader');
+  await page.getByRole('button', { name: 'Add person', exact: true }).click();
+  await expect(page.locator('.management-secret')).toBeVisible();
+  await page.getByRole('button', { name: 'Done, hide it', exact: true }).click();
+  const person = page.locator('.management-user-row').filter({ hasText: email });
+  await person.getByRole('button', { name: 'Reset password', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Reset password', exact: true }).click();
+  await expect(page.locator('.management-secret')).toBeVisible();
+  await page.getByRole('button', { name: 'Done, hide it', exact: true }).click();
+  await person.getByRole('button', { name: 'Deactivate', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Deactivate', exact: true }).click();
+  await expect(person.getByText('Deactivated', { exact: true })).toBeVisible();
+});
+
+test('Users add, reset and deactivate preserve account identity', async ({ admin }, info) => {
   const created = await (await admin.post('/api/admin/users', { data: { email: `${info.project.name}-${Date.now()}@qa.invalid`, role: 'reader' } })).json();
   expect(created.id).toBeTruthy();
   expect(created.temporary_password.length).toBeGreaterThanOrEqual(12);

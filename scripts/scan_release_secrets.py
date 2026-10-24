@@ -32,7 +32,7 @@ def main():
     names = subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0')
     files = {ROOT / name for name in names if name and (ROOT / name).is_file()}
     for module in ('backend', 'sales', 'design', 'accounts', 'measurement', 'management'):
-        for directory in (ROOT / module / 'assets', ROOT / module / 'react/dist'):
+        for directory in (ROOT / module / 'assets', ROOT / module / 'web/assets', ROOT / module / 'react/dist'):
             if directory.is_dir(): files.update(p for p in directory.rglob('*') if p.is_file())
     findings = []
     def scan(label, data):

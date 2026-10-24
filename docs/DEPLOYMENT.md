@@ -78,7 +78,7 @@ Never set in a hosted environment:
 2. **Schema:** `alembic upgrade head` (0001 initial → 0002 local login → 0003 auth-attempt index → 0004 auth realms → 0005 password recovery → 0006 MFA → 0007 sliding sessions → 0008 department roles → 0009 user administration → 0010 sign-in codes by email). 0007–0010 are additive (new columns and a wider role check); existing users keep their role.
 3. **Runtime role:** `backend.runtime_role` (section 5). Re-run it after every future migration.
 4. **Check:**
-   - `alembic current` shows `0011`;
+   - `alembic current` shows `0012`;
    - every CRM table has RLS on, with no `anon`/`authenticated` grants;
    - the bucket is private (an unsigned URL is refused).
 

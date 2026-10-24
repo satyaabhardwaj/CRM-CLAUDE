@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { performance } from 'node:perf_hooks';
 
 const origin = process.env.QA_ORIGIN || 'http://127.0.0.1:4311';
-if (!/^http:\/\/127\.0\.0\.1:(4311|4342)$/.test(origin)) throw new Error('Refusing a non-QA target');
+if (!/^http:\/\/127\.0\.0\.1:(4311|4342|4343)$/.test(origin)) throw new Error('Refusing a non-QA target');
 const login = await fetch(origin + '/api/auth/login', {
   method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' },
   body: JSON.stringify({ email: 'admin@qa.invalid', password: 'synthetic-qa-only' }),
