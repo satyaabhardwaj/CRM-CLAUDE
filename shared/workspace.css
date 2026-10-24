@@ -596,6 +596,18 @@ body {
     flex-basis: var(--sidebar-w-collapsed);
     width: var(--sidebar-w-collapsed);
   }
+  /* Hovered while closed: it opens over the page, which keeps its place (the negative margin gives
+     back the extra width, so nothing beside it moves). */
+  .crm-sidebar.peek {
+    position: relative;
+    z-index: 40;
+    margin-right: calc(var(--sidebar-w-collapsed) - var(--sidebar-w));
+    box-shadow: var(--shadow-2);
+    transition:
+      width var(--motion-base) var(--ease),
+      flex-basis var(--motion-base) var(--ease),
+      margin var(--motion-base) var(--ease);
+  }
 }
 .crm-sidebar > nav {
   flex: 1;
@@ -1057,5 +1069,76 @@ html[data-density="compact"] .card-b {
 @media (min-width: 1024px) {
   html[data-density="compact"] .crm-nav-item {
     min-height: 36px;
+  }
+}
+
+/* ---------- Staff, date and person filters in the top bar from 1280 px (Sales, Management; 23 Oct 2026; Design's sit on its tab row) ---------- */
+.header-filters {
+  display: none;
+}
+@media (min-width: 1280px) {
+  .header-filters {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .header-filters select {
+    width: auto;
+    max-width: 200px;
+    height: var(--tap);
+    min-height: var(--tap);
+  }
+  /* Management keeps its row for the tabs; the person filter moves up. */
+  .management-tools > .management-select {
+    display: none;
+  }
+  /* The filter row below the header is then only needed for custom dates. */
+  .sales-toolbar:not(.has-custom) {
+    display: none;
+  }
+  .sales-toolbar > .field:nth-child(-n + 2),
+  .sales-toolbar > .sales-rail-toggle {
+    display: none;
+  }
+}
+
+/* ---------- Filters at the end of a tab row, and small list filters (Design, 23 Oct 2026) ---------- */
+.stagebar-tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  padding-left: var(--space-3);
+}
+.stagebar-tools select,
+.compact-select {
+  width: auto;
+  max-width: 190px;
+  height: var(--control-sm);
+  min-height: 0;
+  padding-block: 0;
+  font-size: var(--text-13);
+}
+
+/* With the filters in the top bar (1280 to 1599 px) the search becomes an icon that opens the box, so neither is
+   squeezed; from 1600 px there is room for the box itself (23 Oct 2026). */
+@media (min-width: 1280px) and (max-width: 1599.98px) {
+  .app-header:has(.header-filters) .app-header-search {
+    display: none;
+  }
+  .app-header:has(.header-filters) .app-search-toggle {
+    display: inline-grid;
+  }
+  .app-header.searching:has(.header-filters) {
+    grid-template-areas: "start search search actions";
+  }
+  .app-header.searching:has(.header-filters) .app-header-search {
+    display: block;
+    justify-self: stretch;
+    width: auto;
+  }
+  .app-header.searching:has(.header-filters) .app-tabs {
+    display: none;
   }
 }

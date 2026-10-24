@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Dialog, Card } from "./components";
+import { notificationHash } from "./navigation";
 interface News {
   at: string;
   text: string;
@@ -7,8 +8,8 @@ interface News {
 }
 interface Store {
   rev?: number;
-  clients: { name: string; stage: string; news?: News[] }[];
-  seen?: Record<string, { at: string }>;
+  clients: { id: string; name: string; stage: string; news?: News[] }[];
+  seen?: Record<string, { at: string; hidden?: Record<string, boolean> }>;
 }
 export function Notifications() {
   const [store, setStore] = useState<Store | null>(null),
@@ -49,20 +50,66 @@ export function Notifications() {
       : /design|proposal/i.test(n.text)
         ? "Design"
         : "Sales");
+  // Measurement hears only about measurement: requests and visits from Sales and Design (and the special approvals
+  // that lead to a request), not proposals, payments or bookings (Manish, 24 Oct 2026).
+  const forMeasurement = (n: News) =>
+    /measurement|visit|revisit|special approval/i.test(n.text);
+  // Removed with the cross or Clear all (24 Oct 2026); the same line twice for one client shows once.
+  const hidden = store?.seen?.measurement?.hidden || {},
+    once = new Set<string>();
   const items = (store?.clients || [])
     .filter((c) => !["bin", "lost"].includes(c.stage))
     .flatMap((c) =>
       (c.news || [])
-        .filter((n) => ["Sales", "Design"].includes(from(n)))
-        .map((n) => ({ ...n, client: c.name, source: from(n) })),
+        .filter(
+          (n) => ["Sales", "Design"].includes(from(n)) && forMeasurement(n),
+        )
+        .map((n) => ({
+          ...n,
+          id: c.id + n.at,
+          clientId: c.id,
+          key: c.id + "|" + n.text,
+          client: c.name,
+          source: from(n),
+        })),
     )
-    .sort((a, b) => b.at.localeCompare(a.at));
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .filter((n) => {
+      if (hidden[n.id] || once.has(n.key)) return false;
+      once.add(n.key);
+      return true;
+    });
   const unread = items.filter(
     (n) => n.at > (store?.seen?.measurement?.at || ""),
   ).length;
   async function show() {
     setOpened(true);
     if (!unread) return;
+    await mark(
+      (m) => ({ ...m, at: new Date().toISOString() }),
+      "Notifications are visible, but could not be marked as read.",
+    );
+  }
+  const hide = (ids: string[]) =>
+    mark(
+      (m) => ({
+        at: m?.at || "",
+        hidden: Object.fromEntries(
+          Object.entries({
+            ...m?.hidden,
+            ...Object.fromEntries(ids.map((id) => [id, true])),
+          }).slice(-1000),
+        ),
+      }),
+      "The notification could not be removed. Please try again.",
+    );
+  async function mark(
+    change: (m: NonNullable<Store["seen"]>[string] | undefined) => {
+      at: string;
+      hidden?: Record<string, boolean>;
+    },
+    failure: string,
+  ) {
     try {
       // Re-read before the existing optimistic store contract; never replace a stale snapshot.
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -73,7 +120,7 @@ export function Notifications() {
           ...latest,
           seen: {
             ...latest.seen,
-            measurement: { at: new Date().toISOString() },
+            measurement: change(latest.seen?.measurement),
           },
         };
         const save = await fetch("/api/store", {
@@ -88,7 +135,7 @@ export function Notifications() {
       }
       throw new Error();
     } catch {
-      setError("Notifications are visible, but could not be marked as read.");
+      setError(failure);
     }
   }
   return (
@@ -118,19 +165,58 @@ export function Notifications() {
           {error && <p role="status">{error}</p>}
           <div className="cols">
             {["Sales", "Design"].map((source) => (
-              <Card title={"From " + source} key={source}>
+              <Card
+                title={"From " + source}
+                key={source}
+                tag={
+                  items.some((n) => n.source === source) && (
+                    <button
+                      type="button"
+                      className="note-clear"
+                      onClick={() =>
+                        void hide(
+                          items
+                            .filter((n) => n.source === source)
+                            .map((n) => n.id),
+                        )
+                      }
+                    >
+                      Clear all
+                    </button>
+                  )
+                }
+              >
                 {items
                   .filter((n) => n.source === source)
                   .slice(0, 30)
                   .map((n, i) => (
-                    <div className="react-notice" key={n.at + i}>
-                      <strong>{n.client}</strong>
-                      <p>{n.text}</p>
-                      <small>{new Date(n.at).toLocaleString()}</small>
+                    <div className="react-notice note-row" key={n.id + i}>
+                      <button
+                        type="button"
+                        className="note-go"
+                        onClick={() => {
+                          // Clicking takes you to that client's visit on the board (24 Oct 2026).
+                          setOpened(false);
+                          location.hash = notificationHash(n.clientId, n.text);
+                        }}
+                      >
+                        <strong>{n.client}</strong>
+                        <p>{n.text}</p>
+                        <small>{new Date(n.at).toLocaleString()}</small>
+                      </button>
+                      <button
+                        type="button"
+                        className="note-x"
+                        aria-label={"Remove: " + n.client + ", " + n.text}
+                        title="Remove"
+                        onClick={() => void hide([n.id])}
+                      >
+                        ×
+                      </button>
                     </div>
                   ))}
                 {!items.some((n) => n.source === source) && (
-                  <p>Nothing from {source} yet.</p>
+                  <p>No measurement requests from {source} yet.</p>
                 )}
               </Card>
             ))}

@@ -33,6 +33,7 @@ export function List({
   tools,
   ctx,
   task = false,
+  tone,
 }: {
   title: string;
   rows: Row[];
@@ -40,9 +41,11 @@ export function List({
   tools?: ReactNode;
   ctx: Context;
   task?: boolean;
+  /** My tasks colours (23 Oct 2026): pre-design blue, post-design violet, PDI green. */
+  tone?: "pre" | "post" | "pdi";
 }) {
   return (
-    <section className="card list">
+    <section className={"card list" + (tone ? " task-tone tone-" + tone : "")}>
       <div className="list-h">
         <h1>
           {title}
@@ -121,6 +124,7 @@ export function PdiList({
       title="PDI approval"
       ctx={ctx}
       task={task}
+      tone={task ? "pdi" : undefined}
       empty="Nothing waiting for PDI."
       rows={pdiWaiting(all)
         .sort((a, b) => pdiSince(a).localeCompare(pdiSince(b)))
@@ -175,8 +179,10 @@ export function Today({ ctx, all }: { ctx: Context; all: Client[] }) {
         title="Pre-design tasks"
         ctx={ctx}
         task
+        tone="pre"
         tools={
           <Select
+            compact
             label="Pre-design type of task"
             value={kind}
             options={[
@@ -203,8 +209,10 @@ export function Today({ ctx, all }: { ctx: Context; all: Client[] }) {
         title="Post-design tasks"
         ctx={ctx}
         task
+        tone="post"
         tools={
           <Select
+            compact
             label="Post-design type of task"
             value={postKind}
             options={[

@@ -144,14 +144,37 @@ export function Select({
   options,
   onChange,
   placeholder = "Choose",
+  compact = false,
 }: {
   label: string;
   value?: string | number;
   options: readonly Option[];
   onChange: (v: string) => void;
   placeholder?: string | false;
+  /** A small list filter with no visible label (the label is still read out); "All" instead of "Choose". */
+  compact?: boolean;
 }) {
   const save = useFieldSave();
+  if (compact)
+    return (
+      <select
+        className="compact-select"
+        aria-label={label}
+        title={label}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">All</option>
+        {options.map((o) => {
+          const [v, text] = typeof o === "string" ? [o, o] : o;
+          return (
+            <option key={v} value={v}>
+              {text}
+            </option>
+          );
+        })}
+      </select>
+    );
   return (
     <label className="field">
       <span>

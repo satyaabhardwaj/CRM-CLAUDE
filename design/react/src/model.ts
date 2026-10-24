@@ -12,6 +12,45 @@ export interface Receipt {
   decidedAt?: string;
   reason?: string;
   notes?: string;
+  remarks?: string;
+}
+export interface DesignVisit {
+  id: string;
+  type: string;
+  status: string;
+  date: string;
+  note: string;
+  revisit: boolean;
+  reason: string;
+  fault: string;
+  createdAt: string;
+  createdBy: string;
+  /** The date Design asked for; Measurement moves it only with a special approval (24 Oct 2026). */
+  givenDate?: string;
+  askedBy?: string;
+  dateChange?: { status: string; from: string; to: string; reason: string };
+  approval?: { status: string; at?: string };
+  assigneeName?: string;
+  doneAt?: string;
+  snags?: { text: string; fixed: boolean }[];
+  checklist?: Record<string, unknown>;
+  photos?: unknown[];
+  fields?: Record<string, string>;
+}
+export interface EstimatePlan {
+  kitchen: number;
+  installation: number;
+  transport: number;
+  visits: number | null;
+  visitRate: number | null;
+}
+export interface SpecialApproval {
+  status: "Pending" | "Approved" | "Rejected";
+  requestedAt: string;
+  reason?: string;
+  decidedAt?: string;
+  decidedBy?: string;
+  note?: string;
 }
 export interface Proposal {
   v: number;
@@ -23,6 +62,8 @@ export interface Proposal {
   file?: string;
   designFile?: string;
   note?: string;
+  /** The designer's estimate plan, line by line (23 Oct 2026); fills the order when the client approves. */
+  plan?: EstimatePlan;
 }
 export interface Revision {
   ofVersion: number;
@@ -106,6 +147,8 @@ export interface DesignClient extends Client {
   order: {
     products: { product: string; value: number }[];
     installation?: number;
+    /** Freight from the estimate (rupees); "freight" is the old name of the free accessories amount. */
+    transport?: number;
     bankPct?: number | null;
     faPct?: number | null;
     md?: number;
@@ -141,6 +184,16 @@ export interface DesignClient extends Client {
     alignedAt?: string;
     assignee?: string;
   };
+  /** Site details for Measurement (24 Oct 2026): filled by Sales or the designer; Measurement can ask for them. */
+  site?: {
+    location?: string;
+    supervisor?: string;
+    supervisorPhone?: string;
+    clientPhone?: string;
+  };
+  siteAsk?: { at: string; by: string; missing: string[] };
+  /** Measurement visits (the CRM runs them; Design can request EPT marking, EPT verification and PDI visits). */
+  visits?: DesignVisit[];
   post?: Flow;
   drawingSignedAt?: string;
   factoryAt?: string;

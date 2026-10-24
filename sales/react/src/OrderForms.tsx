@@ -16,32 +16,57 @@ import { ClientArchitect } from "./ArchitectPicker";
 import { BillingPicker } from "./PersonalForm";
 import { ProofUploads } from "./DesignForm";
 import { ContactForm } from "./ContactForm";
-import { news, requestPayment, submitBooking } from "./commands";
+import {
+  askSpecialMeasurement,
+  decideSpecialMeasurement,
+  fillFromEstimate,
+  news,
+  requestPayment,
+  submitBooking,
+} from "./commands";
 import { OcfForm } from "./OcfForm";
 export function OrderForm({ c, ctx }: FormProps) {
   const [working, setWorking] = useState(false),
     o = c.order,
     t = rules().totals(c),
     bankOnly = window.Kit.bankOnly();
+  // Type the %; the rupee amount it comes to shows right beside it (23 Oct 2026).
   const pct = (
     key: "bankPct" | "faPct",
     label: string,
     fallback: number | null,
+    amount: number,
   ) => (
+    <div className="pct-row">
+      <Field
+        label={label}
+        value={o[key]}
+        placeholder={fallback == null ? "%" : fallback + "%"}
+        onCommit={(v) =>
+          ctx.update(() => {
+            const n = v.replace(/[^0-9.]/g, "");
+            o[key] = n === "" ? null : Math.min(100, Number(n) || 0);
+            if (key === "bankPct") delete o.md;
+            else delete o.freight;
+          })
+        }
+      />
+      <b className="num pct-amount">= {money(amount)}</b>
+    </div>
+  );
+  const rupees = (key: "installation" | "transport", label: string) => (
     <Field
       label={label}
-      value={o[key]}
-      placeholder={fallback == null ? "%" : fallback + "%"}
+      value={o[key] || ""}
+      placeholder="₹"
       onCommit={(v) =>
         ctx.update(() => {
-          const n = v.replace(/[^0-9.]/g, "");
-          o[key] = n === "" ? null : Math.min(100, Number(n) || 0);
-          if (key === "bankPct") delete o.md;
-          else delete o.freight;
+          o[key] = Number(v.replace(/[^0-9.]/g, "")) || 0;
         })
       }
     />
   );
+  const plan = [...c.design.proposals].reverse().find((p) => p.plan)?.plan;
   const amounts: [string, number][] = [
     ["Offer basic value", t.base],
     ["Less management discount, no GST", t.md],
@@ -77,15 +102,40 @@ export function OrderForm({ c, ctx }: FormProps) {
           />
         </div>
       ))}
+      <div className="g2">
+        {rupees("installation", "Installation (₹)")}
+        {rupees("transport", "Freight (₹)")}
+      </div>
+      {plan && (
+        <div className="line">
+          <span className="sub">
+            From the designer&rsquo;s estimate: kitchen {money(plan.kitchen)} ·
+            installation {money(plan.installation)} · freight{" "}
+            {money(plan.transport)}
+            {plan.visits != null &&
+              " · " +
+                plan.visits +
+                " site visits × " +
+                money(plan.visitRate || 0)}
+          </span>
+          <Button
+            tone="small"
+            onClick={() => ctx.update(() => fillFromEstimate(c, plan))}
+          >
+            Fill from estimate
+          </Button>
+        </div>
+      )}
       {!bankOnly && (
         <>
-          {pct("bankPct", "Bank %", t.bankPct)}
+          {pct("bankPct", "Bank %", t.bankPct, t.bankBase)}
           {pct(
             "faPct",
             "Free accessories %",
             o.faPct == null && t.md && o.freight
               ? Math.round((o.freight / t.md) * 10000) / 100
               : null,
+            t.freight,
           )}
           <Select
             label="Order type"
@@ -281,14 +331,17 @@ export function TimelineForm({ c, ctx }: FormProps) {
   );
 }
 export function PaymentForm({ c, ctx }: FormProps) {
-  const [open, setOpen] = useState(false),
-    [error, setError] = useState(""),
-    [draft, setDraft] = useState({
-      amount: "",
-      date: window.Kit.today(),
-      mode: "",
-      proof: "",
-    });
+  const blank = () => ({
+    amount: "",
+    date: window.Kit.today(),
+    mode: "",
+    proof: "",
+    kind: "bank",
+    ref: "",
+    remarks: "",
+  });
+  const [error, setError] = useState(""),
+    [draft, setDraft] = useState(blank);
   const p = c.payment,
     L = rules();
   return (
@@ -362,111 +415,148 @@ export function PaymentForm({ c, ctx }: FormProps) {
         />
       </div>
       <BillingPicker c={c} ctx={ctx} />
-      {p.receipts.length > 0 && <b>Money so far</b>}
-      {p.receipts.map((r, i) => (
-        <div className="line rule" key={i}>
-          <span>
-            <b className="num">{money(r.amount)}</b> · {day(r.date)} · {r.mode}
-            {r.kind === "md" && " · management discount"}
-          </span>
-          <span className="flexrow">
-            <Pill
-              tone={
-                r.status === "Confirmed"
-                  ? "green"
-                  : r.status === "Rejected"
-                    ? "red"
-                    : "blue"
-              }
-            >
-              {r.status === "Requested" ? "With Accounts" : r.status}
-            </Pill>
-            {r.status === "Rejected" && (
-              <span className="msg">
-                {r.reason || "Rejected"}
-                {r.notes && " · " + r.notes}
-              </span>
-            )}
-            {r.status !== "Confirmed" && (
-              <Button
-                tone="small"
-                onClick={() =>
-                  ctx.update(() => {
-                    p.receipts.splice(i, 1);
-                  })
-                }
-              >
-                Remove
-              </Button>
-            )}
-          </span>
-        </div>
-      ))}
-      <Button
-        tone="small"
-        onClick={() => {
-          setOpen(!open);
-          setError("");
-        }}
-      >
-        {open ? "Cancel" : "Tell Accounts the client has paid"}
-      </Button>
-      {open && (
-        <div className="soft">
-          <div className="g3">
-            <Field
-              label="Amount the client says (₹)"
-              value={draft.amount}
-              immediate
-              onCommit={(amount) => setDraft((x) => ({ ...x, amount }))}
-            />
-            <Field
-              label="Date"
-              type="date"
-              value={draft.date}
-              immediate
-              onCommit={(date) => setDraft((x) => ({ ...x, date }))}
-            />
-            <Select
-              label="How it was paid"
-              value={draft.mode}
-              options={["Bank transfer", "UPI", "Cheque", "Pickup needed"]}
-              onChange={(mode) => setDraft((x) => ({ ...x, mode }))}
-            />
+      <b>Payments so far ({p.receipts.length})</b>
+      {p.receipts.length ? (
+        <div className="pay-table">
+          <div className="pay-row head">
+            <span>Date</span>
+            <span>Amount</span>
+            <span>Type</span>
+            <span>How paid</span>
+            <span>Remarks</span>
+            <span>Status</span>
           </div>
-          <Attachment
-            owner={c.id}
-            name={draft.proof}
-            label="Proof from the client"
-            onUploaded={(proof) => setDraft((x) => ({ ...x, proof }))}
-          />
-          {error && (
-            <p role="alert" className="msg">
-              {error}
-            </p>
-          )}
-          <Button
-            tone="dark"
-            onClick={() => {
-              const amount = Number(draft.amount.replace(/,/g, ""));
-              if (!Number.isFinite(amount) || amount <= 0) {
-                setError("Enter a positive amount first.");
-                return;
-              }
-              ctx.update(() => requestPayment(c, { ...draft, amount }));
-              setOpen(false);
-              setDraft({
-                amount: "",
-                date: window.Kit.today(),
-                mode: "",
-                proof: "",
-              });
-            }}
-          >
-            Send to Accounts
-          </Button>
+          {p.receipts.map((r, i) => (
+            <div className="pay-row" key={i}>
+              <span>{day(r.date)}</span>
+              <b className="num">{money(r.amount)}</b>
+              <span>{r.kind === "md" ? "Management" : "Bank"}</span>
+              <span>
+                {r.mode || "-"}
+                {r.ref ? " · " + r.ref : ""}
+              </span>
+              <span className="sub">
+                {r.remarks || "-"}
+                {r.status === "Rejected" && (
+                  <span className="msg">
+                    {" "}
+                    {r.reason || "Rejected"}
+                    {r.notes && " · " + r.notes}
+                  </span>
+                )}
+              </span>
+              <span className="flexrow">
+                <Pill
+                  tone={
+                    r.status === "Confirmed"
+                      ? "green"
+                      : r.status === "Rejected"
+                        ? "red"
+                        : "blue"
+                  }
+                >
+                  {r.status === "Requested" ? "With Accounts" : r.status}
+                </Pill>
+                {r.status !== "Confirmed" && (
+                  <Button
+                    tone="small"
+                    onClick={() =>
+                      ctx.update(() => {
+                        p.receipts.splice(i, 1);
+                      })
+                    }
+                  >
+                    Remove
+                  </Button>
+                )}
+              </span>
+            </div>
+          ))}
         </div>
+      ) : (
+        <p className="sub">No payments yet.</p>
       )}
+      {/* Add a payment: always here, as many times as needed. Accounts confirms each one. */}
+      <div className="soft">
+        <b>Add a payment</b>
+        <div className="g3">
+          <Field
+            label="Amount (₹)"
+            value={draft.amount}
+            immediate
+            onCommit={(amount) => setDraft((x) => ({ ...x, amount }))}
+          />
+          <Field
+            label="Date"
+            type="date"
+            value={draft.date}
+            immediate
+            onCommit={(date) => setDraft((x) => ({ ...x, date }))}
+          />
+          <Select
+            label="How it was paid"
+            value={draft.mode}
+            options={[
+              "Bank transfer",
+              "UPI",
+              "Cheque",
+              "Cash",
+              "Pickup needed",
+            ]}
+            onChange={(mode) => setDraft((x) => ({ ...x, mode }))}
+          />
+          {!window.Kit.bankOnly() && (
+            <Select
+              label="Type of payment"
+              value={draft.kind}
+              options={[
+                ["bank", "Bank"],
+                ["md", "Management"],
+              ]}
+              placeholder={false}
+              onChange={(kind) => setDraft((x) => ({ ...x, kind }))}
+            />
+          )}
+          <Field
+            label="Reference no."
+            value={draft.ref}
+            immediate
+            onCommit={(ref) => setDraft((x) => ({ ...x, ref }))}
+          />
+          <Field
+            label="Remarks"
+            value={draft.remarks}
+            immediate
+            onCommit={(remarks) => setDraft((x) => ({ ...x, remarks }))}
+          />
+        </div>
+        <Attachment
+          owner={c.id}
+          name={draft.proof}
+          label="Proof from the client"
+          onUploaded={(proof) => setDraft((x) => ({ ...x, proof }))}
+        />
+        {error && (
+          <p role="alert" className="msg">
+            {error}
+          </p>
+        )}
+        <Button
+          tone="dark"
+          onClick={() => {
+            const amount = Number(draft.amount.replace(/,/g, ""));
+            if (!Number.isFinite(amount) || amount <= 0) {
+              setError("Enter a positive amount first.");
+              return;
+            }
+            setError("");
+            ctx.update(() => requestPayment(c, { ...draft, amount }));
+            setDraft(blank());
+          }}
+        >
+          Send to Accounts
+        </Button>
+      </div>
     </Card>
   );
 }
@@ -521,17 +611,6 @@ export function ApprovalForm({ c, ctx }: FormProps) {
       </div>
       <div className="flexrow">
         <Button
-          disabled={!token || !!c.measurement}
-          onClick={() =>
-            ctx.update(() => {
-              c.measurement = { requestedAt: now(), date: "" };
-              news(c, "Site measurement requested");
-            })
-          }
-        >
-          {c.measurement ? "Measurement requested" : "Request site measurement"}
-        </Button>
-        <Button
           tone="dark"
           disabled={(!!c.submittedAt && !rejected) || !ready}
           onClick={() => ctx.update(() => submitBooking(c))}
@@ -555,17 +634,127 @@ export function ApprovalForm({ c, ctx }: FormProps) {
           .
         </p>
       )}
-      {c.measurement && (
-        <Field
-          label="Site measurement date"
-          type="date"
-          value={c.measurement.date}
-          onCommit={(v) =>
-            ctx.update(() => {
-              c.measurement!.date = v;
-            })
+    </Card>
+  );
+}
+// Special approvals (23 Oct 2026): a first site measurement before the token needs the AVP's (Tavneet's) yes.
+// On approval the measurement request goes to Measurement by itself, with the date asked for and the site details.
+// It is the only visit Sales sends; after the token the designer books every visit (24 Oct 2026).
+export function SpecialForm({ c, ctx }: FormProps) {
+  const [reason, setReason] = useState(""),
+    [date, setDate] = useState(""),
+    [note, setNote] = useState(""),
+    [error, setError] = useState("");
+  const s = c.special?.siteMeasurement,
+    me = window.People.list[0],
+    approver = window.People.list.find((p) => p.role === "AVP"),
+    canDecide = me?.role === "AVP",
+    token = rules().tokenIn(c);
+  const run = (fn: () => void) => {
+    try {
+      setError("");
+      ctx.update(fn);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+  return (
+    <Card title="6 · Special approvals" tone="violet">
+      <div className="line rule">
+        <span>
+          <b>First site measurement before the token</b>
+          <p className="sub">
+            Approved by {approver ? approver.name + " (AVP)" : "the AVP"}. Once
+            approved, the request goes to Measurement.
+          </p>
+        </span>
+        <Pill
+          tone={
+            !s
+              ? "grey"
+              : s.status === "Approved"
+                ? "green"
+                : s.status === "Rejected"
+                  ? "red"
+                  : "blue"
           }
-        />
+        >
+          {s ? s.status : token ? "Not needed" : "Not asked"}
+        </Pill>
+      </div>
+      {s && (
+        <div className="soft">
+          <span>
+            Asked {day(s.requestedAt)} · {s.reason}
+            {s.date ? " · for " + day(s.date) : ""}
+          </span>
+          {s.decidedAt && (
+            <span>
+              {s.status} by {s.decidedBy} on {day(s.decidedAt)}
+              {s.note ? " · " + s.note : ""}
+            </span>
+          )}
+        </div>
+      )}
+      {!token && (!s || s.status === "Rejected") && !c.measurement && (
+        <>
+          <Field
+            label="Why is the measurement needed before the token?"
+            value={reason}
+            immediate
+            onCommit={setReason}
+          />
+          <Field
+            label="Date for the measurement"
+            type="date"
+            value={date}
+            immediate
+            onCommit={setDate}
+          />
+          <Button
+            tone="dark"
+            onClick={() => run(() => askSpecialMeasurement(c, reason, date))}
+          >
+            Send to {approver ? approver.name : "AVP"} for approval
+          </Button>
+        </>
+      )}
+      {s?.status === "Pending" && canDecide && (
+        <>
+          <Field label="Note" value={note} immediate onCommit={setNote} />
+          <div className="flexrow">
+            <Button
+              tone="dark"
+              onClick={() =>
+                run(() => decideSpecialMeasurement(c, true, me.name, note))
+              }
+            >
+              Approve
+            </Button>
+            <Button
+              tone="warn"
+              onClick={() =>
+                run(() => decideSpecialMeasurement(c, false, me.name, note))
+              }
+            >
+              Reject
+            </Button>
+          </div>
+        </>
+      )}
+      {s?.status === "Pending" && !canDecide && (
+        <p className="sub">Waiting for {approver?.name || "the AVP"}.</p>
+      )}
+      {(!token || s || c.siteAsk) && <SiteDetails c={c} ctx={ctx} />}
+      {token && !s && (
+        <p className="sub">
+          The token is in: the designer books the site measurement now.
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="msg">
+          {error}
+        </p>
       )}
     </Card>
   );
@@ -598,6 +787,13 @@ export function OrderForms(props: FormProps) {
       Number(L.tokenIn(c)) +
         Number(c.approvals.booking === "Approved") +
         " of 2 settled",
+    ],
+    [
+      "special",
+      "Special approvals",
+      c.special?.siteMeasurement
+        ? "Site measurement · " + c.special.siteMeasurement.status
+        : "None asked",
     ],
     ["ocf", "OCF", c.ocfAt ? "Made " + day(c.ocfAt) : "Last step"],
     [
@@ -655,8 +851,57 @@ export function OrderForms(props: FormProps) {
           </Card>
         )}
         {tab === "approvals" && <ApprovalForm {...props} />}
+        {tab === "special" && <SpecialForm {...props} />}
         {tab === "ocf" && <OcfForm {...props} />}
         {tab === "contact" && <ContactForm {...props} />}
+      </div>
+    </div>
+  );
+}
+
+// Site details Measurement needs (Manish, 24 Oct 2026): site address, client number, site supervisor and number.
+// Sales or the designer fills them; when Measurement asks for what is missing, the ask shows here until it is filled.
+const SITE_FIELDS = [
+  ["siteAddress", "Site address"],
+  ["clientPhone", "Client number"],
+  ["supervisor", "Site supervisor"],
+  ["supervisorPhone", "Site supervisor number"],
+] as const;
+export function SiteDetails({ c, ctx }: FormProps) {
+  const value = (k: (typeof SITE_FIELDS)[number][0]) =>
+    k === "siteAddress"
+      ? c.siteAddress || ""
+      : k === "clientPhone"
+        ? c.site?.clientPhone || c.phone || ""
+        : c.site?.[k] || "";
+  const missing = SITE_FIELDS.filter(
+    ([k]) => c.siteAsk?.missing.includes(k) && !value(k),
+  );
+  return (
+    <div className="site-details">
+      <b>Site details for Measurement</b>
+      {missing.length > 0 && (
+        <p className="msg">
+          Measurement asked for{" "}
+          {missing.map(([, label]) => label.toLowerCase()).join(", ")} on{" "}
+          {day(c.siteAsk!.at)}.
+        </p>
+      )}
+      <div className="g2">
+        {SITE_FIELDS.map(([k, label]) => (
+          <Field
+            key={k}
+            label={label}
+            type={k.endsWith("Phone") ? "tel" : "text"}
+            value={value(k)}
+            onCommit={(v) =>
+              ctx.update(() => {
+                if (k === "siteAddress") c.siteAddress = v;
+                else c.site = { ...c.site, [k]: v };
+              })
+            }
+          />
+        ))}
       </div>
     </div>
   );

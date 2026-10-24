@@ -55,13 +55,27 @@ export function FlowSteps({ c, ctx }: { c: Client; ctx: Context }) {
         <FlowButton
           state={m.state}
           label="Site measurement"
-          word={m.step}
-          small={[
-            "Sent " + (short(m.sentAt) || "-"),
-            "Aligned " + (short(m.alignedAt) || "-"),
-            "Done " +
-              (m.doneAt === "recorded" ? "(recorded)" : short(m.doneAt) || "-"),
-          ]}
+          // One line (Manish, 24 Oct 2026): who goes and when, not every date.
+          word={
+            m.state === "done"
+              ? "Done"
+              : m.who
+                ? "Assigned"
+                : m.sentAt
+                  ? "Sent"
+                  : m.step
+          }
+          small={
+            m.state === "done"
+              ? "Done " +
+                (m.doneAt === "recorded" ? "(recorded)" : short(m.doneAt))
+              : m.who
+                ? m.who + " · going " + (short(m.visit) || "date not set")
+                : m.sentAt
+                  ? "Not assigned yet" +
+                    (m.visit ? " · asked for " + short(m.visit) : "")
+                  : "Not asked yet"
+          }
           onClick={open("measure")}
         />
         {m.note && <small className="sub">Note: {m.note}</small>}

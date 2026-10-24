@@ -1,94 +1,42 @@
 import { Sidebar } from "../../../backend/react/src/Sidebar";
-import {
-  AppHeader,
-  Skeleton,
-  StableLabel,
-} from "../../../backend/react/src/Shell";
-import {
-  Component,
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { AppHeader } from "../../../backend/react/src/Shell";
+import { Component, useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import {
-  STAGES,
-  count,
-  route,
-  select,
-  slug,
-  timestamp,
-  type Filters,
-  type Page,
-  type Request,
-} from "./model";
-import { useRequests } from "./api";
-import { Details, Stats } from "./components";
-import { FilterDialog } from "./Filters";
-import { Overview, Requests } from "./pages";
 import { Notifications } from "./Notifications";
+import { VisitsPage } from "./visits";
+import { MyVisits } from "./mine";
+import { focusOf } from "./navigation";
 import "./style.css";
-const Areas = lazy(() => import("./Areas"));
-const Reports = lazy(() =>
-  import("./Reports").then((m) => ({ default: m.Reports })),
-);
-const PAGES: [Page, string][] = [
-  ["overview", "Home"],
-  ["requests", "Requests"],
-  ["areas", "Areas"],
-  ["reports", "Reports"],
-];
-function App() {
-  const [place, setPlace] = useState(() => route()),
-    [filters, setFilters] = useState<Filters>(() =>
-      window.Measurements.defaults(),
-    ),
-    [filterOpen, setFilterOpen] = useState(false),
-    [detail, setDetail] = useState<Request | null>(null),
-    [focusId, setFocusId] = useState("");
-  const live = useRequests(filterOpen || !!detail);
+// One screen for Measurement (Manish, 24 Oct 2026): the two parts (Visits, and Requests & reports) became one. The
+// home page is the visits board with all four visit types; the side menu adds who is assigned where, the special
+// approvals (new dates, revisits) and the master data.
+// Old links (#all/overview and the like) land on the board.
+const PAGES = [
+  ["visits", "Visits"],
+  ["assigned", "Assigned"],
+  ["approvals", "Special approvals"],
+  ["team", "Team & checklists"],
+] as const;
+type Page = (typeof PAGES)[number][0];
+const pageOf = (hash = location.hash): Page => {
+  const id = hash
+    .replace(/^#/, "")
+    .replace(/^crm\//, "")
+    .split("/")[0];
+  return (PAGES.find((p) => p[0] === id)?.[0] || "visits") as Page;
+};
+const sidebarItems = PAGES.map(([id, label]) => ({ id: id as string, label }));
+function Root() {
+  const [hash, setHash] = useState(location.hash);
   useEffect(() => {
-    const change = () => {
-      setPlace(route());
-      setDetail(null);
-    };
+    const change = () => setHash(location.hash);
     window.addEventListener("hashchange", change);
     return () => window.removeEventListener("hashchange", change);
   }, []);
-  const go = (tab: string, page: Page = "overview") => {
-    location.hash = tab + "/" + page;
-    setPlace({ tab, page });
-    setDetail(null);
-  };
-  const open = useCallback((r: Request) => setDetail(r), []);
-  const records = useMemo(
-    () => select(live.records, filters, place.tab),
-    [live.records, filters, place.tab],
-  );
-  const status = (value: string) => {
-    setFilters((f) => ({ ...f, status: value }));
-    go(place.tab, "requests");
-  };
-  const summary = [
-    place.tab === "all"
-      ? filters.stages.join(", ")
-      : STAGES.find((s) => slug(s) === place.tab),
-    filters.status,
-    filters.search,
-    filters.city,
-    filters.region,
-    filters.owner,
-    filters.product,
-    filters.zone,
-    filters.dateRange,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  const ready = !live.loading && !live.error && !!live.syncedAt;
+  if (location.pathname.replace(/\/$/, "") === "/my-visits")
+    return <MyVisits />;
+  const page = pageOf(hash);
+  const focus = focusOf(hash);
   return (
     <>
       <AppHeader
@@ -96,178 +44,25 @@ function App() {
         navigation="Measurement navigation"
         actions={<Notifications />}
       />
-      <nav className="stagebar" aria-label="Measurement stages">
-        {["all", ...STAGES.map(slug)].map((id, i) => (
-          <button
-            key={id}
-            className={id === place.tab ? "on" : ""}
-            aria-pressed={id === place.tab}
-            onClick={() => go(id)}
-          >
-            {i === 0 ? "All four" : STAGES[i - 1]}
-            {/* Badge slot is always there, so tabs do not move when counts arrive. */}
-            <b aria-hidden={!ready}>
-              {ready
-                ? count(
-                    i === 0
-                      ? live.records
-                      : live.records.filter((r) => slug(r.stage) === id),
-                  ).Open
-                : ""}
-            </b>
-          </button>
-        ))}
-      </nav>
       <div className="body">
         <Sidebar
           id="measurement"
           label="Measurement navigation"
-          active={place.page}
-          items={PAGES.map(([id, label]) => ({
-            id,
-            label,
-            group: "Measurement",
-          }))}
-          onNavigate={(id) => go(place.tab, id as Page)}
+          active={page}
+          items={sidebarItems}
+          onNavigate={(id) => {
+            location.hash = "crm/" + id;
+          }}
         />
         <main className="main">
-          <div className="m-toolbar" role="status">
-            <b>Live Zoho CRM</b>
-            <span className="sub">
-              {live.loading
-                ? "Refreshing Orders…"
-                : live.syncedAt
-                  ? `${live.orders} orders scanned · synced ${timestamp(live.syncedAt)}`
-                  : "Connecting…"}
-            </span>
-            <button
-              className="btn small"
-              disabled={live.loading}
-              onClick={() => void live.refresh(true)}
-            >
-              <StableLabel
-                busy={live.loading}
-                idle="Refresh"
-                working="Refreshing…"
-              />
-            </button>
-          </div>
-          {!ready ? (
-            <section
-              className="card m-status"
-              role={live.error ? "alert" : "status"}
-            >
-              <h2>
-                {live.error
-                  ? "Measurement data could not be loaded"
-                  : "Loading live measurement requests"}
-              </h2>
-              <p>
-                {live.error ||
-                  "Reading all Orders from Zoho. The first sync can take a minute."}
-              </p>
-              {live.syncedAt && (
-                <p className="sub">
-                  Last successful sync: {timestamp(live.syncedAt)}. Counts are
-                  hidden until the connection recovers.
-                </p>
-              )}
-              {live.error && (
-                <button
-                  className="btn dark"
-                  onClick={() => void live.refresh(true)}
-                >
-                  Try again
-                </button>
-              )}
-            </section>
-          ) : (
-            <>
-              {place.page !== "overview" && (
-                <div className="m-toolbar">
-                  <input
-                    aria-label="Search measurement requests"
-                    placeholder="Search requests"
-                    value={filters.search}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, search: e.target.value }))
-                    }
-                  />
-                  <button className="btn" onClick={() => setFilterOpen(true)}>
-                    Filters
-                  </button>
-                  <button
-                    className="btn"
-                    onClick={() => {
-                      setFilters(window.Measurements.defaults());
-                      go("all", place.page);
-                    }}
-                  >
-                    Clear all
-                  </button>
-                  <span className="sub">
-                    {records.length} requests · {summary}
-                  </span>
-                </div>
-              )}
-              <Stats records={records} onStatus={status} />
-              {place.page === "overview" && (
-                <Overview
-                  records={records}
-                  onOpen={open}
-                  onStage={(s) => go(s, "requests")}
-                  onStatus={status}
-                />
-              )}
-              {place.page === "requests" && (
-                <Requests records={records} onOpen={open} />
-              )}
-              {place.page === "reports" && (
-                <Suspense
-                  fallback={<Skeleton inline label="Loading reports" />}
-                >
-                  <Reports
-                    records={records}
-                    summary={summary}
-                    onStage={(s) => go(s, "requests")}
-                  />
-                </Suspense>
-              )}
-              {place.page === "areas" && (
-                <Suspense
-                  fallback={
-                    <Skeleton inline cards={1} label="Loading site map" />
-                  }
-                >
-                  <Areas records={records} onOpen={open} focusId={focusId} />
-                </Suspense>
-              )}
-            </>
-          )}
+          <VisitsPage
+            page={page}
+            focus={focus.id}
+            focusType={focus.type}
+            focusSite={focus.site}
+          />
         </main>
       </div>
-      {filterOpen && (
-        <FilterDialog
-          records={live.records}
-          value={filters}
-          onClose={() => setFilterOpen(false)}
-          onApply={(f) => {
-            setFilters(f);
-            setFilterOpen(false);
-            go("all", place.page);
-          }}
-        />
-      )}
-      {detail && (
-        <Details
-          record={detail}
-          onClose={() => setDetail(null)}
-          onMap={(r) => {
-            setFocusId(r.id);
-            go(place.tab, "areas");
-          }}
-        />
-      )}
     </>
   );
 }
@@ -292,6 +87,6 @@ class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
 }
 createRoot(document.getElementById("app")!).render(
   <Boundary>
-    <App />
+    <Root />
   </Boundary>,
 );

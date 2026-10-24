@@ -179,6 +179,10 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
     from .integrations import register
     register(app,engine,settings,who)
 
+    # Measurement visits run by the CRM itself: board, team, checklists, revisits, and each person's own page.
+    from .measurement_visits import register as register_visits
+    register_visits(app,engine,settings,who)
+
     @app.get('/security')
     @app.get('/forgot-password')
     @app.get('/reset-password')
@@ -206,7 +210,11 @@ def create_app(settings=None, engine=None, authenticator=None, recovery_sender=N
             except HTTPException: return RedirectResponse('/login',status_code=303)
             if mfa.enrollment_required(db,user): return RedirectResponse('/security',status_code=303)
         if not path: return RedirectResponse('/sales/',status_code=303)
-        if user['role']=='assigned': raise HTTPException(403,'Assigned users access /api/clients; legacy dashboards require workspace access.')
+        # A measurement person's own page (/my-visits) is the Measurement app in its "my visits" mode. Logins with
+        # assigned-only access may open it and load its scripts and styles, but no department dashboard.
+        if path=='my-visits': path='measurement/index.html'
+        elif user['role']=='assigned' and not path.startswith(('measurement/assets/','measurement/vendor/','measurement/common/','measurement/look.css','shared/')):
+            raise HTTPException(403,'Assigned users access /api/clients; legacy dashboards require workspace access.')
         target=(ROOT/path).resolve()
         if target.is_dir(): target=target/'index.html'
         if not public_file(ROOT,target) or not target.is_file() or path.startswith('data/'):

@@ -42,10 +42,52 @@
   box-shadow: var(--shadow-3);
 }
 .sales-dialog-close {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   justify-content: flex-end;
-  padding: var(--space-2) var(--space-4);
+  height: 0;
+  padding: 0 var(--space-3);
+  overflow: visible;
+}
+.sales-dialog-x {
+  margin-top: var(--space-3);
   background: var(--color-surface);
+  box-shadow: var(--shadow-1);
+}
+/* Room on the right of every window title for the ✕. */
+.sales-dialog .sheet-h {
+  padding-right: 64px;
+}
+/* New opportunity: the window is only as tall as the form, with breathing room around it. */
+.sales-dialog:has(.sales-opportunity) {
+  width: 860px;
+  height: fit-content;
+}
+.sales-opportunity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5) var(--space-5);
+}
+.sales-opportunity .sheet-h {
+  padding: var(--space-4) 64px 0 0;
+}
+.sales-opportunity .sheet-h p {
+  margin: 4px 0 0;
+}
+.sales-opportunity details {
+  border-top: 1px solid var(--color-line);
+  padding-top: var(--space-3);
+}
+.sales-opportunity summary {
+  cursor: pointer;
+  font-weight: var(--weight-semibold);
+  color: var(--color-ink-2);
+}
+.sales-opportunity details[open] summary {
+  margin-bottom: var(--space-3);
 }
 .sales-dialog .sheet-b {
   max-height: none;
@@ -198,4 +240,85 @@
   .sales-dialog .tl {
     flex-wrap: wrap;
   }
+}
+
+/* Order: the amount a % comes to sits beside the box (23 Oct 2026). */
+.pct-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-3);
+}
+.pct-amount {
+  padding-bottom: 10px;
+  color: var(--color-ink-2);
+}
+/* Payments so far: one row per payment. */
+.pay-table {
+  overflow-x: auto;
+}
+.pay-row {
+  display: grid;
+  grid-template-columns:
+    90px 110px 100px minmax(120px, 1fr) minmax(120px, 1.2fr)
+    auto;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  padding: var(--space-2) 0;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--color-line);
+  font-size: var(--text-13);
+}
+.pay-row.head {
+  color: var(--color-ink-3);
+  font-weight: 600;
+  font-size: 12px;
+}
+.pay-row > * {
+  min-width: 0;
+}
+.pay-row > .flexrow {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.sales-opportunity .sales-form {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+}
+
+/* Right column: an empty box is one slim line (23 Oct 2026). */
+.box-empty {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+}
+.box-empty h2 {
+  margin: 0;
+  font-size: var(--text-13);
+  font-weight: var(--weight-semibold);
+  color: var(--color-ink-2);
+}
+/* The six tiles share one row evenly, so amounts stay on one line. */
+@media (min-width: 1024px) {
+  .sales-main .eyes {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .sales-main .eye b {
+    white-space: nowrap;
+  }
+}
+
+/* Site details for Measurement (24 Oct 2026) */
+.site-details {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-line);
+}
+.site-details .msg {
+  margin: 0;
 }

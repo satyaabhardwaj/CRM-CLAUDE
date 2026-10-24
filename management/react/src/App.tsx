@@ -91,9 +91,34 @@ export function App() {
     setTab(next);
     setOpen(null);
   };
+  const personOptions: [string, string][] = [
+    ["", "Whole team"],
+    ...window.People.list.map(
+      (p) => [p.id, p.role + " · " + p.name] as [string, string],
+    ),
+  ];
   return (
     <Boundary>
-      <AppHeader current="management" />
+      <AppHeader
+        current="management"
+        actions={
+          // From 1280 px the person filter sits in the top bar, as in Sales and Design (23 Oct 2026).
+          <div className="header-filters" aria-label="Management filters">
+            <select
+              aria-label="Person"
+              title="Person"
+              value={who}
+              onChange={(e) => setWho(e.target.value)}
+            >
+              {personOptions.map(([v, text]) => (
+                <option key={v} value={v}>
+                  {text}
+                </option>
+              ))}
+            </select>
+          </div>
+        }
+      />
       <div className="crm-page-toolbar management-tools">
         <nav className="tabs" aria-label="Management views">
           {tabs.map(([id, label]) => (
@@ -112,12 +137,7 @@ export function App() {
           label="Person"
           value={who}
           onChange={setWho}
-          options={[
-            ["", "Whole team"],
-            ...window.People.list.map(
-              (p) => [p.id, p.role + " · " + p.name] as [string, string],
-            ),
-          ]}
+          options={personOptions}
         />
         <span className="management-readonly">Read only</span>
       </div>

@@ -53,10 +53,11 @@ it("keeps route identifiers and counts while ordering groups", async () => {
   );
   expect(navigate).toHaveBeenCalledWith("architects");
 });
-it("remembers collapse preference without a server request", async () => {
+// Hover only in every module (24 Oct 2026): an old pinned setting is forgotten and the arrow only opens it for a moment.
+it("stays closed, forgets an old pinned setting, and opens from the arrow without a server request", async () => {
   const fetcher = vi.fn();
   vi.stubGlobal("fetch", fetcher);
-  localStorage.setItem("crm.ui.sidebar.test", "collapsed");
+  localStorage.setItem("crm.ui.sidebar.test", "expanded");
   await act(async () =>
     root.render(
       <Sidebar
@@ -68,12 +69,47 @@ it("remembers collapse preference without a server request", async () => {
       />,
     ),
   );
-  expect(host.querySelector("aside")?.classList.contains("collapsed")).toBe(
-    true,
-  );
+  const aside = host.querySelector("aside")!;
+  expect(aside.classList.contains("collapsed")).toBe(true);
+  expect(localStorage.getItem("crm.ui.sidebar.test")).toBe(null);
   await act(async () =>
     (host.querySelector(".crm-sidebar-toggle") as HTMLButtonElement).click(),
   );
-  expect(localStorage.getItem("crm.ui.sidebar.test")).toBe("expanded");
+  expect(aside.classList.contains("peek")).toBe(true);
   expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("opens on hover and closes after the pointer leaves", async () => {
+  vi.useFakeTimers();
+  try {
+    await act(async () =>
+      root.render(
+        <Sidebar
+          id="hover"
+          label="Pages"
+          items={items}
+          active="qualified"
+          onNavigate={() => {}}
+        />,
+      ),
+    );
+    const aside = host.querySelector("aside")!;
+    await act(async () => {
+      aside.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      vi.advanceTimersByTime(120);
+    });
+    expect(aside.classList.contains("peek")).toBe(true);
+    await act(async () => {
+      aside.dispatchEvent(
+        new MouseEvent("mouseout", {
+          bubbles: true,
+          relatedTarget: document.body,
+        }),
+      );
+      vi.advanceTimersByTime(250);
+    });
+    expect(aside.classList.contains("collapsed")).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
 });

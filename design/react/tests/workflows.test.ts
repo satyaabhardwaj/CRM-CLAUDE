@@ -48,6 +48,18 @@ it("preserves estimate, attachments, version and Sales handoff", () => {
     estimate: "estimate.pdf",
     design: "design.pdf",
     note: "Keep this",
+    kitchen: "90,000",
+    installation: "8,000",
+    transport: "2,000",
+    visits: "4",
+    visitRate: "8,000",
+  });
+  expect(c.design.proposals[0].plan).toEqual({
+    kitchen: 90000,
+    installation: 8000,
+    transport: 2000,
+    visits: 4,
+    visitRate: 8000,
   });
   expect(c.design.proposals[0]).toMatchObject({
     v: 1,
@@ -77,7 +89,19 @@ it.each(["0", "-1", "NaN", "Infinity", ""])(
 it("records revision V2 without replacing V1", () => {
   const c = proposal();
   c.design.proposals = [{ v: 1, amount: 20, status: "Returned" }];
-  sendProposal(c, { amount: "30", estimate: "", design: "", note: "Revision" });
+  expect(() =>
+    sendProposal(c, { amount: "30", estimate: "", design: "", note: "" }),
+  ).toThrow("layout");
+  expect(() =>
+    sendProposal(c, { amount: "30", estimate: "", design: "l.pdf", note: "" }),
+  ).toThrow("kitchen value");
+  sendProposal(c, {
+    amount: "30",
+    estimate: "",
+    design: "l.pdf",
+    note: "Revision",
+    kitchen: "25",
+  });
   expect(c.design.proposals.map((p) => p.amount)).toEqual([20, 30]);
   expect(c.design.proposals[1].v).toBe(2);
 });

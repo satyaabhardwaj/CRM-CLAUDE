@@ -128,12 +128,18 @@ export function NewOpportunity({
       className="sales-opportunity"
     >
       <div className="sheet-h">
-        <h2>New opportunity</h2>
+        <div>
+          <h2>New opportunity</h2>
+          <p className="sub">
+            Name, phone and source are enough to save. The rest can wait.
+          </p>
+        </div>
       </div>
       <fieldset
         className="sales-form card card-b"
         disabled={disabled || uploading}
       >
+        {/* What is needed to save, first. Everything optional sits under "More details" (23 Oct 2026). */}
         <div className="g4">
           {text("name", "Customer name")}
           {text("phone", "Phone", "tel")}
@@ -144,55 +150,60 @@ export function NewOpportunity({
             "Architect reference",
             "Referral",
           ])}
-          {select(
-            "product",
-            "Product",
-            [
-              "Kitchen",
-              "Wardrobe",
-              "Kitchen + wardrobes",
-              "Backsplash",
-              "Countertop",
-              "Sunroof",
-            ],
-            true,
-          )}
-          {text("budget", "Budget")}
-          {select("siteType", "Site type", [
-            "Apartment",
-            "Builder floor",
-            "Independent house",
-            "Villa",
-          ])}
-          {select("segment", "Segment", ["Retail", "Pro-Retail", "Projects"])}
-          {select("priority", "Priority prospect", ["High", "Medium", "Low"])}
-          <div className="span-3">
-            <ArchitectPicker
-              on={d.architect}
-              id={d.architectId}
-              onToggle={(on) =>
-                set((x) => ({
-                  ...x,
-                  architect: on,
-                  source: on && !x.source ? "Architect reference" : x.source,
-                }))
-              }
-              onPick={(id) => update("architectId", id)}
-            />
-          </div>
         </div>
-        {text("note", "Note")}
-        <label className="field">
-          <span>Layout</span>
-          <input
-            type="file"
-            aria-label="Layout"
-            onChange={(e) => {
-              setFile(e.target.files?.[0] || null);
-              setError("");
-            }}
+        <details>
+          <summary>More details (optional)</summary>
+          <div className="g4">
+            {select(
+              "product",
+              "Product",
+              [
+                "Kitchen",
+                "Wardrobe",
+                "Kitchen + wardrobes",
+                "Backsplash",
+                "Countertop",
+                "Sunroof",
+              ],
+              true,
+            )}
+            {text("budget", "Budget")}
+            {select("siteType", "Site type", [
+              "Apartment",
+              "Builder floor",
+              "Independent house",
+              "Villa",
+            ])}
+            {select("segment", "Segment", ["Retail", "Pro-Retail", "Projects"])}
+            {select("priority", "Priority prospect", ["High", "Medium", "Low"])}
+          </div>
+          <ArchitectPicker
+            on={d.architect}
+            id={d.architectId}
+            onToggle={(on) =>
+              set((x) => ({
+                ...x,
+                architect: on,
+                source: on && !x.source ? "Architect reference" : x.source,
+              }))
+            }
+            onPick={(id) => update("architectId", id)}
           />
-        </label>
+          <div className="g2">
+            {text("note", "Note")}
+            <label className="field">
+              <span>Layout</span>
+              <input
+                type="file"
+                aria-label="Layout"
+                onChange={(e) => {
+                  setFile(e.target.files?.[0] || null);
+                  setError("");
+                }}
+              />
+            </label>
+          </div>
+        </details>
         {error && (
           <p role="alert" className="msg">
             {error}

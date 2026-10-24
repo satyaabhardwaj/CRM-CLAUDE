@@ -121,7 +121,8 @@
   L.totals = function (c) {
     const o = c.order;
     const products = o.products.reduce(function (sum, p) { return sum + (Number(p.value) || 0); }, 0);
-    const obv = products + (Number(o.installation) || 0);
+    // Installation and freight come from the designer's final estimate (23 Oct 2026) and are part of the OBV.
+    const obv = products + (Number(o.installation) || 0) + (Number(o.transport) || 0);
     const bankPct = L.pct(o.bankPct), faPct = L.pct(o.faPct);
     // As in the sheet, the parts are worked out exactly and each line is rounded to the rupee on its own,
     // so the bank amount and the management amount are each the rounded sum of their exact parts.

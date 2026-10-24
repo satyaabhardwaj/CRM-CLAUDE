@@ -88,10 +88,17 @@ function Modal({
         close();
       }}
     >
+      {/* One small ✕ in the corner instead of a bar of its own (23 Oct 2026). */}
       <div className="sales-dialog-close">
-        <Button tone="small" onClick={close}>
-          Close window
-        </Button>
+        <button
+          type="button"
+          className="btn round sales-dialog-x"
+          aria-label="Close window"
+          title="Close window"
+          onClick={close}
+        >
+          ✕
+        </button>
       </div>
       {status.error && (
         <div className="sales-status" role="alert">
@@ -186,7 +193,11 @@ export function App() {
     window.addEventListener("beforeunload", unload);
     return () => window.removeEventListener("beforeunload", unload);
   }, []);
-  const dash = dashboards.find((d) => d.id === route) || dashboards[0],
+  // With no page in the address, Sales opens on Qualified leads (Manish, 23 Oct 2026).
+  const dash =
+      dashboards.find((d) => d.id === route) ||
+      dashboards.find((d) => d.id === "qualified") ||
+      dashboards[0],
     everyone = clients(window.Kit.store.data?.clients || []),
     bounds = dateBounds(range, from, to),
     all = everyone.filter((c) => {
@@ -278,6 +289,19 @@ export function App() {
     return id === "incentive" ? "70% and above: ₹50,000 · below: nil" : "";
   };
   const disabled = !status.writable || status.dirty;
+  const whoOptions: (readonly [string, string])[] = [
+    ["me", "Me · " + me.name + " (" + me.role + ")"],
+    ...below.map((p) => [p.id, p.role + " · " + p.name] as const),
+    ...(below.length ? [["team", "My whole team"] as const] : []),
+  ];
+  const rangeOptions: (readonly [string, string])[] = [
+    ["all", "All time"],
+    ["today", "Today"],
+    ["week", "This week"],
+    ["month", "This month"],
+    ["lastMonth", "Last month"],
+    ["custom", "Custom dates"],
+  ];
   return (
     <Boundary>
       <SaveStateContext.Provider
@@ -303,6 +327,44 @@ export function App() {
           }
           actions={
             <>
+              {/* From 1280 px the staff and date filters sit here in the top bar (Manish, 23 Oct 2026);
+                  narrower screens keep them in the filter row below. */}
+              <div className="header-filters" aria-label="Sales filters">
+                <select
+                  aria-label="Viewing (staff filter)"
+                  title="Viewing (staff filter)"
+                  value={who}
+                  onChange={(e) => setWho(e.target.value)}
+                >
+                  {whoOptions.map(([v, text]) => (
+                    <option key={v} value={v}>
+                      {text}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Dates"
+                  title="Dates"
+                  value={range}
+                  onChange={(e) => setRange(e.target.value)}
+                >
+                  {rangeOptions.map(([v, text]) => (
+                    <option key={v} value={v}>
+                      {text}
+                    </option>
+                  ))}
+                </select>
+                {status.ready && !dash.page && (
+                  <button
+                    type="button"
+                    className="btn sales-rail-toggle"
+                    aria-expanded={rail}
+                    onClick={() => setRail(!rail)}
+                  >
+                    {rail ? "Hide today" : "Also today"}
+                  </button>
+                )}
+              </div>
               <button
                 type="button"
                 className="btn round"
@@ -332,29 +394,24 @@ export function App() {
             </Button>
           }
         />
-        <div className="crm-page-toolbar" aria-label="Sales filters">
+        <div
+          className={
+            "crm-page-toolbar sales-toolbar" +
+            (range === "custom" ? " has-custom" : "")
+          }
+          aria-label="Sales filters"
+        >
           <Select
             label="Viewing (staff filter)"
             value={who}
             placeholder={false}
-            options={[
-              ["me", "Me · " + me.name + " (" + me.role + ")"],
-              ...below.map((p) => [p.id, p.role + " · " + p.name] as const),
-              ...(below.length ? [["team", "My whole team"] as const] : []),
-            ]}
+            options={whoOptions}
             onChange={setWho}
           />
           <Select
             label="Dates"
             value={range}
-            options={[
-              ["all", "All time"],
-              ["today", "Today"],
-              ["week", "This week"],
-              ["month", "This month"],
-              ["lastMonth", "Last month"],
-              ["custom", "Custom dates"],
-            ]}
+            options={rangeOptions}
             placeholder={false}
             onChange={setRange}
           />

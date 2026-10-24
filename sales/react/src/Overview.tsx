@@ -186,6 +186,14 @@ function Box({
   empty: string;
 }) {
   const [wide, setWide] = useState(false);
+  // Nothing in it: one slim line instead of a whole box saying "nobody" (23 Oct 2026).
+  if (!items.length)
+    return (
+      <section className={"card box-empty t-" + tone} title={empty}>
+        <h2>{title}</h2>
+        <span className="sub">0</span>
+      </section>
+    );
   return (
     <section className="card">
       <div className={"card-h t-" + tone}>
@@ -463,7 +471,9 @@ export function Notifications({
     me = window.People.list[0];
   useEffect(() => {
     const close = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      // A removed notification has left the page by now; that click stays inside the panel.
+      const target = e.target as Node;
+      if (target.isConnected && !ref.current?.contains(target)) setOpen(false);
     };
     // Escape closes the panel, as in Design.
     const key = (e: KeyboardEvent) => {
@@ -476,13 +486,28 @@ export function Notifications({
       document.removeEventListener("keydown", key);
     };
   }, []);
-  const seen = (
-      (window.Kit.store.data.seen || {}) as Record<
-        string,
-        { at: string; alerts: Record<string, boolean> }
-      >
-    )[me.id] || { at: "", alerts: {} },
+  // Each person can remove a notification with the cross, or a whole column with Clear all (24 Oct 2026).
+  type Seen = {
+    at: string;
+    alerts: Record<string, boolean>;
+    hidden?: Record<string, boolean>;
+  };
+  const seen = ((window.Kit.store.data.seen || {}) as Record<string, Seen>)[
+      me.id
+    ] || { at: "", alerts: {} },
     notices: Notice[] = [];
+  const hide = (ids: string[]) =>
+    writable &&
+    ctx.update(() => {
+      const data = (window.Kit.store.data.seen ||= {}) as Record<string, Seen>;
+      const mine = data[me.id] || { at: "", alerts: {} };
+      // Keep the list short: only the newest 1000 removals are remembered.
+      const hidden = Object.entries({
+        ...mine.hidden,
+        ...Object.fromEntries(ids.map((id) => [id, true])),
+      }).slice(-1000);
+      data[me.id] = { ...mine, hidden: Object.fromEntries(hidden) };
+    });
   clients(ctx.all)
     .filter((c) =>
       ["qualified", "design", "token", "booked", "post"].includes(c.stage),
@@ -517,7 +542,15 @@ export function Notifications({
   notices.sort(
     (a, b) => Number(!!b.alert) - Number(!!a.alert) || b.at.localeCompare(a.at),
   );
-  const unread = notices.filter((n) => n.unread).length;
+  // The same line twice for one client (asked again, saved twice) shows once, the newest.
+  const shown = new Set<string>();
+  const visible = notices.filter((n) => {
+    const key = n.c.id + "|" + n.text;
+    if (seen.hidden?.[n.id] || shown.has(key)) return false;
+    shown.add(key);
+    return true;
+  });
+  const unread = visible.filter((n) => n.unread).length;
   return (
     <div className="bell-wrap" ref={ref}>
       <button
@@ -527,7 +560,7 @@ export function Notifications({
         aria-expanded={open}
         onClick={() => {
           if (!open) {
-            setFresh(notices.filter((n) => n.unread).map((n) => n.id));
+            setFresh(visible.filter((n) => n.unread).map((n) => n.id));
             if (unread && writable)
               ctx.update(() => {
                 const data = (window.Kit.store.data.seen ||= {}) as Record<
@@ -535,6 +568,7 @@ export function Notifications({
                   unknown
                 >;
                 data[me.id] = {
+                  ...(data[me.id] as Seen | undefined),
                   at: now(),
                   alerts: Object.fromEntries(
                     notices.filter((n) => n.alert).map((n) => [n.id, true]),
@@ -570,36 +604,61 @@ export function Notifications({
           }}
         >
           {[false, true].map((approval) => {
-            const items = notices.filter((n) => n.approval === approval);
+            const items = visible.filter((n) => n.approval === approval);
             return (
               <div className="bell-col" key={String(approval)}>
                 <div className="note-h">
                   <b>{approval ? "Approvals" : "Design"}</b>
-                  <span>{items.length || ""}</span>
+                  <span>
+                    {items.length || ""}
+                    {writable && items.length > 0 && (
+                      <button
+                        type="button"
+                        className="note-clear"
+                        onClick={() => hide(items.map((n) => n.id))}
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </span>
                 </div>
                 {items.length ? (
                   items.slice(0, 30).map((n, i) => (
-                    <button
-                      type="button"
-                      className={"note" + (fresh.includes(n.id) ? " new" : "")}
-                      key={n.id + i}
-                      onClick={() => {
-                        setOpen(false);
-                        ctx.open(n.c);
-                      }}
-                    >
-                      <span className="who">
-                        <b>{n.c.name}</b>
-                        <small>{n.text}</small>
-                      </span>
-                      {n.alert ? (
-                        <Pill tone={n.tone === "red" ? "red" : "grey"}>
-                          {n.tone === "red" ? "Late" : "Waiting"}
-                        </Pill>
-                      ) : (
-                        <span className="sub">{day(n.at)}</span>
+                    <div className="note-row" key={n.id + i}>
+                      <button
+                        type="button"
+                        className={
+                          "note" + (fresh.includes(n.id) ? " new" : "")
+                        }
+                        onClick={() => {
+                          setOpen(false);
+                          ctx.open(n.c);
+                        }}
+                      >
+                        <span className="who">
+                          <b>{n.c.name}</b>
+                          <small>{n.text}</small>
+                        </span>
+                        {n.alert ? (
+                          <Pill tone={n.tone === "red" ? "red" : "grey"}>
+                            {n.tone === "red" ? "Late" : "Waiting"}
+                          </Pill>
+                        ) : (
+                          <span className="sub">{day(n.at)}</span>
+                        )}
+                      </button>
+                      {writable && (
+                        <button
+                          type="button"
+                          className="note-x"
+                          aria-label={"Remove: " + n.c.name + ", " + n.text}
+                          title="Remove"
+                          onClick={() => hide([n.id])}
+                        >
+                          ×
+                        </button>
                       )}
-                    </button>
+                    </div>
                   ))
                 ) : (
                   <div className="note-empty">

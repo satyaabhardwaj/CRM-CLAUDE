@@ -7,15 +7,33 @@ export const now = () => new Date().toISOString();
 export function news(c: Client, text: string, tone = "blue") {
   window.Kit.news(c, text, tone, "Design");
 }
+const rupees = (v: string) =>
+  Number(String(v || "").replace(/[^0-9.]/g, "")) || 0;
+// Design sends the actual layout and the estimate plan (23 Oct 2026). The plan's lines (kitchen, installation,
+// freight, site visits) fill Sales' order when the client approves; the total including GST is shown to Sales.
 export function sendProposal(
   c: Client,
-  d: { amount: string; estimate: string; design: string; note: string },
+  d: {
+    amount: string;
+    estimate: string;
+    design: string;
+    note: string;
+    kitchen?: string;
+    installation?: string;
+    transport?: string;
+    visits?: string;
+    visitRate?: string;
+  },
 ) {
   if (c.stage !== "design" || c.design.step !== "withDesign")
     throw new ValidationError("This proposal is no longer waiting for Design.");
   const amount = Number(d.amount.replace(/,/g, ""));
   if (!Number.isFinite(amount) || amount <= 0)
     throw new ValidationError("Enter a positive estimate total.");
+  if (!d.design) throw new ValidationError("Upload the layout before sending.");
+  const kitchen = rupees(d.kitchen || "");
+  if (kitchen <= 0)
+    throw new ValidationError("Enter the kitchen value from the estimate.");
   const v = c.design.proposals.length + 1;
   c.design.proposals.push({
     v,
@@ -25,6 +43,13 @@ export function sendProposal(
     note: d.note,
     receivedAt: now(),
     status: "To share",
+    plan: {
+      kitchen,
+      installation: rupees(d.installation || ""),
+      transport: rupees(d.transport || ""),
+      visits: d.visits ? rupees(d.visits) : null,
+      visitRate: d.visitRate ? rupees(d.visitRate) : null,
+    },
   });
   c.design.step = "toShare";
   c.design.stepAt = now();
@@ -184,4 +209,65 @@ export function approvePdi(c: Client) {
       "Accounts",
     );
   }
+}
+
+// Design asks Measurement for a visit (24 Oct 2026): EPT marking or EPT verification from the EPT section, a PDI visit
+// from the PDI page. It lands in Measurement's "To assign" column; Measurement assigns, and when it is done Design sees it.
+export const VISIT_NAMES: Record<string, string> = {
+  first: "First site measurement",
+  eptMarking: "EPT marking",
+  eptVerification: "EPT verification",
+  pdi: "PDI",
+};
+export function requestVisit(
+  c: Client,
+  type: "eptMarking" | "eptVerification" | "pdi",
+  date: string,
+  note: string,
+) {
+  const open = (c.visits || []).find(
+    (v) =>
+      v.type === type &&
+      ["requested", "assigned", "accepted"].includes(v.status),
+  );
+  if (open)
+    throw new ValidationError(
+      VISIT_NAMES[type] + " is already requested and not done yet.",
+    );
+  // Asking again for a visit that was done is a revisit: it needs a reason and the Founder's Office approval.
+  const again = (c.visits || []).some(
+    (v) => v.type === type && v.status === "done",
+  );
+  if (again && !note.trim())
+    throw new ValidationError(
+      VISIT_NAMES[type] +
+        " was done before: write in the note why it is needed again.",
+    );
+  if (!c.site?.clientPhone && c.phone)
+    c.site = { ...c.site, clientPhone: c.phone };
+  (c.visits ||= []).push({
+    id: crypto.randomUUID().replace(/-/g, "").slice(0, 16),
+    type,
+    status: "requested",
+    date,
+    givenDate: date,
+    askedBy: "Design",
+    note,
+    revisit: again,
+    reason: again ? note.trim() : "",
+    fault: "",
+    ...(again ? { approval: { status: "pending", at: now() } } : {}),
+    createdAt: now(),
+    createdBy: "Design",
+    checklist: {},
+    snags: [],
+    photos: [],
+    fields: {},
+  });
+  news(
+    c,
+    VISIT_NAMES[type] +
+      (again ? " revisit" : " visit") +
+      " requested from Measurement",
+  );
 }

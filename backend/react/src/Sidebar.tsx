@@ -22,6 +22,24 @@ export function NavIcon({ name }: { name: string }) {
     home: "m3 11 9-8 9 8M5 10v11h14V10M9 21v-7h6v7",
     areas: "m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5Zm6-2v16m6-14v16",
     reports: "M5 3h10l4 4v14H5V3Zm4 8h6m-6 4h6",
+    // Design pages
+    make: "m4 16 12-12 4 4L8 20H4v-4Z",
+    revisions: "M4 12a8 8 0 0 1 14-5m2-3v4h-4M20 12a8 8 0 0 1-14 5m-2 3v-4h4",
+    timelines: "M4 6h16v14H4V6Zm0 4h16M8 3v4m8-4v4",
+    sales: "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-5 9v-3a5 5 0 0 1 10 0v3",
+    booking: "M5 4h14v16H5V4Zm3 5h8m-8 4h8",
+    all: "M4 6h16M4 12h16M4 18h16",
+    board: "M4 4h4v16H4V4Zm6 0h4v10h-4V4Zm6 0h4v13h-4V4Z",
+    pdi: "m5 12 4 4L19 6",
+    collections: "M3 5h18v14H3V5Zm0 5h18m-5 5h2",
+    factory: "M3 21V10l6 4V10l6 4V5h6v16H3Z",
+    tracker: "M4 20V12h4v8m2 0V8h4v12m2 0V4h4v16",
+    // Measurement pages
+    visits: "m3 11 9-8 9 8M5 10v11h14V10M9 21v-7h6v7",
+    assigned:
+      "M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Zm0-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
+    overview: "m3 11 9-8 9 8M5 10v11h14V10M9 21v-7h6v7",
+    requests: "M5 3h14v18H5V3Zm4 5h6m-6 4h6m-6 4h4",
   };
   return (
     <svg
@@ -58,13 +76,24 @@ export function Sidebar({
   onNavigate: (id: string) => void;
 }) {
   const key = "crm.ui.sidebar." + id;
-  const [collapsed, setCollapsed] = useState(() => {
+  // Always closed (icons only) in every module. It opens while the mouse is on it, like Instagram's side menu,
+  // and closes again when the mouse leaves (Manish, 24 Oct 2026: "hover for all"). Nothing stays pinned open:
+  // the arrow button only opens it for a keyboard or a touch screen, and an old pinned setting is forgotten.
+  const collapsed = true;
+  useEffect(() => {
     try {
-      return localStorage.getItem(key) === "collapsed";
+      localStorage.removeItem(key);
     } catch {
-      return false;
+      /* Storage can be unavailable in private browsing. */
     }
-  });
+  }, [key]);
+  const [peek, setPeek] = useState(false);
+  const peekTimer = useRef<number | undefined>(undefined);
+  function hover(open: boolean, wait: number) {
+    window.clearTimeout(peekTimer.current);
+    peekTimer.current = window.setTimeout(() => setPeek(open), wait);
+  }
+  useEffect(() => () => window.clearTimeout(peekTimer.current), []);
   const dialog = useRef<HTMLDialogElement>(null),
     trigger = useRef<HTMLButtonElement>(null),
     opener = useRef<HTMLElement | null>(null),
@@ -103,12 +132,8 @@ export function Sidebar({
     if (matchMedia(DRAWER_QUERY).matches) {
       openDrawer(trigger.current);
     } else {
-      setCollapsed(!collapsed);
-      try {
-        localStorage.setItem(key, collapsed ? "expanded" : "collapsed");
-      } catch {
-        /* Storage can be unavailable in private browsing. */
-      }
+      window.clearTimeout(peekTimer.current);
+      setPeek(!peek);
     }
   }
   function links() {
@@ -141,6 +166,7 @@ export function Sidebar({
                 }
                 onClick={() => {
                   onNavigate(item.id);
+                  setPeek(false);
                   if (dialog.current?.open) close();
                 }}
               >
@@ -156,13 +182,24 @@ export function Sidebar({
   }
   return (
     <>
-      <aside className={"crm-sidebar" + (collapsed ? " collapsed" : "")}>
+      <aside
+        className={
+          "crm-sidebar" + (collapsed ? (peek ? " peek" : " collapsed") : "")
+        }
+        onMouseEnter={() => collapsed && hover(true, 120)}
+        onMouseLeave={() => hover(false, 250)}
+        onFocus={() => collapsed && hover(true, 0)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+            hover(false, 0);
+        }}
+      >
         <button
           ref={trigger}
           type="button"
           className="crm-sidebar-toggle"
           aria-label={"Toggle " + label}
-          aria-expanded={mobile ? drawer : !collapsed}
+          aria-expanded={mobile ? drawer : peek}
           onClick={toggle}
         >
           <svg
@@ -175,7 +212,7 @@ export function Sidebar({
             strokeLinecap="round"
             aria-hidden="true"
           >
-            <path d={collapsed ? "m9 6 6 6-6 6" : "m15 6-6 6 6 6"} />
+            <path d={collapsed && !peek ? "m9 6 6 6-6 6" : "m15 6-6 6 6 6"} />
           </svg>
           <span className="crm-nav-label">{label}</span>
         </button>

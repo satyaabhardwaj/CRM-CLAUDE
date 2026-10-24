@@ -23,10 +23,18 @@ async function mount() {
   await act(async () => root!.render(<Harness />));
   return node;
 }
+// The pages read the CRM's own visits (23 Oct 2026); Zoho is being switched off.
 const payload = {
-  requests: [{ id: "test", stage: "PDI", status: "Completed" }],
-  synced_at: "2026-10-19T10:00:00Z",
-  orders_scanned: 1,
+  clients: [
+    {
+      id: "test",
+      name: "Synthetic",
+      visits: [
+        { id: "v1", type: "pdi", status: "done", date: "2026-10-01" },
+        { id: "v2", type: "first", status: "cancelled" },
+      ],
+    },
+  ],
 };
 afterEach(async () => {
   await act(async () => root?.unmount());
@@ -35,7 +43,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
-describe("live API lifecycle", () => {
+describe("visits API lifecycle", () => {
   it("normalizes real-shaped records and recovers from a failed refresh", async () => {
     const fetcher = vi
       .fn()
@@ -46,13 +54,16 @@ describe("live API lifecycle", () => {
     const node = await mount();
     expect(node.textContent).toBe("1 requests");
     expect(current.records[0].status).toBe("Done");
+    expect(current.records[0].stage).toBe("PDI");
+    expect(current.records[0].id).toBe("test|v1");
+    const synced = current.syncedAt;
     await act(async () => current.refresh(true));
-    expect(current.error).toContain("unavailable");
-    expect(current.syncedAt).toBe(payload.synced_at);
+    expect(current.error).toContain("could not be loaded");
+    expect(current.syncedAt).toBe(synced);
     await act(async () => current.refresh(true));
     expect(current.error).toBe("");
     expect(node.textContent).toBe("1 requests");
-    expect(fetcher.mock.calls[1][0]).toContain("?refresh=1");
+    expect(fetcher.mock.calls[1][0]).toBe("/api/measurement/board");
   });
   it("reports forbidden access and malformed payloads without inventing empty data", async () => {
     vi.stubGlobal(
@@ -71,11 +82,7 @@ describe("live API lifecycle", () => {
   it("distinguishes a successful empty result", async () => {
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(JSON.stringify({ ...payload, requests: [] })),
-        ),
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ clients: [] }))),
     );
     await mount();
     expect(current.error).toBe("");

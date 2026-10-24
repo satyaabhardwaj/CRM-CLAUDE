@@ -148,9 +148,7 @@ export function ClientForm({ c, ctx }: FormProps) {
           )}
         </div>
         <div className="stack">
-          <Button tone="small" onClick={ctx.close}>
-            Close
-          </Button>
+          {/* The window's own ✕ (top right) closes it; no second Close button here (23 Oct 2026). */}
           <div className="steps">
             {L.STAGES.map(([id, label], i) =>
               i > (c.stage === "post" ? 2 : at) ? (

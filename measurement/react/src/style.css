@@ -80,3 +80,621 @@
     padding: 16px;
   }
 }
+
+/* ---------- Visits run by the CRM (23 Oct 2026): four colours, one per visit type ---------- */
+.vt {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.vt-first {
+  background: #e0ecff;
+  color: #0b4fa8;
+}
+.vt-eptMarking {
+  background: #efe5ff;
+  color: #5b2bb0;
+}
+.vt-eptVerification {
+  background: #fff1d6;
+  color: #8a5a00;
+}
+.vt-pdi {
+  background: #ddf3e2;
+  color: #14602f;
+}
+.vt-revisit {
+  background: #fbe4e2;
+  color: #b3261e;
+}
+.vt-stat.vt-first {
+  border-top: 4px solid #0b4fa8;
+}
+.vt-stat.vt-eptMarking {
+  border-top: 4px solid #5b2bb0;
+}
+.vt-stat.vt-eptVerification {
+  border-top: 4px solid #8a5a00;
+}
+.vt-stat.vt-pdi {
+  border-top: 4px solid #14602f;
+}
+.vt-stat small {
+  display: block;
+  color: var(--color-ink-3);
+  font-size: 12px;
+}
+.visits-filters {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.visits-filters select,
+.visits-filters input {
+  width: auto;
+  max-width: 220px;
+}
+.visits-lists {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+}
+.visits-lists .col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.approval {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+.visits-team {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.vt-table {
+  overflow-x: auto;
+}
+.vt-head,
+.vt-rowedit {
+  display: grid;
+  grid-template-columns: 1.3fr 1.5fr 1fr repeat(4, 0.9fr) 0.5fr 0.5fr;
+  gap: 6px;
+  align-items: center;
+  min-width: 980px;
+  padding: 4px 0;
+}
+.vt-head span {
+  font-size: 12px;
+  color: var(--color-ink-3);
+  font-weight: 600;
+}
+.vt-item input:not([type="checkbox"]) {
+  flex: 1;
+}
+.vt-photo {
+  margin-right: 10px;
+}
+/* The measurement person's own page: made for the phone. */
+.mine {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 12px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mine-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0 10px;
+  border-bottom: 1px solid var(--color-line);
+}
+.mine-tabs {
+  display: flex;
+  gap: 8px;
+}
+.mine-tabs button {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-surface);
+  font-weight: 600;
+}
+.mine-tabs button.on {
+  background: var(--color-ink);
+  color: #fff;
+}
+.mine-visit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mine-visit h1 {
+  font-size: 20px;
+  margin: 4px 0 0;
+}
+.mine-visit .card {
+  padding: 14px;
+}
+.mine-visit h2 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.mine-check {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+.mine-check p {
+  margin: 0 0 8px;
+}
+.mine-done {
+  width: 100%;
+  min-height: 48px;
+}
+.mine textarea {
+  width: 100%;
+  min-height: 80px;
+}
+
+/* Team & checklists as master data: plain tables, Edit opens the lists. */
+.md-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.md-scroll {
+  overflow-x: auto;
+}
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.md-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--color-ink-3);
+  font-weight: 600;
+  background: var(--color-subtle, #f4f5f7);
+  white-space: nowrap;
+}
+.md-table td {
+  padding: 9px 10px;
+  border-top: 1px solid var(--color-line);
+  vertical-align: middle;
+}
+.md-table tr.md-off td {
+  color: var(--color-ink-3);
+}
+
+/* ---------- Measurement redesign (24 Oct 2026): board columns and the visit window ---------- */
+.vboard {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.vcol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+}
+.vcol header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.vcol header b {
+  font-size: 14px;
+}
+.vcount {
+  min-width: 24px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--color-subtle, #f1f3f7);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+.vhint {
+  margin: 0;
+  font-size: 12px;
+}
+.vcards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vcard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.vcard:hover {
+  border-color: var(--color-ink-3);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+.vcard b {
+  font-size: 14px;
+}
+.vcard .sub {
+  font-size: 12px;
+}
+.vcard-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.vcard-top .vt {
+  margin-left: 0;
+}
+.vcard-who {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ink-2);
+}
+.vcard-late {
+  border-color: #f1b8b2;
+  background: #fff8f7;
+}
+.vcard-request {
+  border-style: dashed;
+  background: #fbfcfe;
+}
+.vcard-cta {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0b4fa8;
+}
+.vt-request {
+  background: #eef0f4;
+  color: #424245;
+}
+.vempty {
+  margin: 6px 0;
+  font-size: 12px;
+  color: var(--color-ink-3);
+}
+.vdlg-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 14px;
+}
+.vdlg-strip .vt {
+  margin-left: 0;
+}
+.vdlg {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.vdlg .col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.vsite-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.vfacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+}
+.vfacts dt {
+  font-size: 12px;
+  color: var(--color-ink-3);
+}
+.vfacts dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.vbudget {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+.vbudget b {
+  font-size: 15px;
+}
+@media (max-width: 1023.98px) {
+  .vboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .vdlg {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 639.98px) {
+  .vboard {
+    grid-template-columns: 1fr;
+  }
+}
+.vsuggest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #e8f3ec;
+  color: #14532d;
+  font-size: 13px;
+}
+.vtop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.vtop select,
+.vtop input {
+  width: auto;
+  max-width: 200px;
+}
+.vtop .vnew {
+  margin-left: auto;
+  font-weight: 600;
+  background: var(--color-ink);
+  color: #fff;
+  border-color: var(--color-ink);
+}
+.vpending {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fbe4e2;
+  color: #b3261e;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* ---------- One screen for the head of Measurement (24 Oct 2026): today, four visit types, team ---------- */
+.vtitle {
+  margin: 0 auto 0 0;
+  font-size: 20px;
+}
+.vtitle .sub {
+  font-size: 15px;
+  font-weight: 500;
+}
+.vtoday {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+}
+.vtoday header b {
+  font-size: 14px;
+}
+.vtoday-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.vtoday-card,
+.vteam-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  font-size: 13px;
+}
+.vtoday-card {
+  border-left-width: 4px;
+  cursor: pointer;
+}
+.vtoday-card:hover {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+.vtoday-nobody {
+  background: #fff8f7;
+}
+.vtoday-nobody b {
+  color: #b3261e;
+}
+.vline-first {
+  border-left-color: #0b4fa8;
+}
+.vline-eptMarking {
+  border-left-color: #5b2bb0;
+}
+.vline-eptVerification {
+  border-left-color: #8a5a00;
+}
+.vline-pdi {
+  border-left-color: #14602f;
+}
+.vteam {
+  margin: 12px 0 0;
+}
+.vcol header {
+  padding: 6px 10px;
+  border-radius: 9px;
+}
+.vcol-first header {
+  background: #e0ecff;
+  color: #0b4fa8;
+}
+.vcol-eptMarking header {
+  background: #efe5ff;
+  color: #5b2bb0;
+}
+.vcol-eptVerification header {
+  background: #fff1d6;
+  color: #8a5a00;
+}
+.vcol-pdi header {
+  background: #ddf3e2;
+  color: #14602f;
+}
+.vcol header .vcount {
+  background: rgba(255, 255, 255, 0.7);
+  color: inherit;
+}
+.vtags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.vtag {
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.vtag.grey {
+  background: #eef0f4;
+  color: #424245;
+}
+.vtag.blue {
+  background: #e0ecff;
+  color: #0b4fa8;
+}
+.vtag.green {
+  background: #ddf3e2;
+  color: #14602f;
+}
+.vtag.red {
+  background: #fbe4e2;
+  color: #b3261e;
+}
+.vflag {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.vflag.red {
+  background: #fbe4e2;
+  color: #8f1d17;
+}
+.vflag.amber {
+  background: #fff1d6;
+  color: #6b4500;
+}
+.vflag.green {
+  background: #ddf3e2;
+  color: #14532d;
+}
+.vdlg .vtags .vflag {
+  width: auto;
+}
+.vcard-done {
+  opacity: 0.72;
+}
+
+/* ---------- Given date, special approval for a new date, missing site details, Assigned (24 Oct 2026) ---------- */
+.vgiven {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0b4fa8;
+}
+.linkish {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.vchange {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fff1d6;
+  color: #6b4500;
+  font-size: 13px;
+  font-weight: 600;
+}
+.vask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fbe4e2;
+  color: #8f1d17;
+  font-size: 13px;
+  font-weight: 600;
+}
+.vassigned tbody tr {
+  cursor: pointer;
+}
+.vassigned tbody tr:hover td {
+  background: var(--color-subtle, #f1f3f7);
+}
+.vassigned .vt {
+  margin-left: 0;
+}
+.vmore {
+  padding: 6px 10px;
+  border: 1px dashed var(--color-line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-ink-2);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.vmore:hover {
+  background: #fff;
+  color: var(--color-ink);
+}

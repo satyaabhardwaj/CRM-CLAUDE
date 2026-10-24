@@ -43,6 +43,8 @@ import {
   approvePdi,
   news,
   now,
+  requestVisit,
+  VISIT_NAMES,
 } from "./commands";
 export function History({ logs, limit }: { logs: Log[]; limit?: number }) {
   return logs.length ? (
@@ -94,6 +96,11 @@ export function ProposalForm({ c, ctx }: FormProps) {
       estimate: "",
       design: "",
       note: "",
+      kitchen: "",
+      installation: "",
+      transport: "",
+      visits: "",
+      visitRate: "",
     }),
     a = useAction(ctx),
     b = c.design.brief,
@@ -141,73 +148,100 @@ export function ProposalForm({ c, ctx }: FormProps) {
           ]}
         />
       </Card>
-      <Card
-        title={"Send proposal V" + (c.design.proposals.length + 1)}
-        tone="blue"
-      >
-        <Field
-          label="I will send it by"
-          type="date"
-          value={c.design.promisedBy}
-          onCommit={(v) =>
-            ctx.update(() => {
-              c.design.promisedBy = v;
-              if (v)
-                news(
-                  c,
-                  (c.design.designer
-                    ? "Designer " + c.design.designer
-                    : "The designer") +
-                    " promised the design by " +
-                    day(v),
-                  "grey",
-                );
-            })
-          }
-        />
-        <Field
-          label="Estimate total (₹), including GST"
-          value={draft.amount}
-          immediate
-          onCommit={(v) => {
-            setDraft({ ...draft, amount: v });
-            a.clear();
-          }}
-        />
-        {(["estimate", "design"] as const).map((k) => (
-          <Attachment
-            key={k}
-            label={k === "estimate" ? "Estimate" : "Design / floor plan"}
-            owner={c.id}
-            name={draft[k]}
-            onUploaded={(v) => setDraft((d) => ({ ...d, [k]: v }))}
+      <div className="col">
+        {/* 1 · Only a date: when the revised drawing will be sent (23 Oct 2026). */}
+        <Card title="When will you send it?" tone="amber">
+          <Field
+            label={
+              rev ? "I will send the revised drawing by" : "I will send it by"
+            }
+            type="date"
+            value={c.design.promisedBy}
+            onCommit={(v) =>
+              ctx.update(() => {
+                c.design.promisedBy = v;
+                if (v)
+                  news(
+                    c,
+                    (c.design.designer
+                      ? "Designer " + c.design.designer
+                      : "The designer") +
+                      " promised the " +
+                      (rev ? "revised drawing" : "design") +
+                      " by " +
+                      day(v),
+                    "grey",
+                  );
+              })
+            }
           />
-        ))}
-        <Field
-          label="Note for Sales"
-          value={draft.note}
-          immediate
-          onCommit={(v) => setDraft({ ...draft, note: v })}
-        />
-        {a.error && (
-          <p role="alert" className="msg">
-            {a.error}
-          </p>
-        )}
-        <Button
-          tone="dark"
-          disabled={ctx.readOnly || c.design.step !== "withDesign"}
-          onClick={() =>
-            a.run(() => {
-              sendProposal(c, draft);
-              drafts.delete(c.id + "proposal");
-              ctx.close();
-            })
+        </Card>
+        {/* 2 · The actual layout and the estimate plan. Its lines fill Sales' order when the client approves. */}
+        <Card
+          title={
+            "Send layout and estimate plan · V" +
+            (c.design.proposals.length + 1)
           }
+          tone="blue"
         >
-          Send to {window.People.owner(c)}
-        </Button>
-      </Card>
+          <div className="g2">
+            {(
+              [
+                ["kitchen", "Kitchen value (₹)"],
+                ["installation", "Installation (₹)"],
+                ["transport", "Freight (₹)"],
+                ["amount", "Estimate total (₹), including GST"],
+                ["visits", "Site visits included"],
+                ["visitRate", "Rate per site visit (₹)"],
+              ] as const
+            ).map(([k, label]) => (
+              <Field
+                key={k}
+                label={label}
+                value={draft[k]}
+                immediate
+                onCommit={(v) => {
+                  setDraft((d) => ({ ...d, [k]: v }));
+                  a.clear();
+                }}
+              />
+            ))}
+          </div>
+          {(["design", "estimate"] as const).map((k) => (
+            <Attachment
+              key={k}
+              label={k === "estimate" ? "Estimate plan (file)" : "Layout"}
+              owner={c.id}
+              name={draft[k]}
+              onUploaded={(v) => setDraft((d) => ({ ...d, [k]: v }))}
+            />
+          ))}
+          <Field
+            label="Note for Sales"
+            value={draft.note}
+            immediate
+            onCommit={(v) => setDraft({ ...draft, note: v })}
+          />
+          {a.error && (
+            <p role="alert" className="msg">
+              {a.error}
+            </p>
+          )}
+          <Button
+            tone="dark"
+            disabled={ctx.readOnly || c.design.step !== "withDesign"}
+            onClick={() =>
+              a.run(() => {
+                sendProposal(c, draft);
+                drafts.delete(c.id + "proposal");
+                ctx.close();
+              })
+            }
+          >
+            Send to {window.People.owner(c)}
+          </Button>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -312,18 +346,8 @@ export function MeasurementForm({ c, ctx }: FormProps) {
             </Pill>
           </div>
         ))}
-        {!c.measurement && (
-          <Button
-            tone="dark"
-            onClick={() =>
-              ctx.update(() => {
-                rules().sendMeasurement(c, "Design");
-              })
-            }
-          >
-            Send to Measurement
-          </Button>
-        )}
+        {!c.measurement && <FirstMeasurementRequest c={c} ctx={ctx} />}
+        <SiteDetails c={c} ctx={ctx} />
         <p className="hint">
           Aligned and Done are filled in by the measurement person on the
           Measurement screen.
@@ -411,16 +435,23 @@ export function EptForm({ c, ctx }: FormProps) {
           }
         />
       </Card>
-      <Card title="History" meta={e.log.length + " entries"}>
-        <History logs={e.log} />
-        {!e.log.length && (
-          <p>
-            {L.siteMeasured(c)
-              ? "Site measured. Nothing recorded on the EPT yet."
-              : "Waiting for the first site measurement."}
-          </p>
-        )}
-      </Card>
+      <div className="col">
+        <VisitRequests
+          c={c}
+          ctx={ctx}
+          types={["eptMarking", "eptVerification"]}
+        />
+        <Card title="History" meta={e.log.length + " entries"}>
+          <History logs={e.log} />
+          {!e.log.length && (
+            <p>
+              {L.siteMeasured(c)
+                ? "Site measured. Nothing recorded on the EPT yet."
+                : "Waiting for the first site measurement."}
+            </p>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
@@ -678,6 +709,204 @@ export function PdiForm({ c, ctx }: FormProps) {
         go-ahead; then the order is shot to the factory and the factory is
         emailed.
       </p>
+      <VisitRequests c={c} ctx={ctx} types={["pdi"]} />
     </Card>
+  );
+}
+
+// Measurement visits for this client, and a request button for each type Design may ask for (24 Oct 2026).
+// What Measurement does (assigned, accepted, done, snags) shows here by itself.
+export function VisitRequests({
+  c,
+  ctx,
+  types,
+}: FormProps & { types: ("eptMarking" | "eptVerification" | "pdi")[] }) {
+  const [date, setDate] = useDraft(c.id + "visit-date", ""),
+    [note, setNote] = useDraft(c.id + "visit-note", ""),
+    a = useAction(ctx);
+  const visits = (c.visits || []).filter(
+    (v) => (types as string[]).includes(v.type) && v.status !== "cancelled",
+  );
+  const tone = (s: string) =>
+    s === "done"
+      ? "green"
+      : s === "declined"
+        ? "red"
+        : s === "requested"
+          ? "grey"
+          : "blue";
+  return (
+    <Card title="Measurement visits" tone="violet">
+      {visits.length ? (
+        visits.map((v) => (
+          <div className="line rule" key={v.id}>
+            <span>
+              <b>
+                {VISIT_NAMES[v.type]}
+                {v.revisit
+                  ? " revisit" +
+                    (v.approval?.status === "pending"
+                      ? " (waiting for approval)"
+                      : v.approval?.status === "rejected"
+                        ? " (rejected)"
+                        : "")
+                  : ""}
+              </b>
+              {" · "}
+              {[
+                v.date ? day(v.date) : "no date yet",
+                v.assigneeName,
+                v.doneAt ? "done " + day(v.doneAt) : "",
+                v.snags?.length ? v.snags.length + " snag(s)" : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+            <Pill tone={tone(v.status)}>
+              {v.status[0].toUpperCase() + v.status.slice(1)}
+            </Pill>
+          </div>
+        ))
+      ) : (
+        <p className="hint">No visits asked for yet.</p>
+      )}
+      {visits
+        .filter((v) => v.dateChange?.status === "pending")
+        .map((v) => (
+          <p className="msg" key={"date-" + v.id}>
+            Measurement asks to move {VISIT_NAMES[v.type]} from{" "}
+            {day(v.dateChange!.from)} to {day(v.dateChange!.to)} ·{" "}
+            {v.dateChange!.reason} (waiting for special approval)
+          </p>
+        ))}
+      {visits
+        .filter((v) => v.snags?.length)
+        .map((v) => (
+          <div className="soft" key={"snag-" + v.id}>
+            <b>Snags from {VISIT_NAMES[v.type]}</b>
+            <ul>
+              {v.snags!.map((s, i) => (
+                <li key={i}>{s.text}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      <SiteDetails c={c} ctx={ctx} />
+      <div className="g2">
+        <Field
+          label="Preferred date"
+          type="date"
+          value={date}
+          immediate
+          onCommit={setDate}
+        />
+        <Field
+          label="Note for Measurement"
+          value={note}
+          immediate
+          onCommit={setNote}
+        />
+      </div>
+      {a.error && (
+        <p role="alert" className="msg">
+          {a.error}
+        </p>
+      )}
+      <div className="flexrow">
+        {types.map((t) => (
+          <Button
+            key={t}
+            tone="dark"
+            disabled={ctx.readOnly}
+            onClick={() =>
+              a.run(() => {
+                requestVisit(c, t, date, note);
+                setDate("");
+                setNote("");
+              })
+            }
+          >
+            Request {VISIT_NAMES[t]}
+          </Button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// Design books the first site measurement, with a preferred date (24 Oct 2026). Sales can book it too.
+function FirstMeasurementRequest({ c, ctx }: FormProps) {
+  const [date, setDate] = useState("");
+  return (
+    <div className="flexrow">
+      <Field
+        label="Preferred date"
+        type="date"
+        value={date}
+        immediate
+        onCommit={setDate}
+      />
+      <Button
+        tone="dark"
+        onClick={() =>
+          ctx.update(() => {
+            rules().sendMeasurement(c, "Design");
+            if (c.measurement && date) c.measurement.date = date;
+            if (!c.site?.clientPhone && c.phone)
+              c.site = { ...c.site, clientPhone: c.phone };
+          })
+        }
+      >
+        Send to Measurement
+      </Button>
+    </div>
+  );
+}
+
+// Site details Measurement needs (Manish, 24 Oct 2026): site address, client number, site supervisor and number.
+// Sales or the designer fills them; when Measurement asks for what is missing, the ask shows here until it is filled.
+const SITE_FIELDS = [
+  ["siteAddress", "Site address"],
+  ["clientPhone", "Client number"],
+  ["supervisor", "Site supervisor"],
+  ["supervisorPhone", "Site supervisor number"],
+] as const;
+export function SiteDetails({ c, ctx }: FormProps) {
+  const value = (k: (typeof SITE_FIELDS)[number][0]) =>
+    k === "siteAddress"
+      ? c.siteAddress || ""
+      : k === "clientPhone"
+        ? c.site?.clientPhone || c.phone || ""
+        : c.site?.[k] || "";
+  const missing = SITE_FIELDS.filter(
+    ([k]) => c.siteAsk?.missing.includes(k) && !value(k),
+  );
+  return (
+    <div className="site-details">
+      <b>Site details for Measurement</b>
+      {missing.length > 0 && (
+        <p className="msg">
+          Measurement asked for{" "}
+          {missing.map(([, label]) => label.toLowerCase()).join(", ")} on{" "}
+          {day(c.siteAsk!.at)}.
+        </p>
+      )}
+      <div className="g2">
+        {SITE_FIELDS.map(([k, label]) => (
+          <Field
+            key={k}
+            label={label}
+            type={k.endsWith("Phone") ? "tel" : "text"}
+            value={value(k)}
+            onCommit={(v) =>
+              ctx.update(() => {
+                if (k === "siteAddress") c.siteAddress = v;
+                else c.site = { ...c.site, [k]: v };
+              })
+            }
+          />
+        ))}
+      </div>
+    </div>
   );
 }

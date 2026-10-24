@@ -318,3 +318,14 @@ html:has(dialog[open]:modal) { overflow: hidden; }
   table.cardify td, .cardify table td { display: block; min-width: 0; padding: 0; border: 0; white-space: normal; overflow-wrap: anywhere; position: static; }
   table.cardify td:first-child, .cardify table td:first-child { grid-column: 1 / -1; }
 }
+
+/* Remove a notification with the cross, or a whole column with Clear all (24 Oct 2026) */
+.note-row { position: relative; }
+.note-row > .note { padding-right: 44px; }
+.note-x { position: absolute; top: 50%; right: 8px; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--color-ink-3); font: inherit; font-size: 18px; line-height: 1; cursor: pointer; transform: translateY(-50%); }
+.note-x:hover, .note-x:focus-visible { background: var(--color-hover); color: var(--color-ink); }
+.note-clear { margin-left: 10px; padding: 0; border: 0; background: none; color: var(--color-ink-2); font: inherit; font-size: var(--text-12); text-decoration: underline; cursor: pointer; }
+.note-clear:hover { color: var(--color-ink); }
+.note-row.react-notice, .a-notices .note.note-row { padding-right: 44px; }
+.note-go { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.note-go:hover b, .note-go:hover strong { text-decoration: underline; }

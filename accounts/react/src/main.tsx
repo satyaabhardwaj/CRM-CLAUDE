@@ -83,6 +83,18 @@ function App() {
               data={store.data}
               writable={store.writable}
               refresh={store.refresh}
+              onOpen={(id, text) => {
+                const c = clients.find((x) => x.id === id);
+                if (!c) return;
+                // A payment to confirm opens that payment; a booking opens the booking; the rest the client.
+                const asked = c.payment.receipts.find(
+                  (r) => r.status === "Requested",
+                );
+                if (/paid|payment/i.test(text) && asked)
+                  open(c, "payment", asked.requestedAt);
+                else if (/booking/i.test(text)) open(c, "booking");
+                else open(c);
+              }}
             />
           ) : (
             <BellPlaceholder />

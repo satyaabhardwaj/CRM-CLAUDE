@@ -10,6 +10,36 @@
   width: 100%;
   text-align: left;
 }
+/* My tasks: one colour per list, so pre-design, post-design and PDI are told apart at a glance. */
+.task-tone {
+  --tone: #0b4fa8;
+  --tone-soft: #e8f0fe;
+  border-top: 4px solid var(--tone);
+}
+.task-tone.tone-post {
+  --tone: #5b2bb0;
+  --tone-soft: #f1eafe;
+}
+.task-tone.tone-pdi {
+  --tone: #14602f;
+  --tone-soft: #e3f4e8;
+}
+.task-tone .list-h h1 {
+  color: var(--tone);
+}
+.task-tone .list-h .count {
+  background: var(--tone-soft);
+  color: var(--tone);
+}
+#app .task-tone .board-row.head {
+  background: var(--tone);
+}
+.task-tone .rows .board-row {
+  border-left: 3px solid var(--tone);
+}
+.task-tone .rows .board-row:hover {
+  background: var(--tone-soft);
+}
 .design-list-row {
   display: flex;
   align-items: center;
@@ -203,4 +233,28 @@
   .design-dialog a {
     overflow-wrap: anywhere;
   }
+}
+
+/* Site details for Measurement (24 Oct 2026) */
+.site-details {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-line);
+}
+.site-details .msg {
+  margin: 0;
+}
+
+.kitchen-designer-link {
+  width: 100%;
+  min-height: 48px;
+  margin-bottom: var(--space-4);
+  white-space: normal;
+  text-align: center;
+  text-decoration: none;
+}
+.kitchen-designer-link svg {
+  flex-shrink: 0;
 }

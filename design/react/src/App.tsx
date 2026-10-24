@@ -217,6 +217,16 @@ export function App() {
         )}
       </div>
     );
+  const designerOptions: (readonly [string, string])[] = [
+    ["", "Everyone · head " + window.People.designHead],
+    ...window.People.designers.map((d) => [d, "Designer · " + d] as const),
+  ];
+  const designRanges: (readonly [string, string])[] = [
+    ["all", "All time"],
+    ["today", "Today"],
+    ["week", "This week"],
+    ["month", "This month"],
+  ];
   return (
     <Boundary>
       <SaveStateContext.Provider
@@ -241,39 +251,15 @@ export function App() {
             />
           }
           actions={
-            status.ready ? (
-              <Notifications all={all} ctx={ctx} />
-            ) : (
-              <BellPlaceholder />
-            )
+            <>
+              {status.ready ? (
+                <Notifications all={all} ctx={ctx} />
+              ) : (
+                <BellPlaceholder />
+              )}
+            </>
           }
         />
-        <div className="crm-page-toolbar" aria-label="Design filters">
-          <Select
-            label="Viewing (staff filter)"
-            value={designer}
-            options={[
-              ["", "Everyone · head " + window.People.designHead],
-              ...window.People.designers.map(
-                (d) => [d, "Designer · " + d] as const,
-              ),
-            ]}
-            placeholder={false}
-            onChange={setDesigner}
-          />
-          <Select
-            label="Dates"
-            value={range}
-            options={[
-              ["all", "All time"],
-              ["today", "Today"],
-              ["week", "This week"],
-              ["month", "This month"],
-            ]}
-            placeholder={false}
-            onChange={setRange}
-          />
-        </div>
         {statusUI()}
         {!status.ready && !status.error && (
           <>
@@ -309,6 +295,33 @@ export function App() {
                   <b>{count}</b>
                 </button>
               ))}
+              {/* Staff and date filters sit at the end of the tab row (Manish, 23 Oct 2026): no extra row. */}
+              <div className="stagebar-tools" aria-label="Design filters">
+                <select
+                  aria-label="Viewing (staff filter)"
+                  title="Viewing (staff filter)"
+                  value={designer}
+                  onChange={(e) => setDesigner(e.target.value)}
+                >
+                  {designerOptions.map(([v, text]) => (
+                    <option key={v} value={v}>
+                      {text}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Dates"
+                  title="Dates"
+                  value={range}
+                  onChange={(e) => setRange(e.target.value)}
+                >
+                  {designRanges.map(([v, text]) => (
+                    <option key={v} value={v}>
+                      {text}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="body">
               {/* The sidebar stays on every tab so the content never jumps sideways; on
@@ -405,6 +418,29 @@ export function App() {
             </div>
             {status.error && statusUI(true)}
             <div className="sheet-b">
+              {!rules().handed(c) && (
+                <a
+                  className="btn dark kitchen-designer-link"
+                  href="https://kitchen-designer-three.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Make your kitchen design
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M14 3h7v7m0-7L10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
+                  </svg>
+                </a>
+              )}
               <TopFacts c={c} />
               <fieldset
                 className="design-form"

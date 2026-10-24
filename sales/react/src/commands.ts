@@ -4,6 +4,7 @@ import {
   type SalesClient,
   type FormProps,
   type Revision,
+  type EstimatePlan,
 } from "./model";
 import { now } from "./ui";
 export function news(c: SalesClient, text: string, tone = "blue") {
@@ -79,7 +80,8 @@ export function approveDesign(c: SalesClient) {
     );
   p.status = "Approved";
   p.approvedAt = c.approvedAt = c.bookedAt = now();
-  if (!c.order.products.length)
+  if (p.plan) fillFromEstimate(c, p.plan);
+  else if (!c.order.products.length)
     c.order.products.push({
       product: "Kitchen",
       value: Math.round(p.amount / 1.18),
@@ -119,14 +121,23 @@ export function handOver(c: SalesClient) {
 }
 export function requestPayment(
   c: SalesClient,
-  d: { amount: number; date: string; mode: string; proof: string },
+  d: {
+    amount: number;
+    date: string;
+    mode: string;
+    proof: string;
+    kind?: string;
+    ref?: string;
+    remarks?: string;
+  },
 ) {
   if (!Number.isFinite(d.amount) || d.amount <= 0)
     throw Error("Enter a positive amount first.");
   c.payment.receipts.push({
     ...d,
-    ref: "",
-    kind: "bank",
+    ref: d.ref || "",
+    kind: d.kind === "md" ? "md" : "bank",
+    remarks: d.remarks || "",
     billing: c.billingPick,
     status: "Requested",
     requestedAt: now(),
@@ -140,4 +151,69 @@ export function submitBooking(c: SalesClient) {
   if (["Not sent", "Rejected"].includes(c.approvals.booking))
     c.approvals.booking = "Pending";
   news(c, "Booking sent for approval · " + rules().totals(c).total);
+}
+
+// The designer's final estimate plan fills the order: kitchen value, installation, freight, and the visit budget
+// (site visits x rate) that Measurement counts against (23 Oct 2026).
+export function fillFromEstimate(c: SalesClient, plan: EstimatePlan) {
+  const o = c.order;
+  if (o.products.length) o.products[0].value = plan.kitchen;
+  else o.products.push({ product: "Kitchen", value: plan.kitchen });
+  o.installation = plan.installation;
+  o.transport = plan.transport;
+  if (plan.visits != null || plan.visitRate != null)
+    c.visitBudget = { visits: plan.visits, rate: plan.visitRate };
+  news(c, "Order filled from the designer's estimate plan");
+}
+// First site measurement before the token needs a special approval from the AVP (Tavneet). This is the only visit
+// Sales can send to Measurement; every other visit comes from the designer (Manish, 24 Oct 2026).
+export function askSpecialMeasurement(
+  c: SalesClient,
+  reason: string,
+  date = "",
+) {
+  if (!reason.trim()) throw Error("Write why the measurement is needed now.");
+  c.special = {
+    ...c.special,
+    siteMeasurement: {
+      status: "Pending",
+      requestedAt: now(),
+      reason: reason.trim(),
+      date,
+    },
+  };
+  news(c, "Special approval asked: first site measurement before the token");
+}
+export function decideSpecialMeasurement(
+  c: SalesClient,
+  approve: boolean,
+  by: string,
+  note: string,
+) {
+  const s = c.special?.siteMeasurement;
+  if (!s || s.status !== "Pending")
+    throw Error("Nothing is waiting for approval.");
+  s.status = approve ? "Approved" : "Rejected";
+  s.decidedAt = now();
+  s.decidedBy = by;
+  s.note = note;
+  if (approve && !c.measurement) {
+    c.measurement = {
+      requestedAt: now(),
+      date: s.date || "",
+      by: "Sales (special approval)",
+    };
+    if (!c.site?.clientPhone && c.phone)
+      c.site = { ...c.site, clientPhone: c.phone };
+  }
+  news(
+    c,
+    "Special approval " +
+      (approve ? "given" : "refused") +
+      " by " +
+      by +
+      ": first site measurement" +
+      (note ? " · " + note : ""),
+    approve ? "green" : "red",
+  );
 }

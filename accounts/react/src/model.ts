@@ -82,7 +82,7 @@ export interface Store {
   [key: string]: unknown;
   rev: number;
   clients: Client[];
-  seen?: Record<string, { at: string }>;
+  seen?: Record<string, { at: string; hidden?: Record<string, boolean> }>;
 }
 export interface Totals {
   base: number;

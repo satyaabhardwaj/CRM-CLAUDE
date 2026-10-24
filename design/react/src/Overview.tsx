@@ -284,28 +284,62 @@ export function Notifications({ all, ctx }: { all: Client[]; ctx: Context }) {
   const [open, setOpen] = useState(false),
     [fresh, setFresh] = useState(""),
     ref = useRef<HTMLDivElement>(null),
-    seen =
-      ((window.Kit.store.data.seen || {}) as Record<string, { at: string }>)
-        .design?.at || "",
+    // Removed with the cross or Clear all (24 Oct 2026); the same line twice for one client shows once.
+    mark = (
+      (window.Kit.store.data.seen || {}) as Record<
+        string,
+        { at: string; hidden?: Record<string, boolean> }
+      >
+    ).design,
+    seen = mark?.at || "",
     sources = ["Sales", "Accounts", "Measurement"],
-    cols = sources.map((src) => ({
-      src,
-      items: all
-        .filter((c) => !["bin", "lost"].includes(c.stage))
-        .flatMap((c) =>
-          (c.news || [])
-            .filter((n) => window.Kit.newsFrom(n) === src)
-            .map((n) => ({ c, n })),
-        )
-        .sort((a, b) => b.n.at.localeCompare(a.n.at)),
-    })),
+    cols = sources.map((src) => {
+      const once = new Set<string>();
+      return {
+        src,
+        items: all
+          .filter((c) => !["bin", "lost"].includes(c.stage))
+          .flatMap((c) =>
+            (c.news || [])
+              .filter((n) => window.Kit.newsFrom(n) === src)
+              .map((n) => ({ c, n, id: c.id + n.at })),
+          )
+          .sort((a, b) => b.n.at.localeCompare(a.n.at))
+          .filter(({ c, n, id }) => {
+            const key = c.id + "|" + n.text;
+            if (mark?.hidden?.[id] || once.has(key)) return false;
+            once.add(key);
+            return true;
+          }),
+      };
+    }),
+    hide = (ids: string[]) =>
+      !ctx.readOnly &&
+      ctx.update(() => {
+        const s =
+          (window.Kit.store.data.seen as Record<
+            string,
+            { at: string; hidden?: Record<string, boolean> }
+          >) || {};
+        const hidden = Object.entries({
+          ...s.design?.hidden,
+          ...Object.fromEntries(ids.map((id) => [id, true])),
+        }).slice(-1000);
+        s.design = {
+          at: s.design?.at || "",
+          hidden: Object.fromEntries(hidden),
+        };
+        window.Kit.store.data.seen = s;
+      }),
     unread = cols.reduce(
       (n, col) => n + col.items.filter((x) => x.n.at > seen).length,
       0,
     );
   useEffect(() => {
     const close = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      // A removed notification has left the page by now; that click stays inside the panel.
+      const target = e.target as Node;
+      if (target.isConnected && !ref.current?.contains(target)) setOpen(false);
     };
     const key = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -334,7 +368,7 @@ export function Notifications({ all, ctx }: { all: Client[]; ctx: Context }) {
                     string,
                     { at: string }
                   >) || {};
-                s.design = { at: new Date().toISOString() };
+                s.design = { ...s.design, at: new Date().toISOString() };
                 window.Kit.store.data.seen = s;
               });
           }
@@ -365,19 +399,57 @@ export function Notifications({ all, ctx }: { all: Client[]; ctx: Context }) {
             <div className="bell-col" key={col.src}>
               <div className="note-h">
                 <b>From {col.src}</b>
-                <span>{col.items.length}</span>
+                <span>
+                  {col.items.length}
+                  {!ctx.readOnly && col.items.length > 0 && (
+                    <button
+                      type="button"
+                      className="note-clear"
+                      onClick={() => hide(col.items.map((x) => x.id))}
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </span>
               </div>
               {col.items.length ? (
-                col.items.slice(0, 30).map(({ c, n }, i) => (
-                  <div
-                    key={c.id + "-" + i}
-                    className={"note" + (n.at > fresh ? " new" : "")}
-                  >
-                    <span className="who">
-                      <b>{c.name}</b>
-                      <small>{n.text}</small>
-                    </span>
-                    <span className="sub">{window.Kit.dayTime(n.at)}</span>
+                col.items.slice(0, 30).map(({ c, n, id }, i) => (
+                  <div className="note-row" key={id + "-" + i}>
+                    <button
+                      type="button"
+                      className={"note" + (n.at > fresh ? " new" : "")}
+                      onClick={() => {
+                        // Clicking takes you there (24 Oct 2026): Measurement news opens its step, the rest the client.
+                        setOpen(false);
+                        ctx.show(
+                          col.src !== "Measurement"
+                            ? "client"
+                            : /pdi/i.test(n.text)
+                              ? "pdi"
+                              : /ept/i.test(n.text)
+                                ? "ept"
+                                : "measure",
+                          c.id,
+                        );
+                      }}
+                    >
+                      <span className="who">
+                        <b>{c.name}</b>
+                        <small>{n.text}</small>
+                      </span>
+                      <span className="sub">{window.Kit.dayTime(n.at)}</span>
+                    </button>
+                    {!ctx.readOnly && (
+                      <button
+                        type="button"
+                        className="note-x"
+                        aria-label={"Remove: " + c.name + ", " + n.text}
+                        title="Remove"
+                        onClick={() => hide([id])}
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 ))
               ) : (

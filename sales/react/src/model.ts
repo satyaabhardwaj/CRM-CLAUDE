@@ -12,6 +12,24 @@ export interface Receipt {
   decidedAt?: string;
   reason?: string;
   notes?: string;
+  remarks?: string;
+}
+export interface EstimatePlan {
+  kitchen: number;
+  installation: number;
+  transport: number;
+  visits: number | null;
+  visitRate: number | null;
+}
+export interface SpecialApproval {
+  status: "Pending" | "Approved" | "Rejected";
+  requestedAt: string;
+  reason?: string;
+  /** The date Sales asks Measurement for (the visit's given date). */
+  date?: string;
+  decidedAt?: string;
+  decidedBy?: string;
+  note?: string;
 }
 export interface Proposal {
   v: number;
@@ -23,6 +41,8 @@ export interface Proposal {
   file?: string;
   designFile?: string;
   note?: string;
+  /** The designer's estimate plan, line by line (23 Oct 2026); fills the order when the client approves. */
+  plan?: EstimatePlan;
 }
 export interface Revision {
   ofVersion: number;
@@ -107,6 +127,8 @@ export interface SalesClient extends Client {
   order: {
     products: { product: string; value: number }[];
     installation?: number;
+    /** Freight from the estimate (rupees); "freight" is the old name of the free accessories amount. */
+    transport?: number;
     bankPct?: number | null;
     faPct?: number | null;
     md?: number;
@@ -132,7 +154,18 @@ export interface SalesClient extends Client {
   approvals: Record<string, string>;
   approvalNotes?: Record<string, { reason: string; notes?: string }>;
   submittedAt?: string;
-  measurement?: { requestedAt: string; date: string };
+  measurement?: { requestedAt: string; date: string; by?: string };
+  /** Site details for Measurement (24 Oct 2026): filled by Sales or the designer; Measurement can ask for them. */
+  site?: {
+    location?: string;
+    supervisor?: string;
+    supervisorPhone?: string;
+    clientPhone?: string;
+  };
+  siteAsk?: { at: string; by: string; missing: string[] };
+  /** Special approvals (23 Oct 2026): first site measurement before the token, decided by the AVP (Tavneet). */
+  special?: { siteMeasurement?: SpecialApproval };
+  visitBudget?: { visits: number | null; rate: number | null };
   design: {
     step?: string;
     stepAt?: string;

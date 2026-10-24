@@ -6,6 +6,9 @@ import { install, client, context } from "./setup";
 import {
   acceptLead,
   approveDesign,
+  askSpecialMeasurement,
+  decideSpecialMeasurement,
+  fillFromEstimate,
   disqualify,
   handOver,
   missingBrief,
@@ -274,19 +277,55 @@ it("React order fields save only on blur or Enter and preserve unrelated order v
 it("React payment form rejects invalid amount and keeps its draft", async () => {
   const c = client();
   await render(<PaymentForm c={c} ctx={context(c)} />);
-  await click("Tell Accounts the client has paid");
-  await input("Amount the client says (₹)", "-1");
+  await input("Amount (₹)", "-1");
   await click("Send to Accounts");
   expect(host.querySelector('[role="alert"]')?.textContent).toContain(
     "positive",
   );
   expect(c.payment.receipts).toHaveLength(0);
-  await input("Amount the client says (₹)", "59000");
+  await input("Amount (₹)", "59000");
+  await input("Remarks", "Synthetic remark");
   await click("Send to Accounts");
   expect(c.payment.receipts[0]).toMatchObject({
     amount: 59000,
     status: "Requested",
+    kind: "bank",
+    remarks: "Synthetic remark",
   });
+  // The form stays open for the next payment.
+  await input("Amount (₹)", "1000");
+  await click("Send to Accounts");
+  expect(c.payment.receipts).toHaveLength(2);
+});
+it("the designer's estimate plan fills the order and the visit budget", () => {
+  const c = client();
+  fillFromEstimate(c, {
+    kitchen: 900000,
+    installation: 80000,
+    transport: 20000,
+    visits: 4,
+    visitRate: 8000,
+  });
+  expect(c.order.products[0].value).toBe(900000);
+  expect([c.order.installation, c.order.transport]).toEqual([80000, 20000]);
+  expect(c.visitBudget).toEqual({ visits: 4, rate: 8000 });
+  expect(rules().totals(c).base).toBe(1000000);
+});
+it("special approval: asked by Sales, decided by the AVP, then measurement requested", () => {
+  const c = client();
+  expect(() => askSpecialMeasurement(c, " ")).toThrow("why");
+  askSpecialMeasurement(c, "Client travelling abroad", "2099-01-05");
+  expect(c.special?.siteMeasurement?.status).toBe("Pending");
+  decideSpecialMeasurement(c, true, "Synthetic AVP", "ok");
+  expect(c.special?.siteMeasurement).toMatchObject({
+    status: "Approved",
+    decidedBy: "Synthetic AVP",
+  });
+  expect(c.measurement?.by).toContain("special approval");
+  expect(c.measurement?.date).toBe("2099-01-05");
+  expect(() => decideSpecialMeasurement(c, false, "x", "")).toThrow(
+    "Nothing is waiting",
+  );
 });
 it("billing names allocate from highest existing suffix, not array length", async () => {
   const c = client();
