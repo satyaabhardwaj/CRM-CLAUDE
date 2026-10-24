@@ -76,9 +76,9 @@ All ports listen on 127.0.0.1 only. Port 4300, the old standalone JSON server, i
 Some networks (for example this office line) block outgoing mail on port 587, so SMTP fails there. The Gmail API sends over HTTPS (port 443), which works everywhere. One-time setup, signed in to Google as `info@mymagppie.com`:
 
 1. Open https://console.cloud.google.com and create a project, for example `magppie-crm`.
-2. **APIs & Services → Library → Gmail API → Enable.**
-3. **Google Auth Platform → Branding / Audience:** app name `MAGPPIE CRM`, support email the mailbox, audience **Internal** (only your Google Workspace).
-4. **Clients → Create client → Application type: Desktop app**, name `MAGPPIE CRM laptop`, then **Download JSON**.
+2. **APIs & Services â†’ Library â†’ Gmail API â†’ Enable.**
+3. **Google Auth Platform â†’ Branding / Audience:** app name `MAGPPIE CRM`, support email the mailbox, audience **Internal** (only your Google Workspace).
+4. **Clients â†’ Create client â†’ Application type: Desktop app**, name `MAGPPIE CRM laptop`, then **Download JSON**.
 5. Run, with the downloaded file's path:
    ```powershell
    .venv\Scripts\python.exe scripts\set_gmail_api.py --email info@mymagppie.com --client-file "$HOME\Downloads\client_secret_....json"
@@ -96,7 +96,7 @@ With both set, the CRM uses the Gmail API first and SMTP only if the API fails. 
 
 `python scripts/serve_workflow_qa.py --dataset workflow --port 4303` serves the real app on a fresh SQLite database on loopback. Sign in as `<role>@qa.invalid` (admin, sales, design, measurement, accounts, reader, assigned) with the QA-only password `synthetic-qa-only`. Add `--idle-minutes 3 --max-hours 1` to see the "Stay signed in" warning after one minute. External providers are denied and factory mail stays 403.
 
-`.env.local` takes precedence over the older `.local/backend-local.json`. Exported process variables take precedence over both. The Vercel entrypoint loads no local env file.
+`.env.local` supplies local defaults. Exported process variables take precedence. The retired JSON configuration fallback is no longer read. The Vercel entrypoint loads no local env file.
 
 ## Frontends
 

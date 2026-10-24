@@ -8,7 +8,7 @@ import argparse
 ROOT = Path(__file__).resolve().parents[1]
 FOLDERS = {'backend','core','shared','sales','design','accounts','management','measurement','ai','sign','mail','tests','scripts','docs','.github','deploy','supabase'}
 EXTENSIONS = {'.py','.ts','.tsx','.js','.cjs','.mjs','.css','.html','.md','.svg','.png','.jpg','.jpeg','.gif','.woff','.woff2','.geojson','.yml','.toml','.sql'}
-FILES = {'requirements-backend.txt','requirements.txt','alembic.ini','run-backend.cmd','Start CRM.cmd','backend.env.example','README.md','CLAUDE.md','CHANGELOG.md','.env.example','.env.local.example','.env.production.example','.gitignore','Dockerfile','.dockerignore','.vercelignore','.python-version','pyproject.toml','vercel.json','docker-compose.yml','package.json','package-lock.json'}
+FILES = {'requirements-backend.txt','requirements.txt','alembic.ini','Start CRM.cmd','Stop CRM.cmd','backend.env.example','README.md','CLAUDE.md','CHANGELOG.md','.env.example','.env.local.example','.gitignore','Dockerfile','.dockerignore','.vercelignore','.python-version','pyproject.toml','vercel.json','docker-compose.yml','package.json','package-lock.json'}
 if not (ROOT / 'measurement/assets/app.js').is_file():
     raise SystemExit('Build Measurement first: npm ci --prefix measurement/react; npm run build --prefix measurement/react')
 if not (ROOT / 'accounts/assets/app.js').is_file():

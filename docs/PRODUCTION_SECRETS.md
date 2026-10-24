@@ -78,7 +78,7 @@ Related configuration (not secret values):
 
 Restores: `scripts/restore_postgres.py` restores tables, including credential and session hashes, into a NEW database only, and re-applies RLS and revokes. A restored copy must never become a hosted identity store without the destination-only revocation plan below.
 
-Sources: `.env.production.example`, `backend/config.py`, `backend/auth.py`, `backend/provision_user.py`, `ai/agents/transcriber.py`, `mail/send.py`, `sign/zoho_sign.py`, `measurement/backend/connection.py`.
+Sources: `backend.env.example`, `backend/config.py`, `backend/auth.py`, `backend/provision_user.py`, `ai/agents/transcriber.py`, `mail/send.py`, `sign/zoho_sign.py`, `measurement/backend/connection.py`.
 
 ## Private setup checklist (do not fill in values here)
 
@@ -95,7 +95,7 @@ Sources: `.env.production.example`, `backend/config.py`, `backend/auth.py`, `bac
 - [ ] Configure Measurement credentials with only required read permissions if real read-only data is needed; no integration calls were made for this review.
 - [ ] Back up PostgreSQL and private attachment objects separately, encrypt backups and protect credentials/session hashes in dumps. Verify restore in an isolated target before future cutover.
 
-Loader caveats: backend.local.load reads ignored .env.local, otherwise .local/backend-local.json, with exported variables taking precedence. Provisioning uses that loader. Measurement can read keys.env or env-path.txt (or MEASUREMENT_ENV_FILE), with supported exported variables overriding it. Sign reads keys.env then environment; transcription reads keys.env first and only fills missing keys from environment. Mail currently reads mail/keys.env only, not exported SMTP variables. Do not package these files or assume identical precedence across integrations. No loader was changed.
+Loader caveats: backend.local.load reads ignored .env.local, with exported variables taking precedence. Provisioning uses that loader. Measurement can read keys.env or env-path.txt (or MEASUREMENT_ENV_FILE), with supported exported variables overriding it. Sign reads keys.env then environment; transcription reads keys.env first and only fills missing keys from environment. Mail currently reads mail/keys.env only, not exported SMTP variables. Do not package these files or assume identical precedence across integrations. No loader was changed.
 
 ## Development identities and production provisioning
 
