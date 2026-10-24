@@ -138,6 +138,27 @@ body {
 }
 .auth-art .art-glow {
   fill: color-mix(in srgb, var(--auth-accent) 22%, transparent);
+  animation: art-glow 900ms ease-out 1300ms both;
+}
+/* The kitchen draws itself once on arrival, then the lights come on. */
+.auth-art .art-line > *,
+.auth-art .art-accent > * {
+  stroke-dasharray: 1400;
+  stroke-dashoffset: 1400;
+  animation: art-draw 1600ms var(--ease) forwards;
+}
+.auth-art .art-accent > * {
+  animation-delay: 700ms;
+}
+@keyframes art-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes art-glow {
+  from {
+    opacity: 0;
+  }
 }
 .auth-content {
   min-width: 0;
@@ -220,6 +241,13 @@ body {
   border-radius: var(--ui-radius);
   font: inherit;
   margin-top: 8px;
+  transition:
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+.auth-card :is(input, select):focus {
+  border-color: var(--auth-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--auth-accent) 18%, transparent);
 }
 .auth-card button,
 .auth-link-button {
@@ -454,12 +482,15 @@ body {
     display: grid;
     grid-template-columns: minmax(0, 52fr) minmax(0, 48fr);
   }
+  /* The panel is exactly one screen tall and stays put; only a long form on the right scrolls. */
   .auth-brand {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: 32px;
-    padding: 48px clamp(40px, 5vw, 80px) 36px;
+    gap: clamp(16px, 3.5dvh, 32px);
+    height: 100dvh;
+    position: sticky;
+    top: 0;
+    padding: clamp(24px, 5dvh, 48px) clamp(40px, 5vw, 80px) clamp(20px, 4dvh, 36px);
     border-bottom: 0;
     border-right: 1px solid var(--auth-line);
   }
@@ -475,7 +506,7 @@ body {
     margin: 0 0 16px;
   }
   .auth-brand-title {
-    font-size: clamp(38px, 3.6vw, 54px);
+    font-size: clamp(32px, min(3.6vw, 6dvh), 54px);
     line-height: 1.05;
     letter-spacing: -0.045em;
     margin: 0 0 18px;
@@ -490,8 +521,16 @@ body {
   .auth-journey {
     display: flex;
   }
+  .auth-journey {
+    margin-top: clamp(16px, 4dvh, 36px);
+  }
+  /* The drawing takes whatever height is left and scales down with it. */
   .auth-art {
     display: block;
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: 340px;
+    margin-top: auto;
   }
   .auth-brand-foot {
     display: block;
@@ -502,10 +541,37 @@ body {
     z-index: var(--z-raised);
   }
   .auth-content {
-    padding: 48px clamp(24px, 4vw, 64px);
+    min-height: 100dvh;
+    padding: clamp(24px, 5dvh, 48px) clamp(24px, 4vw, 64px);
   }
 }
+/* Short laptop screens: a tighter card so the sign-in page fits without scrolling. */
 @media (min-width: 1024px) and (max-height: 760px) {
+  .auth-card {
+    padding: 24px 32px;
+  }
+  .auth-trust {
+    margin-bottom: 16px;
+  }
+  .auth-card h1 {
+    margin-bottom: 6px;
+  }
+  .auth-intro {
+    margin-bottom: 12px;
+  }
+  .auth-card label,
+  .auth-label-row {
+    margin-top: 12px;
+  }
+  .auth-card button {
+    margin-top: 18px;
+  }
+  .auth-footer {
+    margin-top: 18px;
+    padding-top: 14px;
+  }
+}
+@media (min-width: 1024px) and (max-height: 620px) {
   .auth-art {
     display: none;
   }
@@ -513,7 +579,14 @@ body {
 @media (prefers-reduced-motion: reduce) {
   /* Transitions already read the motion tokens, which are 0 ms here. */
   .auth-card,
-  .auth-spinner {
+  .auth-spinner,
+  .auth-art .art-glow,
+  .auth-art .art-line > *,
+  .auth-art .art-accent > * {
     animation: none;
+  }
+  .auth-art .art-line > *,
+  .auth-art .art-accent > * {
+    stroke-dashoffset: 0;
   }
 }
