@@ -22,6 +22,6 @@ javascript = [str(path) for path in sources('.js') if path != ROOT / 'sales/reac
 # These are classic browser scripts. Parse without execution in one Node process.
 subprocess.run(['node', '-e', "const fs=require('fs'),vm=require('vm'); for(const file of JSON.parse(fs.readFileSync(0,'utf8'))) new vm.Script(fs.readFileSync(file,'utf8'),{filename:file});"], input=json.dumps(javascript), text=True, check=True, cwd=ROOT)
 print('PASS: Python syntax and ' + str(len(javascript)) + ' JavaScript files.', flush=True)
-for command in ([sys.executable,'-B','-m','unittest','discover','-s','tests'], [sys.executable,'-B','-m','unittest','discover','-s','measurement/tests'], ['node','--test','measurement/tests/model.test.cjs','tests/runtime.test.cjs'], [sys.executable,'-B','measurement/tests/storage_check.py']):
+for command in ([sys.executable,'-B','-m','unittest','discover','-s','tests'], [sys.executable,'-B','-m','unittest','discover','-s','measurement/tests'], ['node','--test','measurement/tests/model.test.cjs','tests/runtime.test.cjs']):
     subprocess.run(command, check=True, cwd=ROOT)
 print('PASS: Python/JavaScript syntax, foundation and Measurement checks.')

@@ -4,7 +4,7 @@ import uuid
 from urllib.parse import quote
 import httpx
 from fastapi import HTTPException
-from core.server import safe_name
+from core.security import safe_name
 
 
 def object_key(owner, name):

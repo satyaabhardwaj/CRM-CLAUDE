@@ -19,9 +19,9 @@ Sales, Design, Measurement, Accounts and Management are native React 19 + TypeSc
 | shared/kit.js | Old UI kit, kept only as the reference for the runtime parity test (`tests/runtime.test.cjs`) |
 | backend/app.py, auth.py, mfa.py, recovery.py | FastAPI routes, sessions, realms, MFA, password recovery |
 | backend/repository.py, models.py, storage.py | PostgreSQL data access, resource authorization, private Storage |
-| backend/migrations | Versioned Alembic schema changes (0001–0006) |
+| backend/migrations | Versioned Alembic schema changes (0001â€“0006) |
 | backend/react, backend/web | Login/session UI source and compiled public auth assets |
-| core | Small shared library used by the backend: file-name safety (`server.safe_name`), public-file rules (`security.public_file`), store validation (`storage.validate`). The 4300 server that once used it is archived. |
+| core | Small shared library used by the backend: file-name safety (`security.safe_name`), public-file rules (`security.public_file`), store validation (`storage.validate`). The 4300 server that once used it is archived. |
 | measurement/backend | Read-only Zoho pagination, normalization, timeout handling and cache |
 | ai, sign, mail | Server-side provider integrations; not browser screens |
 | supabase | Local service config and private bucket migration |

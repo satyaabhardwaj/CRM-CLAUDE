@@ -1,4 +1,5 @@
 """Local boundary and optional whole-workspace reader/admin authentication."""
+import re
 import base64
 import hmac
 import os
@@ -13,6 +14,11 @@ from urllib.parse import urlsplit
 
 PUBLIC = {'sales', 'design', 'accounts', 'measurement', 'management', 'shared', 'pre-sales', 'post-sales', 'test'}
 ASSETS = {'.html', '.js', '.css', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.geojson'}
+
+
+def safe_name(text):
+    """Keep the existing upload filename normalization contract."""
+    return re.sub(r"[^A-Za-z0-9._ -]", "_", str(text or "")).strip(". ")
 
 
 def public_file(root, path):
