@@ -11,7 +11,9 @@ body {
 #auth-root {
   min-height: 100dvh;
 }
+/* Always light, like the workspace, whatever the device's dark mode (owner, 24 Oct 2026). */
 .auth-layout {
+  color-scheme: light;
   --auth-page: var(--page);
   --auth-card: var(--card);
   --auth-ink: var(--ink);
@@ -411,21 +413,6 @@ body {
   }
   .auth-content {
     padding: 48px 32px;
-  }
-}
-@media (prefers-color-scheme: dark) {
-  .auth-layout {
-    color-scheme: dark;
-    --auth-page: var(--ink);
-    --auth-card: #283344;
-    --auth-ink: var(--page);
-    --auth-muted: var(--edge);
-    --auth-edge: var(--ink3);
-    --auth-line: var(--ink2);
-    --auth-link: #a7c8f5;
-    --auth-hover: #344257;
-    --auth-focus: #a7c8f5;
-    --auth-error: #ffb4a9;
   }
 }
 @media (prefers-reduced-motion: reduce) {
