@@ -27,7 +27,7 @@ export default defineConfig({
     command: `"${python}" -B scripts/serve_workflow_qa.py --dataset stress --port 4331`,
     cwd: root,
     url: 'http://127.0.0.1:4331/api/health',
-    reuseExistingServer: false,
+    reuseExistingServer: process.env.QA_REUSE_SERVER === '1',
     timeout: 90000,
   },
 });

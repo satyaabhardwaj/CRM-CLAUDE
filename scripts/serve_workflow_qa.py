@@ -32,6 +32,8 @@ def main():
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', type=int, default=4303)
+    parser.add_argument('--container', action='store_true', help='Synthetic Docker QA only; publish its port on host loopback')
+    parser.add_argument('--e2e', action='store_true', help='Synthetic authenticator and captured-mail fixtures; never deploy this server')
     parser.add_argument('--dataset', choices=['workflow', 'stress', 'one', 'empty'], default='workflow',
                         help='workflow: the 4 original clients; the others come from tests/ui/layout-audit/stress_data.py')
     parser.add_argument('--idle-minutes', type=int, default=240, help='QA only: shorter idle timeout')
@@ -65,6 +67,25 @@ def main():
         if snapshot['clients']:  # assigned sees one granted client
             db.execute(insert(grants).values(user_id='qa-assigned', client_id=snapshot['clients'][0]['id'], can_write=1))
 
+        for index in range(20):
+            uid = 'qa-load-' + str(index)
+            db.execute(insert(users).values(id=uid, role='reader', active=1))
+            db.execute(insert(credentials).values(user_id=uid, email=uid + '@qa.invalid', password_hash=hashed))
+        if args.e2e:
+            import os
+            from cryptography.fernet import Fernet
+            from backend.models import mfa_factors, recovery_emails
+            key = Fernet.generate_key()
+            os.environ['CRM_MFA_ENCRYPTION_KEY'] = key.decode()
+            cipher = Fernet(key)
+            for browser in ('chromium', 'firefox', 'webkit'):
+                for width in ('phone', 'desktop'):
+                    uid = 'qa-admin-' + browser + '-' + width
+                    db.execute(insert(users).values(id=uid, role='admin', active=1))
+                    db.execute(insert(credentials).values(user_id=uid, email=uid[3:] + '@qa.invalid', password_hash=hashed))
+                    db.execute(insert(mfa_factors).values(user_id=uid, secret=cipher.encrypt(b'JBSWY3DPEHPK3PXP').decode(), enabled=1, expires=0, last_counter=-1))
+            db.execute(insert(recovery_emails).values(user_id='qa-reader', email='reader@qa.invalid'))
+
     def denied(*args, **kwargs):
         raise HTTPException(503, 'External actions are disabled in synthetic QA.')
 
@@ -83,11 +104,20 @@ def main():
                 modified_at='2026-10-21T06:00:00Z') for i, stage in enumerate(
                     ['First Measurement', 'EPT Marking', 'EPT Verification', 'PDI'])]}
     connection.requests = requests
+    outbox = {}
+    sender = (lambda email, code: outbox.__setitem__(email, code)) if args.e2e else None
     app = create_app(Settings(str(engine.url), origin='http://127.0.0.1:%d' % args.port, uploads=folder/'uploads',
-                              session_idle_minutes=args.idle_minutes, session_max_hours=args.max_hours), engine)
+                              session_idle_minutes=args.idle_minutes, session_max_hours=args.max_hours), engine, code_sender=sender)
+    if args.e2e:
+        @app.get('/__qa__/outbox')
+        def captured_code(email: str):
+            if email != 'reader@qa.invalid': raise HTTPException(404, 'Synthetic mailbox only.')
+            return {'code': outbox.get(email)}
+        # The app's static catch-all is last; put this QA-only route before it.
+        app.router.routes.insert(0, app.router.routes.pop())
     (ROOT / '.local' / 'workflow-qa-current.txt').write_text(str(folder))
     print('Synthetic QA only (%s): http://127.0.0.1:%d/login' % (args.dataset, args.port), flush=True)
-    uvicorn.run(app, host='127.0.0.1', port=args.port, access_log=False)
+    uvicorn.run(app, host='0.0.0.0' if args.container else '127.0.0.1', port=args.port, access_log=False)
 
 
 if __name__ == '__main__':
