@@ -50,9 +50,9 @@ export default function Areas({
           next.push({ container: content, items: cluster.items });
           L.marker([cluster.position.lat, cluster.position.lng], {
             icon: L.divIcon({
-              className: "m-pin",
-              html: String(cluster.items.length),
-              iconSize: [30, 30],
+              className: "m-pin m-pin-touch",
+              html: "<span>" + cluster.items.length + "</span>",
+              iconSize: [44, 44],
             }),
             title: cluster.items.length + " measurement requests",
           })

@@ -2,6 +2,10 @@
 
 Current behaviour of the CRM's identity, permission and secret handling. The implementation notes and test evidence are in [history/AUTH_REALMS.md](history/AUTH_REALMS.md), [history/MFA.md](history/MFA.md) and [history/ACCOUNT_RECOVERY.md](history/ACCOUNT_RECOVERY.md).
 
+## Go-live preparation — 24 October 2026
+
+Hosted business-only import explicitly excludes identities, credentials, sessions, factors, grants and realm bindings, refuses occupied destinations, and verifies row/file fingerprints. Production must use fresh named identities and distinct environment secrets. Preparation does not certify hosted RLS, MFA enrollment, backups or reconciliation; those gates remain pending in [the execution log](history/GO_LIVE_2026-10-24.md).
+
 ## Boundary
 
 FastAPI is the only data path. Browsers never get database credentials or the Supabase service key.

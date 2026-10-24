@@ -185,6 +185,18 @@ export class SalesStore {
     };
   };
   snapshot = () => this.state;
+  whenSaved = (): Promise<void> =>
+    new Promise((resolve, reject) => {
+      const check = () => {
+        if (this.state.saving) return;
+        unsubscribe();
+        if (this.state.dirty || this.state.error)
+          reject(new Error(this.state.error || "Save was not confirmed."));
+        else resolve();
+      };
+      const unsubscribe = this.subscribe(check);
+      check();
+    });
   notify(p: Partial<State> = {}) {
     this.state = { ...this.state, ...p, serial: this.state.serial + 1 };
     this.listeners.forEach((fn) => fn());

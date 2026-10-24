@@ -32,6 +32,7 @@ export interface Context {
   viewing: string;
   match(c: Client): boolean;
   add(c: Client): void;
+  whenSaved(): Promise<void>;
   select(id: string): void;
   peek(stage: string): void;
   close(): void;

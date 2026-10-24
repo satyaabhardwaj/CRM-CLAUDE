@@ -12,6 +12,7 @@ def test_private_storage_signed_upload_download_and_cleanup():
     settings=Settings.load()
     assert settings.storage_backend=='supabase'
     assert urlsplit(settings.supabase_url).hostname in ('localhost','127.0.0.1')
+    assert settings.uploads_bucket.startswith('crm-qa-'), 'Refusing a live or non-QA bucket'
     files=Attachments(settings)
     owner='smoke-'+uuid.uuid4().hex
     name='synthetic.bin'

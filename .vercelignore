@@ -22,3 +22,7 @@ supabase/.branches
 windows-helper
 *.zip
 **/*.log
+
+# Retired UI reference and local-only operator commands
+shared/kit.js
+backend/reset_admin.py

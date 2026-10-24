@@ -80,3 +80,18 @@
     padding: 16px;
   }
 }
+.m-pin.m-pin-touch {
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+}
+.m-pin-touch > span {
+  width: 30px;
+  height: 30px;
+  box-sizing: border-box;
+  background: var(--color-surface);
+  border: 3px solid #567c9c;
+  border-radius: 50%;
+  line-height: 24px;
+}

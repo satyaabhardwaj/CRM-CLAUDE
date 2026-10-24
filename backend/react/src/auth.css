@@ -114,7 +114,11 @@ body {
   left: 10px;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, var(--auth-edge), color-mix(in srgb, var(--auth-accent) 55%, var(--auth-edge)));
+  background: linear-gradient(
+    90deg,
+    var(--auth-edge),
+    color-mix(in srgb, var(--auth-accent) 55%, var(--auth-edge))
+  );
 }
 .auth-art {
   width: 100%;
@@ -490,7 +494,8 @@ body {
     height: 100dvh;
     position: sticky;
     top: 0;
-    padding: clamp(24px, 5dvh, 48px) clamp(40px, 5vw, 80px) clamp(20px, 4dvh, 36px);
+    padding: clamp(24px, 5dvh, 48px) clamp(40px, 5vw, 80px)
+      clamp(20px, 4dvh, 36px);
     border-bottom: 0;
     border-right: 1px solid var(--auth-line);
   }

@@ -259,3 +259,23 @@ it("queues an upload completion during a failed save and persists both once retr
   });
   expect(server.clients[0].city).toBe("New city");
 });
+
+it("waits for a confirmed save and rejects retained failed drafts", async () => {
+  const store = new SalesStore();
+  store.notify({ saving: true, dirty: true });
+  let done = false;
+  const waiting = store.whenSaved().then(() => {
+    done = true;
+  });
+  await Promise.resolve();
+  expect(done).toBe(false);
+  store.notify({ saving: false, dirty: false });
+  await waiting;
+  expect(done).toBe(true);
+  store.notify({
+    saving: false,
+    dirty: true,
+    error: "Conflict; draft retained",
+  });
+  await expect(store.whenSaved()).rejects.toThrow("Conflict; draft retained");
+});

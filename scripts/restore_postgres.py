@@ -145,7 +145,13 @@ def main():
     parser.add_argument('--backup', type=Path, required=True)
     parser.add_argument('--create-database', help='new database to create on the live server (QA rehearsal)')
     parser.add_argument('--bucket', help='new private bucket to receive the attachments')
+    parser.add_argument('--business-only', action='store_true', help='Import business rows into a migrated empty CRM; never imports identities')
+    parser.add_argument('--confirm-target', help='Required for business import: destination HOST/DATABASE')
+    parser.add_argument('--confirm-storage-origin', help='Required for business import: destination Supabase HTTPS origin')
     args = parser.parse_args()
+    if args.business_only:
+        restore_business_only(args)
+        return
     load()
     settings = Settings.load()
     live = make_url(settings.database_url)
@@ -163,6 +169,68 @@ def main():
     print(json.dumps(report))
     if not report['tables_match'] or report.get('attachments_match') is False:
         raise SystemExit('Restored data does not match the backup; the target was left for inspection.')
+
+
+def restore_business_only(args):
+    """Separate hosted import path. No local-file fallback and no overwrite/upsert."""
+    from scripts.business_backup import BUSINESS, import_business
+    from backend.models import metadata
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    from urllib.parse import urlsplit, quote
+    if args.create_database or not args.bucket:
+        raise SystemExit('Business import requires an existing migrated target and explicit bucket.')
+    required = ('RESTORE_DATABASE_URL', 'RESTORE_SUPABASE_URL', 'RESTORE_SUPABASE_SERVICE_ROLE_KEY')
+    if any(not os.environ.get(key) for key in required):
+        raise SystemExit('Inject the three RESTORE_* destination variables privately.')
+    target = make_url(os.environ['RESTORE_DATABASE_URL'])
+    endpoint = os.environ['RESTORE_SUPABASE_URL'].rstrip('/')
+    parsed = urlsplit(endpoint)
+    if (target.get_backend_name() != 'postgresql' or target.host in LOCAL
+            or args.confirm_target != f'{target.host}/{target.database}'
+            or endpoint != args.confirm_storage_origin or parsed.scheme != 'https'
+            or not parsed.hostname or not parsed.hostname.endswith('.supabase.co')
+            or parsed.path or parsed.query or parsed.fragment or parsed.username):
+        raise SystemExit('Explicit hosted database and Storage confirmations are required.')
+    if not BUCKET.fullmatch(args.bucket): raise SystemExit('Invalid bucket name.')
+    folder = args.backup.resolve()
+    manifest = verify_backup(folder)
+    raw = (folder / 'business.json').read_bytes()
+    if manifest.get('restore_verified') is not True:
+        raise SystemExit('Business import requires a backup that passed --restore-check.')
+    if hashlib.sha256(raw).hexdigest() != manifest.get('business_sha256'):
+        raise SystemExit('Business export does not match the manifest; use a fresh verified backup.')
+    rows = json.loads(raw)
+    expected = {name: manifest['tables'][name] for name in BUSINESS}
+    settings = Settings(target.render_as_string(hide_password=False), storage_backend='supabase', supabase_url=endpoint,
+                        supabase_key=os.environ['RESTORE_SUPABASE_SERVICE_ROLE_KEY'], uploads_bucket=args.bucket)
+    files = Attachments(settings)
+    bucket = files.request('GET', 'bucket/' + quote(args.bucket, safe='')).json()
+    if bucket.get('public') is not False or list(files.objects()):
+        raise SystemExit('Destination bucket must already exist, be private and empty.')
+    engine = create_engine(target, hide_parameters=True)
+    try:
+        with engine.begin() as db:
+            head = ScriptDirectory.from_config(Config('alembic.ini')).get_current_head()
+            if db.execute(text('SELECT version_num FROM alembic_version')).scalars().all() != [head]:
+                raise ValueError('Destination schema is not at migration head.')
+            for table in metadata.sorted_tables:
+                rls = db.scalar(text('SELECT relrowsecurity FROM pg_class WHERE oid=to_regclass(:name)'), {'name': table.name})
+                leaked = db.scalar(text("SELECT count(*) FROM pg_class c CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl,acldefault('r',c.relowner))) a LEFT JOIN pg_roles r ON r.oid=a.grantee WHERE c.oid=to_regclass(:name) AND (a.grantee=0 OR r.rolname IN ('anon','authenticated'))"), {'name': table.name})
+                if not rls or leaked: raise ValueError('Destination database security check failed.')
+            import_business(db, rows, expected)
+            # DB transaction commits only after every upload has been read back and hashed.
+            # A failed attempt leaves uploaded files for inspection, never overwrites them.
+            for name in sorted(manifest['uploads']):
+                owner, filename = name.split('/', 1)
+                files.put(owner, filename, (folder / 'uploads' / owner / filename).read_bytes(), overwrite=False)
+            hashes = {owner + '/' + name: hashlib.sha256(files.get(owner, name)).hexdigest() for owner, name in files.objects()}
+            if hashes != manifest['uploads']: raise ValueError('Attachment reconciliation failed.')
+        print(json.dumps({'tables_match': True, 'attachments_match': True, 'clients': expected['crm_clients']['rows'], 'attachments': len(hashes), 'identities_imported': 0}))
+    except Exception:
+        raise SystemExit('Business import failed and DB transaction rolled back. Preserve target objects for inspection; do not overwrite or retry blindly.') from None
+    finally:
+        engine.dispose()
 
 
 if __name__ == '__main__':

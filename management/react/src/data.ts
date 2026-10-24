@@ -5,7 +5,7 @@ export function normalize(raw: Store): Store {
   data.clients.forEach(window.SalesLogic.ensure);
   return data;
 }
-export async function readStore(): Promise<Store> {
+export async function readStore(current?: Store): Promise<Store> {
   const r = await fetch("/api/store", {
     cache: "no-store",
     signal: AbortSignal.timeout(20000),
@@ -34,7 +34,9 @@ export async function readStore(): Promise<Store> {
     )
   )
     throw Error("Saved data has an invalid format.");
-  return normalize(data);
+  // Revisions are advanced by every business write. Reuse the already-normalized
+  // read-only snapshot on unchanged polls instead of cloning all client records.
+  return current && current.rev === data.rev ? current : normalize(data);
 }
 export interface State {
   data: Store | null;
@@ -65,7 +67,9 @@ export class ManagementStore {
     this.busy = true;
     if (!background) this.notify({ loading: true });
     try {
-      const data = await readStore();
+      const data = await readStore(
+        background ? this.state.data || undefined : undefined,
+      );
       if (background && !this.state.error && this.state.data?.rev === data.rev)
         return;
       window.Kit.store.data = data;

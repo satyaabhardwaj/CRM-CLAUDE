@@ -18,7 +18,6 @@ __pycache__/
 .env.*
 !.env.example
 !.env.local.example
-!.env.production.example
 .vercel/
 supabase/.temp/
 supabase/.branches/

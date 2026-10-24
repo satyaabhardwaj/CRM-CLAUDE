@@ -3,7 +3,7 @@ import json
 import time
 import uuid
 from fastapi import HTTPException
-from sqlalchemy import select, insert, update
+from sqlalchemy import select, insert, update, bindparam
 from core.storage import validate
 from .models import state, clients, grants, audit
 from . import permissions
@@ -57,13 +57,14 @@ def save_legacy(db, user, incoming):
     if changed.rowcount != 1:
         revision = db.execute(select(state.c.rev)).scalar_one()
         raise HTTPException(409, {'error':'stale','rev':revision})
-    existing = set(db.execute(select(clients.c.id)).scalars())
+    existing_rows = {row.id: row for row in db.execute(select(clients))}
+    existing = set(existing_rows)
     incoming_ids = {c['id'] for c in incoming['clients']}
     if not existing.issubset(incoming_ids):
         raise HTTPException(422,'Removing client records is disabled; use the existing soft-delete workflow.')
     previous = db.execute(select(state.c.payload).where(state.c.id==1)).scalar_one()
     if user['role'] != 'admin':
-        stored = {row.id: row.payload for row in db.execute(select(clients.c.id, clients.c.payload))}
+        stored = {identifier: row.payload for identifier, row in existing_rows.items()}
         # Raises 403 for any change outside the caller's department; the transaction (and rev) roll back.
         permissions.check_store(user['role'], previous, incoming, stored)
     architect_rows = incoming.get('architects', [])
@@ -78,14 +79,22 @@ def save_legacy(db, user, incoming):
     if not {a['id'] for a in previous.get('architects', [])}.issubset(architect_ids):
         raise HTTPException(422,'Removing architects is disabled; archive them instead.')
     db.execute(update(state).where(state.c.id==1).values(payload={k:v for k,v in incoming.items() if k not in ('rev','clients')}))
+    changed_rows, moved_rows, new_rows = [], [], []
     for position, client in enumerate(incoming['clients']):
         if client['id'] in existing:
-            current = db.execute(select(clients.c.payload).where(clients.c.id==client['id'])).scalar_one()
-            if current == client:
-                db.execute(update(clients).where(clients.c.id==client['id']).values(position=position))
-            else:
-                db.execute(update(clients).where(clients.c.id==client['id']).values(payload=client,position=position,version=clients.c.version+1))
+            current = existing_rows[client['id']]
+            if current.payload != client:
+                changed_rows.append({'row_id': client['id'], 'new_payload': client, 'new_position': position, 'new_version': current.version + 1})
+            elif current.position != position:
+                moved_rows.append({'row_id': client['id'], 'new_position': position})
         else:
-            db.execute(insert(clients).values(id=client['id'],position=position,version=0,payload=client))
+            new_rows.append({'id': client['id'], 'position': position, 'version': 0, 'payload': client})
+    if changed_rows:
+        db.execute(update(clients).where(clients.c.id == bindparam('row_id')).values(
+            payload=bindparam('new_payload'), position=bindparam('new_position'), version=bindparam('new_version')), changed_rows)
+    if moved_rows:
+        db.execute(update(clients).where(clients.c.id == bindparam('row_id')).values(position=bindparam('new_position')), moved_rows)
+    if new_rows:
+        db.execute(insert(clients), new_rows)
     event(db,user['id'],'store.save')
     return {'ok':True,'rev':incoming['rev']+1}

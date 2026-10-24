@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from starlette.concurrency import run_in_threadpool
-from core.server import safe_name
+from core.security import safe_name
 from . import repository
 from .repository import allowed
 from ai.agents import transcriber

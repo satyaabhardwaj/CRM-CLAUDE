@@ -27,3 +27,7 @@
 **/.local
 **/assets
 **/tests
+
+# Retired UI reference and local-only operator commands
+shared/kit.js
+backend/reset_admin.py

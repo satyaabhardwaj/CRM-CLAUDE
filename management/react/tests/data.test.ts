@@ -3,7 +3,10 @@ import { beforeAll, afterEach, it, expect, vi } from "vitest";
 import { install, fixture } from "./setup";
 import { ManagementStore, readStore } from "../src/data";
 beforeAll(install);
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 it("only reads, normalizes a copy and exposes no mutation methods", async () => {
   const raw = { rev: 2, clients: fixture() },
     before = JSON.stringify(raw),
@@ -79,16 +82,20 @@ it("deduplicates concurrent reads and stops notifying removed subscribers", asyn
   expect(listener).toHaveBeenCalledTimes(calls);
 });
 it("a background poll with the same revision does not redraw or show loading", async () => {
+  const response = JSON.stringify({ rev: 4, clients: fixture() });
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response('{"rev":4,"clients":[]}')),
+    vi.fn(async () => new Response(response)),
   );
   const store = new ManagementStore();
   await store.load();
   const data = store.state.data,
     listener = vi.fn();
   store.subscribe(listener);
+  const ensure = vi.spyOn(window.SalesLogic, "ensure");
   await store.poll();
+  expect(ensure).not.toHaveBeenCalled();
+  ensure.mockRestore();
   expect(listener).not.toHaveBeenCalled();
   expect(store.state.data).toBe(data);
   expect(store.state.loading).toBe(false);

@@ -232,6 +232,7 @@ export function App() {
     peek: setPeek,
     close,
     update: store.update,
+    whenSaved: store.whenSaved,
     goTo: navigate,
     open: (c) => navigate(c.stage === "post" ? "tracker" : c.stage, c),
   };

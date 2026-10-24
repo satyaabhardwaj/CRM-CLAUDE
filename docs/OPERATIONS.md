@@ -2,6 +2,10 @@
 
 Day-to-day running, backup/restore, secret rotation and incidents for the 4301 CRM. Setup is in [SETUP](SETUP.md), hosting in [DEPLOYMENT](DEPLOYMENT.md), and identities in [SECURITY](SECURITY.md).
 
+## Cutover status — 24 October 2026
+
+Live data remains local. Hosted daily backups/PITR, alerts and weekly encrypted off-laptop exports are requirements, not completed controls. Read-only Task Scheduler inspection on 24 October confirms the nightly backup task is Disabled (the prior owner decision to save disk space); it was not enabled or disabled in this task. Automatic nightly protection is therefore not active. Preserve existing backups and local data. The owner must authorize `START CUTOVER`; any restore failure requires inspection without overwriting destination data. See [the execution log](history/GO_LIVE_2026-10-24.md).
+
 ## Running
 
 - **Start** with `Start CRM.cmd`, which opens http://127.0.0.1:4301. **Stop** the database with `npm run db:stop`; data is kept.
@@ -16,7 +20,7 @@ Day-to-day running, backup/restore, secret rotation and incidents for the 4301 C
 GitHub Actions (`.github/workflows/check.yml`) runs on Ubuntu and Windows with Python 3.12 and Node 24, without provider credentials:
 - `scripts/check.py`;
 - format, test and build for all six frontends;
-- the backend tests on PostgreSQL 18 (`crm_crud_test_ci`).
+- the backend tests on PostgreSQL 17 (`crm_crud_test_ci`).
 
 Locally, `python -B scripts/build.py` makes a deterministic source ZIP without data or credentials; compare its SHA-256 before a rollout.
 
@@ -31,24 +35,24 @@ $env:POSTGRES_BIN = "C:\Program Files\PostgreSQL\18\bin"
 .venv\Scripts\python.exe scripts\backup_postgres.py --output .local\backups\NAME --writes-paused --restore-check
 ```
 
-It writes `database.dump`, every attachment under `uploads/`, and `manifest.json` (table fingerprints, attachment and dump SHA-256). It fails if data changed during the backup. `--restore-check` restores into a new `crm_restore_<hex>` database and requires the fingerprints to match; drop that database afterwards.
+It writes `database.dump`, every attachment under `uploads/`, and `manifest.json` (table fingerprints, attachment and dump SHA-256). It fails if data changed during the backup. `--restore-check` restores into a new `crm_restore_<hex>` database and requires the fingerprints to match. Retain the rehearsal database until its exact cleanup target is approved.
 
-**Nightly backup (set up 23 Oct 2026, currently turned off at the owner's request to save disk space; turn it on in Task Scheduler → "MAGPPIE CRM daily backup" → Enable).** Windows Task Scheduler runs `scripts\daily_backup.py` every night at 23:00 (task "MAGPPIE CRM daily backup"; if the laptop is off, it runs at the next start). Each run:
+**Nightly backup (set up 23 Oct 2026, currently turned off at the owner's request to save disk space; turn it on in Task Scheduler â†’ "MAGPPIE CRM daily backup" â†’ Enable).** Windows Task Scheduler runs `scripts\daily_backup.py` every night at 23:00 (task "MAGPPIE CRM daily backup"; if the laptop is off, it runs at the next start). Each run:
 - starts Docker and the local database if needed (data kept);
 - makes `.localackups\daily-YYYYMMDD-HHMM` with `--restore-check`, then drops only its own rehearsal database;
 - retries three times, 10 minutes apart, if someone was working during the backup;
 - keeps 30 days of `daily-*` folders (always the newest three); hand-made backups are never touched;
 - writes one line to `.localackups\daily-backup.log` (`"ok": true` with table and attachment counts, or the reason it failed).
 
-Check it: open `daily-backup.log` and look at the last line. Run it now: `.venv\Scripts\python.exe -B scripts\daily_backup.py`. Change the time: Task Scheduler → "MAGPPIE CRM daily backup" → Triggers. The backups stay on this laptop; copy one off the machine (encrypted) regularly, because a lost or broken laptop takes them with it.
+Check it: open `daily-backup.log` and look at the last line. Run it now: `.venv\Scripts\python.exe -B scripts\daily_backup.py`. Change the time: Task Scheduler â†’ "MAGPPIE CRM daily backup" â†’ Triggers. The backups stay on this laptop; copy one off the machine (encrypted) regularly, because a lost or broken laptop takes them with it.
 
-**Restore (one command, repeatable).** It always goes into a NEW database, never over the live one:
+**Full disaster-recovery restore (includes identities; never use for the production cutover).** It always goes into a NEW database, never over the live one:
 
 ```powershell
 .venv\Scripts\python.exe scripts\restore_postgres.py --backup .local\backups\NAME --create-database crm_restore_qa_NAME --bucket crm-restore-qa-name
 ```
 
-For a separately created empty database (for example a new Supabase project), set `RESTORE_DATABASE_URL` in the process environment and omit `--create-database`. `--bucket` is optional; it creates a new private bucket, uploads the attachments and reads every byte back.
+For a full disaster-recovery restore into a separately created empty database, set `RESTORE_DATABASE_URL` in the process environment and omit `--create-database`. `--bucket` is optional; it creates a new private bucket, uploads the attachments and reads every byte back.
 
 The script refuses:
 - the live database (same host, port and name as `DATABASE_URL`) or `postgres` when creating;
@@ -86,11 +90,11 @@ Follow the rotation steps in [PRODUCTION_SECRETS](PRODUCTION_SECRETS.md#rotation
 
 ## Staff accounts
 
-Day to day, an administrator uses Management → **Users** (needs an authenticator). The command line does the same: `python -m backend.users …` (outside development add `--confirm-target HOST/DATABASE`).
+Day to day, an administrator uses Management â†’ **Users** (needs an authenticator). The command line does the same: `python -m backend.users â€¦` (outside development add `--confirm-target HOST/DATABASE`).
 
 | Situation | What to do |
 |---|---|
-| Someone joins | Users → Add person: email and role (sales, design, measurement, accounts, reader; admin only if needed). Give them the temporary password privately (it is shown once); they choose their own at first sign-in. Admins must then set up an authenticator. |
+| Someone joins | Users â†’ Add person: email and role (sales, design, measurement, accounts, reader; admin only if needed). Give them the temporary password privately (it is shown once); they choose their own at first sign-in. Admins must then set up an authenticator. |
 | Someone changes department | Change the role. They are signed out and see the new access at their next sign-in. |
 | Someone leaves | Deactivate. All their sessions end at once and they cannot sign in; their history stays. Never delete accounts. |
 | Forgotten password | Reset password. They are signed out everywhere, get a temporary password (shown once) and must choose a new one at sign-in. Their authenticator is kept. Email recovery stays off. |
@@ -124,13 +128,21 @@ It was verified on 21 Oct: all 3,923 files matched byte-for-byte. To read it, de
 
 `gpg -d crm-archive-2026-10-21.tar.gpg | tar -xf -`
 
-## Historical 4300 standalone server (archived on branch archive/legacy-2026-10)
+## Historical 4300 standalone server
 
-The 4300 JSON server, its `data/` folder and `scripts/backup.py` flow are retired. Its last data is in the archive above. The steps below are kept for reference only.
+The JSON server and backup commands are retired on `archive/legacy-2026-10`. Its data remains in the encrypted archive above. Use the PostgreSQL backup/restore procedure for the current CRM; never restore the retired JSON flow into an active workspace.
 
-1. Stop the sole CRM server and verify port 4300 is no longer listening. Prevent user edits.
-2. Run `python -B scripts/backup.py --server-stopped --destination <private-backup-directory>`. Store encrypted off-device copies with access control and retention; backups contain personal data. The tool creates a new archive and never overwrites/restores files.
-3. Before upgrades, preserve the source release, private configuration and a full data backup. Validate archive readability and periodically rehearse restoration in an isolated directory.
-4. To restore: stop server, keep the current data directory as a dated recovery copy, extract a trusted backup into a separate directory, validate its store using `core.storage.validate`, compare client counts and attachments, then switch directories manually. Never overwrite the only copy.
-5. For a bad latest write, inspect `data/store.previous.json` offline and compare with the full backup. Do not auto-restore: another legitimate edit may be newer.
-6. For code rollback, extract the prior known-good source release separately and use a copied compatible data directory. Version 1 is additive; older code ignores its schemaVersion. Start on a test port, run health/navigation checks, then restart the primary instance. Avoid git reset/clean against the user's dirty checkout.
+
+## Retire the live laptop checkout after verified cutover
+
+Prepared, not activated: `.local/production-cutover.json` with a `production_url` HTTPS field makes `Start CRM.cmd` and local configuration-loading commands refuse before starting services. Do not create this marker until the production manifest and all attachment hashes match and the hosted smoke tests pass. The regression verifies that no service starts, including when the marker is malformed.
+
+At the authorized cutover, create the marker exclusively (never overwrite an existing marker), stop the old local stack without removing volumes, record the 14-day retention deadline, and disable the named nightly local backup task. Move secret files to `C:\Users\am600\Magppie-Keys` by copy, hash verification, then separately authorized source cleanup. Do not move/delete current secret files during preparation. Record Supabase daily-backup status, the owner's PITR choice and alert delivery before announcing production. Weekly exports must be encrypted and retained by the owner off this laptop. A development checkout must use new synthetic data and credentials, never the retained live database.
+
+Rollback is a controlled owner action, not removal of the retirement marker as a troubleshooting shortcut. If production has accepted writes, do not restart the stale laptop as the live service; pause and reconcile those writes first.
+
+## OTP-independent rehearsal evidence
+
+See [RESTORE_REHEARSAL_2026-10-24](history/RESTORE_REHEARSAL_2026-10-24.md): fresh synthetic PostgreSQL source/destination, a real pg_dump/pg_restore check, and actual private local Supabase buckets. Business-only import reconciled 540 clients and three file hashes with zero identities imported. The hosted transport was adapted to local QA; hosted TLS/pooler/permissions still need verification.
+
+Hosted backup commands now skip local configuration loading when CRM_ENV is preview/production or VERCEL is set. Inject the full operator environment privately, including explicit Supabase Storage; filesystem fallback is refused. Do not change the live laptop .env.local.

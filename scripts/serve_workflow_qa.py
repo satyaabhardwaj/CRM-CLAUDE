@@ -32,6 +32,9 @@ def main():
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', type=int, default=4303)
+    parser.add_argument('--container', action='store_true', help='Synthetic Docker QA only; publish its port on host loopback')
+    parser.add_argument('--e2e', action='store_true', help='Synthetic authenticator and captured-mail fixtures; never deploy this server')
+    parser.add_argument('--postgres-test', action='store_true', help='New isolated schema in explicitly configured local TEST_DATABASE_URL only')
     parser.add_argument('--dataset', choices=['workflow', 'stress', 'one', 'empty'], default='workflow',
                         help='workflow: the 4 original clients; the others come from tests/ui/layout-audit/stress_data.py')
     parser.add_argument('--idle-minutes', type=int, default=240, help='QA only: shorter idle timeout')
@@ -39,7 +42,25 @@ def main():
     args = parser.parse_args()
     folder = ROOT / '.local' / ('workflow-qa-' + uuid.uuid4().hex)
     folder.mkdir(parents=True)
-    engine = create_engine('sqlite:///' + (folder / 'qa.db').as_posix())
+    if args.postgres_test:
+        import os
+        from sqlalchemy import event, text
+        from sqlalchemy.engine import make_url
+        url = make_url(os.environ.get('TEST_DATABASE_URL', ''))
+        hosts = {'localhost', '127.0.0.1'}
+        if args.container: hosts.add('supabase_db_magppie-crm-dev')
+        if url.host not in hosts or not (url.database or '').startswith('crm_crud_test_'):
+            raise RuntimeError('Refusing a non-test database; QA never loads live settings.')
+        engine = create_engine(url, hide_parameters=True)
+        schema = 'qa_' + uuid.uuid4().hex
+        with engine.begin() as db: db.execute(text('CREATE SCHEMA ' + schema))
+        engine.dispose()
+        @event.listens_for(engine, 'connect')
+        def isolate(connection, _):
+            with connection.cursor() as cursor: cursor.execute('SET search_path TO ' + schema)
+            connection.commit()
+    else:
+        engine = create_engine('sqlite:///' + (folder / 'qa.db').as_posix())
     metadata.create_all(engine)
     clients = []
     for index, stage in enumerate(['qualified', 'design', 'booked', 'post']):
@@ -65,6 +86,28 @@ def main():
         if snapshot['clients']:  # assigned sees one granted client
             db.execute(insert(grants).values(user_id='qa-assigned', client_id=snapshot['clients'][0]['id'], can_write=1))
 
+        for index in range(20):
+            uid = 'qa-load-' + str(index)
+            db.execute(insert(users).values(id=uid, role='reader', active=1))
+            db.execute(insert(credentials).values(user_id=uid, email=uid + '@qa.invalid', password_hash=hashed))
+        if args.e2e:
+            import os
+            from cryptography.fernet import Fernet
+            from backend.models import mfa_factors, recovery_emails
+            key = Fernet.generate_key()
+            os.environ['CRM_MFA_ENCRYPTION_KEY'] = key.decode()
+            cipher = Fernet(key)
+            for browser in ('chromium', 'firefox', 'webkit'):
+                for width in ('phone', 'desktop'):
+                    sales_uid = 'qa-sales-' + browser + '-' + width
+                    db.execute(insert(users).values(id=sales_uid, role='sales', active=1))
+                    db.execute(insert(credentials).values(user_id=sales_uid, email=sales_uid[3:] + '@qa.invalid', password_hash=hashed))
+                    uid = 'qa-admin-' + browser + '-' + width
+                    db.execute(insert(users).values(id=uid, role='admin', active=1))
+                    db.execute(insert(credentials).values(user_id=uid, email=uid[3:] + '@qa.invalid', password_hash=hashed))
+                    db.execute(insert(mfa_factors).values(user_id=uid, secret=cipher.encrypt(b'JBSWY3DPEHPK3PXP').decode(), enabled=1, expires=0, last_counter=-1))
+            db.execute(insert(recovery_emails).values(user_id='qa-reader', email='reader@qa.invalid'))
+
     def denied(*args, **kwargs):
         raise HTTPException(503, 'External actions are disabled in synthetic QA.')
 
@@ -83,11 +126,33 @@ def main():
                 modified_at='2026-10-21T06:00:00Z') for i, stage in enumerate(
                     ['First Measurement', 'EPT Marking', 'EPT Verification', 'PDI'])]}
     connection.requests = requests
+    outbox = {}
+    sender = (lambda email, code: outbox.__setitem__(email, code)) if args.e2e else None
     app = create_app(Settings(str(engine.url), origin='http://127.0.0.1:%d' % args.port, uploads=folder/'uploads',
-                              session_idle_minutes=args.idle_minutes, session_max_hours=args.max_hours), engine)
+                              session_idle_minutes=args.idle_minutes, session_max_hours=args.max_hours), engine, code_sender=sender)
+    if args.e2e:
+        from fastapi import Request
+        from sqlalchemy import update
+        from backend import auth
+        from backend.models import sessions
+        @app.post('/__qa__/expire-session')
+        def expire_synthetic_session(request: Request):
+            token = request.cookies.get('crm_session')
+            with engine.begin() as db:
+                user = auth.identity(db, token)
+                if not user['id'].startswith('qa-'): raise HTTPException(403, 'Synthetic users only.')
+                db.execute(update(sessions).where(sessions.c.hash == auth.digest(token)).values(expires=1))
+            return {'ok': True}
+        app.router.routes.insert(0, app.router.routes.pop())
+        @app.get('/__qa__/outbox')
+        def captured_code(email: str):
+            if email != 'reader@qa.invalid': raise HTTPException(404, 'Synthetic mailbox only.')
+            return {'code': outbox.get(email)}
+        # The app's static catch-all is last; put this QA-only route before it.
+        app.router.routes.insert(0, app.router.routes.pop())
     (ROOT / '.local' / 'workflow-qa-current.txt').write_text(str(folder))
     print('Synthetic QA only (%s): http://127.0.0.1:%d/login' % (args.dataset, args.port), flush=True)
-    uvicorn.run(app, host='127.0.0.1', port=args.port, access_log=False)
+    uvicorn.run(app, host='0.0.0.0' if args.container else '127.0.0.1', port=args.port, access_log=False)
 
 
 if __name__ == '__main__':

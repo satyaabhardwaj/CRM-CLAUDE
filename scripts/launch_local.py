@@ -80,7 +80,8 @@ def validate_status(status):
 
 def launch():
     global URL
-    from backend.local import load
+    from backend.local import load, refuse_retired_live_checkout
+    refuse_retired_live_checkout(ROOT)
     if not (ROOT / '.env.local').exists():
         raise RuntimeError('Local Supabase configuration is missing. Complete local setup first.')
     load()

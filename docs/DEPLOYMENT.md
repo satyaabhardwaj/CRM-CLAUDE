@@ -1,6 +1,6 @@
 # Deployment (Vercel + Supabase): readiness pack
 
-Status: **not deployed.** Nothing in this document has been done in the cloud. Creating projects, setting secrets, migrating, importing data or deploying happens only in a separate task you approve explicitly: Gate B "DEPLOY PREVIEW", then Gate C "GO LIVE".
+Status (24 October 2026): **production cutover not performed.** The owner has authorized preview and production preparation in the go-live task. Only Vercel `magppie-crm-v2` and the named Supabase preview/production projects are authorized. Production cutover still requires the literal `START CUTOVER`. Current evidence and unresolved gates are recorded in [the execution log](history/GO_LIVE_2026-10-24.md).
 
 - Current state and test evidence: [FINAL_DEPLOYMENT_CHECKLIST](FINAL_DEPLOYMENT_CHECKLIST.md).
 - Every secret, with owner and rotation: [PRODUCTION_SECRETS](PRODUCTION_SECRETS.md).
@@ -78,7 +78,7 @@ Never set in a hosted environment:
 2. **Schema:** `alembic upgrade head` (0001 initial → 0002 local login → 0003 auth-attempt index → 0004 auth realms → 0005 password recovery → 0006 MFA → 0007 sliding sessions → 0008 department roles → 0009 user administration → 0010 sign-in codes by email). 0007–0010 are additive (new columns and a wider role check); existing users keep their role.
 3. **Runtime role:** `backend.runtime_role` (section 5). Re-run it after every future migration.
 4. **Check:**
-   - `alembic current` shows `0010`;
+   - `alembic current` shows `0012`;
    - every CRM table has RLS on, with no `anon`/`authenticated` grants;
    - the bucket is private (an unsigned URL is refused).
 
@@ -98,14 +98,14 @@ Migrations never run on app start or during a Vercel build.
 
 ## 6. Step list
 
-**Gate B: preview (needs "DEPLOY PREVIEW")**
+**Gate B: preview (authorized in the 24 October master task; synthetic data only)**
 1. **Owner, accounts:** the Vercel team (Pro), and Supabase org and projects `magppie-crm-preview` and `magppie-crm-prod` in Mumbai.
-   - Recheck the historical Vercel project `magppie-crm` before any change; unrelated projects stay untouched.
+   - Use only Vercel `magppie-crm-v2`. The old `magppie-crm` and all unrelated projects stay untouched.
 2. **Vercel project:** import the GitHub repo with Git auto-deploy off (as in `vercel.json`) and set the preview variables (section 3).
 3. **Database:** migrate the preview project (section 4) and create `crm_app` (section 5).
 4. **Users:** with the exported preview configuration, `python -m backend.users add EMAIL --role ROLE --confirm-target "HOST/DATABASE"` for one admin (who enrols the authenticator at first sign-in) and one user per department role (sales, design, measurement, accounts, reader); each gets a one-time temporary password and must choose their own at first sign-in. Then `backend.recovery_email --email EMAIL --confirm-target "HOST/DATABASE" --ownership-verified` for the admin's mailbox, so reset links and sign-in codes go there.
-5. **Data:** load synthetic data only, unless you approve a copy.
-6. **Deploy** tag `v1.0-rc8` to preview.
+5. **Data:** synthetic only. Real data is forbidden in preview.
+6. **Deploy** the exact tested `release/go-live` commit to preview after its CI is green and Preview secrets are isolated from Production. Record the commit and deployment URL.
 7. **Verify on the preview URL:**
    - sign-in, the emailed sign-in code, MFA, sign-out, and old cookies rejected;
    - idle sign-out after `CRM_SESSION_IDLE_MINUTES` with the "Stay signed in" warning (preview may shorten it to 5 minutes for this check), and unsaved work kept across sign-in;
@@ -118,7 +118,7 @@ Migrations never run on app start or during a Vercel build.
    - phones (UI_GUIDE checklist);
    - a secret scan of the deployed assets.
 
-**Gate C: production (needs "GO LIVE")**
+**Gate C: production (requires "START CUTOVER" and all preview/readiness gates passed)**
 8. Production variables, migration, runtime role and fresh identities, as for preview.
 9. The cutover runbook (section 7).
 10. Backups and monitoring switched on (sections 8–9) before users are told.
@@ -129,7 +129,7 @@ Before the window:
 - Rehearse the whole runbook once on preview with a copy of synthetic data.
 - Confirm the window, the people and the rollback owner.
 
-1. **Freeze:** announce the window and stop writes locally (close the CRM on every machine, then `Stop CRM.cmd`).
+1. **Freeze (only after START CUTOVER):** announce the window and stop every CRM writer. The currently verified Docker app is `magppie-crm-container-crm-1` on 4302; stop that app container without removing it or its volumes. `Stop CRM.cmd` handles the native launcher and local Supabase; it does not stop the Docker app container. Verify both app ports 4301/4302 are unavailable and all staff have closed the app. Since `Stop CRM.cmd` also stops the database/Storage, run `npm run db:start` to start only the database/Storage services before backup. Keep every CRM app process stopped; do not run `Start CRM.cmd`. If the native stop script refuses an unrelated listener, investigate its ownership instead of killing it.
 2. **Final backup:** take the local backup and check it can be restored:
 
    ```powershell
@@ -137,15 +137,15 @@ Before the window:
    ```
 
    Record the manifest fingerprints and attachment hashes.
-3. **Import:** load only the approved business data (`crm_state`, `crm_clients`) and the attachments into production, using `scripts/restore_postgres.py` into the empty prod database (`RESTORE_DATABASE_URL`) and `--bucket`.
+3. **Import:** use `scripts/restore_postgres.py --business-only --backup <verified-folder> --bucket crm-uploads --confirm-target <host/database> --confirm-storage-origin <https-project-origin>`. Privately inject `RESTORE_DATABASE_URL`, `RESTORE_SUPABASE_URL`, and `RESTORE_SUPABASE_SERVICE_ROLE_KEY`. This path requires a restore-verified backup, a migrated destination with every CRM table empty, and an existing empty private bucket. It imports only `crm_state`, `crm_clients`, and attachments. Never use the full-database restore path for production identity separation. An interrupted upload leaves destination objects for inspection; do not overwrite or retry blindly.
    - Do **not** carry over development users, credentials, sessions, MFA, grants or realm bindings; apply the destination-only identity plan in PRODUCTION_SECRETS.
 4. **Reconcile:** row fingerprints and attachment hashes must equal the manifest. **Any mismatch: stop and roll back** (step R).
 5. **Identities:** provision named users. Admins sign in, enrol MFA and save their recovery codes.
-6. **Deploy and smoke:** deploy `v1.0-rc8` to production, then check health, sign-in, each module, one attachment, the counts (28 clients, 44 architects, 15 attachments today), factory mail 403 and Measurement.
+6. **Deploy and smoke:** deploy the exact tested release commit to production, then check health, sign-in, each module, one attachment, the counts from the final frozen backup manifest (never hard-code the earlier audit counts), factory mail 403 and Measurement.
 7. **Open:** tell users the new URL. Keep the local copy read-only for 14 days.
 
 **Rollback (R):** done before any production write by users. Nothing local has been changed, so it is reversible.
-- Point users back to the local CRM (`Start CRM.cmd`).
+- Before any production user writes, resume the verified local runtime recorded at freeze (the existing Docker app on 4302 or the native launcher if it was verified). Reconcile the launcher retirement marker if already activated through an explicitly approved rollback; do not silently bypass it.
 - Leave the production project as it is for diagnosis.
 - Never restore over production. A second attempt goes into a new database.
 
@@ -165,7 +165,7 @@ Never roll back to a build that bypasses hosted identity or MFA.
 | Restore rehearsal into a new database and bucket (`restore_postgres.py`) | monthly | evidence kept 12 months | separate project/database |
 | `CRM_MFA_ENCRYPTION_KEY`, realm UUID | when created and when rotated | permanent | password manager, separate from the dumps |
 
-Retention and the alert email are open decisions (section 10).
+Alert email is `info@mymagppie.com`. PITR remains an owner decision; do not claim it is enabled without verification.
 
 ## 9. Monitoring and alerts
 

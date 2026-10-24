@@ -21,6 +21,18 @@ from backend.local import load
 from backend.storage import Attachments
 
 
+def load_backup_settings():
+    # A hosted operator must inject a complete environment. Never fill missing
+    # destination/Storage credentials from the laptop's live .env.local.
+    hosted = os.environ.get('CRM_ENV') in ('preview', 'production') or os.environ.get('VERCEL')
+    if not hosted:
+        load()
+    settings = Settings.load()
+    if hosted and settings.storage_backend != 'supabase':
+        raise RuntimeError('Hosted backups require explicit Supabase Storage configuration.')
+    return settings
+
+
 def fingerprint(url):
     engine = create_engine(url)
     result = {}
@@ -45,8 +57,7 @@ def main():
     parser.add_argument('--writes-paused', action='store_true', required=True)
     parser.add_argument('--restore-check', action='store_true')
     args = parser.parse_args()
-    load()
-    settings = Settings.load()
+    settings = load_backup_settings()
     source = make_url(settings.database_url)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -68,6 +79,17 @@ def main():
                 if secret: detail = detail.replace(secret, '[redacted]')
             raise RuntimeError(name + ' failed: ' + detail[:1500])
     before = fingerprint(source)
+    from scripts.business_backup import export_business, fingerprints
+    business_engine = create_engine(source)
+    try:
+        with business_engine.connect() as db:
+            business = export_business(db)
+    finally:
+        business_engine.dispose()
+    if fingerprints(business) != {key: before[key] for key in business}:
+        raise RuntimeError('Business rows changed during backup. Pause writes and retry.')
+    business_bytes = json.dumps(business, sort_keys=True, ensure_ascii=False).encode('utf-8')
+    (output / 'business.json').write_bytes(business_bytes)
     files=Attachments(settings)
     def storage_hashes():
         if settings.storage_backend=='filesystem': return file_hashes(settings.uploads)
@@ -87,6 +109,7 @@ def main():
         raise RuntimeError('Data changed during backup. Pause writes and retry into a new directory.')
     report = {'tables': before, 'uploads': uploads_before, 'storage_backend':settings.storage_backend, 'restore_verified': False}
     report['dump_sha256'] = hashlib.sha256((output / 'database.dump').read_bytes()).hexdigest()
+    report['business_sha256'] = hashlib.sha256(business_bytes).hexdigest()
     if args.restore_check:
         # Same path as scripts/restore_postgres.py: a NEW database, never the source.
         from scripts.restore_postgres import restore_database

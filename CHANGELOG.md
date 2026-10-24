@@ -4,6 +4,15 @@ All notable changes to the Magppie CRM. Dates are 2026.
 
 ## Unreleased
 
+### Go-live preparation (24 Oct; v1.0.0 not released)
+- Retired legacy server and JSON/local fallback setup paths; kept active business/auth rules.
+- Added client-grant index migration 0011, private migration metadata hardening 0012, and dry-run housekeeping for expired authentication artifacts.
+- Batched workspace saves; revision-aware authenticated JSON cache, compression and immutable hashed-asset caching. Unchanged Management polls avoid repeated client normalization; map markers have 44px touch targets.
+- Added business-only restore with empty-destination and fingerprint checks, excluding all identities. Combined local PostgreSQL/private Storage rehearsal reconciles 540 synthetic clients and all attachments. Hosted backups cannot fall back to laptop settings or filesystem uploads.
+- New opportunity Layout uploads wait for the saved client and retry without duplicate opportunities.
+- Added synthetic cross-browser E2E, 20-user load smoke and CI checks. Current evidence and hosted blockers are in `docs/history/GO_LIVE_2026-10-24.md`.
+
+
 ### Nightly backup (23 Oct)
 - `scripts/daily_backup.py`, scheduled in Windows Task Scheduler at 23:00 ("MAGPPIE CRM daily backup"): a verified backup (restore check) into `.local/backups/daily-*`, retries if data changed mid-backup, keeps 30 days, logs each run to `.local/backups/daily-backup.log`. Hand-made backups are never removed. Tests: `backend/tests/test_daily_backup.py` (3). See [OPERATIONS](docs/OPERATIONS.md).
 
