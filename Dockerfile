@@ -16,7 +16,7 @@ COPY requirements-backend.txt .
 RUN pip install --no-cache-dir -r requirements-backend.txt && useradd --uid 10001 --create-home crm && mkdir -p /var/lib/crm/uploads && chown -R crm:crm /var/lib/crm
 COPY backend backend
 # Only the shared runtime helpers; retired HTTP server is excluded.
-COPY core/__init__.py core/security.py core/storage.py core/
+COPY core/security.py core/storage.py core/
 COPY shared shared
 COPY sales sales
 COPY design design
