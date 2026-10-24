@@ -186,3 +186,36 @@ test('Users add, reset and deactivate preserve account identity', async ({ admin
   const listing = await (await admin.get('/api/admin/users')).json();
   expect(listing.users.find(u => u.id === created.id).active).toBeFalsy();
 });
+
+
+test('new opportunity saves before private layout upload and retries without duplicates', async ({ page }, info) => {
+  await login(page.request, `sales-${info.project.name}`);
+  await page.goto('/sales/#qualified');
+  await page.getByRole('button', { name: 'New opportunity', exact: true }).click();
+  const name = `Synthetic layout ${info.project.name} ${Date.now()}`;
+  await page.getByLabel('Customer name', { exact: true }).fill(name);
+  await page.getByLabel('Phone', { exact: true }).fill('0000000000');
+  await page.getByLabel('Source', { exact: true }).selectOption('Walk-in');
+  await page.getByLabel('Layout', { exact: true }).setInputFiles({ name: 'synthetic-layout.txt', mimeType: 'text/plain', buffer: Buffer.from('Synthetic layout only') });
+  let attempts = 0;
+  await page.route('**/api/uploads/sign/*', async route => {
+    const rows = (await (await page.request.get('/api/store')).json()).clients.filter(c => c.name === name);
+    expect(rows).toHaveLength(1);
+    expect(route.request().url()).toContain(rows[0].id);
+    if (++attempts === 1) await route.fulfill({ status: 503, body: '{}' });
+    else await route.continue();
+  });
+  await page.getByRole('button', { name: 'Save opportunity', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('retained');
+  await page.getByRole('button', { name: 'Save opportunity', exact: true }).click();
+  await expect.poll(async () => {
+    const rows = (await (await page.request.get('/api/store')).json()).clients.filter(c => c.name === name);
+    return rows.length === 1 && !!rows[0].docs?.layout;
+  }).toBe(true);
+  const row = (await (await page.request.get('/api/store')).json()).clients.find(c => c.name === name);
+  const file = await page.request.get(`/data/uploads/${row.id}/${encodeURIComponent(row.docs.layout)}`);
+  expect(file.status()).toBe(200);
+  expect(await file.text()).toBe('Synthetic layout only');
+  expect(attempts).toBe(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});

@@ -58,6 +58,8 @@ export function NewOpportunity({
   disabled: boolean;
 }) {
   const [d, set] = useState({ ...initialDraft });
+  const [created, setCreated] = useState<Client | null>(null);
+  const [uploaded, setUploaded] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -102,14 +104,25 @@ export function NewOpportunity({
   );
   async function submit() {
     try {
-      const c = opportunity(d, ctx.everyone);
-      if (d.architect) assignArchitect(c as SalesClient, d.architectId);
+      const c = created || opportunity(d, ctx.everyone);
+      if (!created) {
+        if (d.architect) assignArchitect(c as SalesClient, d.architectId);
+        ctx.update(() => ctx.add(c));
+        if (file) setCreated(c);
+      }
       if (file) {
         setUploading(true);
-        const name = await upload(c.id, file);
-        c.docs = { layout: name };
+        await ctx.whenSaved();
+        const name = uploaded || (await upload(c.id, file));
+        setUploaded(name);
+        ctx.update(() => {
+          c.docs = {
+            ...((c.docs || {}) as Record<string, unknown>),
+            layout: name,
+          };
+        });
+        await ctx.whenSaved();
       }
-      ctx.update(() => ctx.add(c));
       ctx.open(c);
     } catch (e) {
       setError(
@@ -132,7 +145,7 @@ export function NewOpportunity({
       </div>
       <fieldset
         className="sales-form card card-b"
-        disabled={disabled || uploading}
+        disabled={disabled || uploading || !!created}
       >
         <div className="g4">
           {text("name", "Customer name")}
@@ -193,15 +206,22 @@ export function NewOpportunity({
             }}
           />
         </label>
-        {error && (
-          <p role="alert" className="msg">
-            {error}
-          </p>
-        )}
-        <button className="btn dark" type="submit">
-          {uploading ? "Uploading layout…" : "Save opportunity"}
-        </button>
       </fieldset>
+      {created && (
+        <p>Opportunity draft retained. Retry to finish attaching its layout.</p>
+      )}
+      {error && (
+        <p role="alert" className="msg">
+          {error}
+        </p>
+      )}
+      <button
+        className="btn dark"
+        type="submit"
+        disabled={disabled || uploading}
+      >
+        {uploading ? "Uploading layout…" : "Save opportunity"}
+      </button>
     </form>
   );
 }

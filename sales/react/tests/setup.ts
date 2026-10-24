@@ -94,6 +94,7 @@ export function context(c: Client): Context {
     viewing: c.stage,
     match: () => true,
     add: () => {},
+    whenSaved: async () => {},
     select: () => {},
     peek: () => {},
     close: () => {},
