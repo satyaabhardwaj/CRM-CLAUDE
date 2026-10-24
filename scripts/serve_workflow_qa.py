@@ -80,6 +80,9 @@ def main():
             cipher = Fernet(key)
             for browser in ('chromium', 'firefox', 'webkit'):
                 for width in ('phone', 'desktop'):
+                    sales_uid = 'qa-sales-' + browser + '-' + width
+                    db.execute(insert(users).values(id=sales_uid, role='sales', active=1))
+                    db.execute(insert(credentials).values(user_id=sales_uid, email=sales_uid[3:] + '@qa.invalid', password_hash=hashed))
                     uid = 'qa-admin-' + browser + '-' + width
                     db.execute(insert(users).values(id=uid, role='admin', active=1))
                     db.execute(insert(credentials).values(user_id=uid, email=uid[3:] + '@qa.invalid', password_hash=hashed))

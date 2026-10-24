@@ -78,7 +78,7 @@ Never set in a hosted environment:
 2. **Schema:** `alembic upgrade head` (0001 initial → 0002 local login → 0003 auth-attempt index → 0004 auth realms → 0005 password recovery → 0006 MFA → 0007 sliding sessions → 0008 department roles → 0009 user administration → 0010 sign-in codes by email). 0007–0010 are additive (new columns and a wider role check); existing users keep their role.
 3. **Runtime role:** `backend.runtime_role` (section 5). Re-run it after every future migration.
 4. **Check:**
-   - `alembic current` shows `0010`;
+   - `alembic current` shows `0011`;
    - every CRM table has RLS on, with no `anon`/`authenticated` grants;
    - the bucket is private (an unsigned URL is refused).
 
@@ -104,8 +104,8 @@ Migrations never run on app start or during a Vercel build.
 2. **Vercel project:** import the GitHub repo with Git auto-deploy off (as in `vercel.json`) and set the preview variables (section 3).
 3. **Database:** migrate the preview project (section 4) and create `crm_app` (section 5).
 4. **Users:** with the exported preview configuration, `python -m backend.users add EMAIL --role ROLE --confirm-target "HOST/DATABASE"` for one admin (who enrols the authenticator at first sign-in) and one user per department role (sales, design, measurement, accounts, reader); each gets a one-time temporary password and must choose their own at first sign-in. Then `backend.recovery_email --email EMAIL --confirm-target "HOST/DATABASE" --ownership-verified` for the admin's mailbox, so reset links and sign-in codes go there.
-5. **Data:** load synthetic data only, unless you approve a copy.
-6. **Deploy** tag `v1.0-rc8` to preview.
+5. **Data:** synthetic only. Real data is forbidden in preview.
+6. **Deploy** the exact tested `release/go-live` commit to preview after its CI is green and Preview secrets are isolated from Production. Record the commit and deployment URL.
 7. **Verify on the preview URL:**
    - sign-in, the emailed sign-in code, MFA, sign-out, and old cookies rejected;
    - idle sign-out after `CRM_SESSION_IDLE_MINUTES` with the "Stay signed in" warning (preview may shorten it to 5 minutes for this check), and unsaved work kept across sign-in;
@@ -141,7 +141,7 @@ Before the window:
    - Do **not** carry over development users, credentials, sessions, MFA, grants or realm bindings; apply the destination-only identity plan in PRODUCTION_SECRETS.
 4. **Reconcile:** row fingerprints and attachment hashes must equal the manifest. **Any mismatch: stop and roll back** (step R).
 5. **Identities:** provision named users. Admins sign in, enrol MFA and save their recovery codes.
-6. **Deploy and smoke:** deploy `v1.0-rc8` to production, then check health, sign-in, each module, one attachment, the counts (28 clients, 44 architects, 15 attachments today), factory mail 403 and Measurement.
+6. **Deploy and smoke:** deploy the exact tested release commit to production, then check health, sign-in, each module, one attachment, the counts (28 clients, 44 architects, 15 attachments today), factory mail 403 and Measurement.
 7. **Open:** tell users the new URL. Keep the local copy read-only for 14 days.
 
 **Rollback (R):** done before any production write by users. Nothing local has been changed, so it is reversible.
@@ -165,7 +165,7 @@ Never roll back to a build that bypasses hosted identity or MFA.
 | Restore rehearsal into a new database and bucket (`restore_postgres.py`) | monthly | evidence kept 12 months | separate project/database |
 | `CRM_MFA_ENCRYPTION_KEY`, realm UUID | when created and when rotated | permanent | password manager, separate from the dumps |
 
-Retention and the alert email are open decisions (section 10).
+Alert email is `info@mymagppie.com`. PITR remains an owner decision; do not claim it is enabled without verification.
 
 ## 9. Monitoring and alerts
 

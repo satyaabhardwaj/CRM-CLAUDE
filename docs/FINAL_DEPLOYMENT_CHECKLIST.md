@@ -10,7 +10,7 @@ Production has not moved. The live laptop database and bucket remain the source;
 | Tests | PostgreSQL 226 passed/3 skipped; separate private Storage test passed; six frontend test/build/format runs passed; visual 12 passed, a11y 14 checks, cross-browser E2E 42 passed |
 | Performance | Synthetic 20-user/5-minute repeat: zero errors, p95 81 ms, max 231 ms; Sales usable 671–964 ms, refresh main-thread 22–35 ms; other modules pending |
 | CI | 9983f26 green; subsequent changes need fresh CI |
-| Preview | Blocked on separate environment secret scopes and verified Supabase access; no preview URL confirmed |
+| Preview | Supabase preview at 0011; synthetic IDs/RLS/grants/private bucket verified. Vercel deployment blocked on separate secret scopes; no preview URL confirmed |
 | Production | Not migrated/deployed; admin/staff list, address, PITR, window and rollback owner unresolved |
 | Cutover | No final freeze/backup/import/reconciliation; laptop retirement safeguards not activated |
 

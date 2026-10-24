@@ -42,9 +42,9 @@ async function edit(api, id, mutate, expected = 200) {
   expect(result.status(), await result.text()).toBe(expected);
 }
 
-test('password sign-in, navigation, mobile layout and sign-out', async ({ page }) => {
+test('password sign-in, navigation, mobile layout and sign-out', async ({ page }, info) => {
   await page.goto('/login?next=%2Fsales%2F');
-  await page.getByLabel('Email', { exact: true }).fill('sales@qa.invalid');
+  await page.getByLabel('Email', { exact: true }).fill(`sales-${info.project.name}@qa.invalid`);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
   await expect(page).toHaveURL(/\/sales\//, { timeout: 10000 });
@@ -57,6 +57,20 @@ test('password sign-in, navigation, mobile layout and sign-out', async ({ page }
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page).toHaveURL(/\/login/);
   expect((await page.request.get('/api/store')).status()).toBe(401);
+});
+
+test('authenticator challenge completes in the browser', async ({ page }, info) => {
+  await page.goto('/login?next=%2Fmanagement%2F');
+  await page.getByLabel('Email', { exact: true }).fill(`admin-${info.project.name}@qa.invalid`);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Log in', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Verify your sign-in', exact: true })).toBeVisible();
+  expect((await page.request.get('/api/store')).status()).toBe(401);
+  const code = totp();
+  for (let i = 0; i < 6; i++) await page.getByLabel(`Digit ${i + 1} of 6`, { exact: true }).fill(code[i]);
+  await page.getByRole('button', { name: 'Verify and sign in', exact: true }).click();
+  await expect(page).toHaveURL(/\/management\//, { timeout: 10000 });
+  await expect(page.locator('summary[aria-label="User menu"]')).toBeVisible();
 });
 
 test('department edits and Accounts approval refusals', async ({ playwright, admin }) => {
@@ -73,7 +87,7 @@ test('department edits and Accounts approval refusals', async ({ playwright, adm
 });
 
 test('expired session retains an opportunity draft and returns to the same page', async ({ page }, info) => {
-  await login(page.request, 'sales');
+  await login(page.request, `sales-${info.project.name}`);
   await page.goto('/sales/#qualified');
   await page.getByRole('button', { name: 'New opportunity', exact: true }).click();
   const name = `Synthetic retained ${info.project.name}`;
@@ -92,7 +106,7 @@ test('expired session retains an opportunity draft and returns to the same page'
   await expect(page).toHaveURL(/\/login\?/, { timeout: 10000 });
   expect(new URL(page.url()).searchParams.get('next')).toBe('/sales/#qualified');
   expect(await page.evaluate(() => Object.keys(sessionStorage).some(key => key.startsWith('crm.draft.')))).toBe(true);
-  await page.getByLabel('Email', { exact: true }).fill('sales@qa.invalid');
+  await page.getByLabel('Email', { exact: true }).fill(`sales-${info.project.name}@qa.invalid`);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Log in', exact: true }).click();
   await expect(page).toHaveURL(/\/sales\/#qualified/, { timeout: 10000 });
