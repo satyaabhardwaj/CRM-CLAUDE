@@ -131,3 +131,12 @@ It was verified on 21 Oct: all 3,923 files matched byte-for-byte. To read it, de
 ## Historical 4300 standalone server
 
 The JSON server and backup commands are retired on `archive/legacy-2026-10`. Its data remains in the encrypted archive above. Use the PostgreSQL backup/restore procedure for the current CRM; never restore the retired JSON flow into an active workspace.
+
+
+## Retire the live laptop checkout after verified cutover
+
+Prepared, not activated: `.local/production-cutover.json` with a `production_url` HTTPS field makes `Start CRM.cmd` and local configuration-loading commands refuse before starting services. Do not create this marker until the production manifest and all attachment hashes match and the hosted smoke tests pass. The regression verifies that no service starts, including when the marker is malformed.
+
+At the authorized cutover, create the marker exclusively (never overwrite an existing marker), stop the old local stack without removing volumes, record the 14-day retention deadline, and disable the named nightly local backup task. Move secret files to `C:\Users\am600\Magppie-Keys` by copy, hash verification, then separately authorized source cleanup. Do not move/delete current secret files during preparation. Record Supabase daily-backup status, the owner's PITR choice and alert delivery before announcing production. Weekly exports must be encrypted and retained by the owner off this laptop. A development checkout must use new synthetic data and credentials, never the retained live database.
+
+Rollback is a controlled owner action, not removal of the retirement marker as a troubleshooting shortcut. If production has accepted writes, do not restart the stale laptop as the live service; pause and reconcile those writes first.

@@ -1,5 +1,22 @@
 import pytest
+import json
 from scripts import launch_local
+from backend.local import refuse_retired_live_checkout
+
+
+def test_retired_checkout_refuses_start_before_services(monkeypatch, tmp_path):
+    (tmp_path / '.local').mkdir()
+    marker = tmp_path / '.local' / 'production-cutover.json'
+    marker.write_text(json.dumps({'production_url': 'https://synthetic.example.test'}))
+    monkeypatch.setattr(launch_local, 'ROOT', tmp_path)
+    monkeypatch.setattr(launch_local, 'run', lambda *a, **k: pytest.fail('Must not start services'))
+    with pytest.raises(RuntimeError, match='https://synthetic.example.test'):
+        launch_local.launch()
+    marker.write_text('invalid')
+    with pytest.raises(RuntimeError, match='retired'):
+        refuse_retired_live_checkout(tmp_path)
+    marker.unlink()  # Test-owned temporary marker only.
+    refuse_retired_live_checkout(tmp_path)
 
 
 def test_refuses_wildcard_docker_binding():
