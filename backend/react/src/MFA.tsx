@@ -30,13 +30,17 @@ export function AuthLayout({ children }: { children: ReactNode }) {
             team.
           </p>
           <ol className="auth-journey" aria-label="Order journey">
-            {["Lead", "Design", "Measure", "Booking", "Handover"].map((step) => (
-              <li key={step}>{step}</li>
-            ))}
+            {["Lead", "Design", "Measure", "Booking", "Handover"].map(
+              (step) => (
+                <li key={step}>{step}</li>
+              ),
+            )}
           </ol>
         </div>
         <KitchenArt />
-        <p className="auth-brand-foot">Magppie Silverstone &middot; MAGPPIE CRM</p>
+        <p className="auth-brand-foot">
+          Magppie Silverstone &middot; MAGPPIE CRM
+        </p>
       </aside>
       <div className="auth-content">
         <main className="auth-card">
