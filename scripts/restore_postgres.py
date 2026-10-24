@@ -215,8 +215,8 @@ def restore_business_only(args):
             if db.execute(text('SELECT version_num FROM alembic_version')).scalars().all() != [head]:
                 raise ValueError('Destination schema is not at migration head.')
             for table in metadata.sorted_tables:
-                rls = db.scalar(text('SELECT relrowsecurity FROM pg_class WHERE oid=to_regclass(:name)'), {'name': 'public.' + table.name})
-                leaked = db.scalar(text("SELECT count(*) FROM pg_class c CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl,acldefault('r',c.relowner))) a LEFT JOIN pg_roles r ON r.oid=a.grantee WHERE c.oid=to_regclass(:name) AND (a.grantee=0 OR r.rolname IN ('anon','authenticated'))"), {'name': 'public.' + table.name})
+                rls = db.scalar(text('SELECT relrowsecurity FROM pg_class WHERE oid=to_regclass(:name)'), {'name': table.name})
+                leaked = db.scalar(text("SELECT count(*) FROM pg_class c CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl,acldefault('r',c.relowner))) a LEFT JOIN pg_roles r ON r.oid=a.grantee WHERE c.oid=to_regclass(:name) AND (a.grantee=0 OR r.rolname IN ('anon','authenticated'))"), {'name': table.name})
                 if not rls or leaked: raise ValueError('Destination database security check failed.')
             import_business(db, rows, expected)
             # DB transaction commits only after every upload has been read back and hashed.

@@ -8,14 +8,15 @@ import json
 from types import SimpleNamespace
 import pytest
 from sqlalchemy import select, text
-from backend.models import clients, users
+from backend.models import clients, users, metadata
 from backend.tests.test_business_backup import empty_destination
 from scripts.business_backup import fingerprints
 from scripts import restore_postgres
 
 
+@pytest.mark.parametrize('protected', [False, True])
 @pytest.mark.parametrize('corrupt', [False, True])
-def test_business_import_commits_only_after_hash_reconciliation(empty_destination, tmp_path, monkeypatch, corrupt):
+def test_business_import_commits_only_after_hash_reconciliation(empty_destination, tmp_path, monkeypatch, corrupt, protected):
     engine = empty_destination
     if engine.dialect.name != 'postgresql': pytest.skip('PostgreSQL transaction orchestration')
     with engine.begin() as db:
@@ -24,6 +25,10 @@ def test_business_import_commits_only_after_hash_reconciliation(empty_destinatio
         from alembic.script import ScriptDirectory
         head = ScriptDirectory.from_config(Config('alembic.ini')).get_current_head()
         db.execute(text('INSERT INTO alembic_version VALUES (:head)'), {'head': head})
+    if protected:
+        with engine.begin() as db:
+            for table in metadata.sorted_tables:
+                db.execute(text('ALTER TABLE "' + table.name + '" ENABLE ROW LEVEL SECURITY'))
     rows = {'crm_state': [{'id': 1, 'rev': 7, 'payload': {}}],
             'crm_clients': [{'id': 'qa-restore', 'position': 0, 'version': 2, 'payload': {'id': 'qa-restore'}}]}
     business = json.dumps(rows).encode()
@@ -60,11 +65,11 @@ def test_business_import_commits_only_after_hash_reconciliation(empty_destinatio
     monkeypatch.setenv('RESTORE_SUPABASE_SERVICE_ROLE_KEY', 'synthetic-only')
     args = SimpleNamespace(create_database=None, bucket='crm-qa-restore', backup=tmp_path,
         confirm_target='synthetic.invalid/crm_crud_test_restore', confirm_storage_origin='https://synthetic.supabase.co')
-    if corrupt:
+    if corrupt or not protected:
         with pytest.raises(SystemExit, match='rolled back'): restore_postgres.restore_business_only(args)
     else:
         restore_postgres.restore_business_only(args)
     with engine.connect() as db:
-        assert len(db.execute(select(clients)).all()) == (0 if corrupt else 1)
+        assert len(db.execute(select(clients)).all()) == (0 if corrupt or not protected else 1)
         assert db.execute(select(users)).first() is None
-    assert objects == {('qa-restore', 'file.txt'): content}
+    assert objects == ({('qa-restore', 'file.txt'): content} if protected else {})
